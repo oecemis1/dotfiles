@@ -18,6 +18,8 @@ function gnome(){
 	sudo apt install gnome-tweaks
 	sudo apt install chrome-gnome-shell
 	cat gterminal.preferences | dconf load /org/gnome/terminal/
+ 	gsettings set org.gnome.desktop.interface icon-theme 'Yaru-magenta'
+  	gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-magenta-dark'
 }
 
 function cleanup(){
@@ -25,6 +27,8 @@ function cleanup(){
 	sudo apt remove gnome-text-editor
 	sudo apt remove gnome-system-monitor
 	sudo snap remove firefox
+ 	gnome-extensions disable ding@rastersoft.com
+  	gnome-extensions disable ubuntu-appindicators@ubuntu.com
 }
 
 function fonts(){
@@ -38,15 +42,19 @@ function fonts(){
 	mkdir "$HOME/Downloads/Noto"
 	wget -O "$HOME/Downloads/JetBrainsMono-.zip" https://download.jetbrains.com/fonts/JetBrainsMono-2.304.zip
 	mkdir "$HOME/Downloads/JetBrainsMono"
+ 	git clone https://github.com/sahibjotsaggu/San-Francisco-Pro-Fonts.git "$HOME/Downloads/SF-Pro"
 	unzip "$HOME/Downloads/JetBrainsMono-*" -d "$HOME/Downloads/JetBrainsMono"
 	unzip "$HOME/Downloads/Noto*" -d "$HOME/Downloads/Noto"
 	mv "$HOME/Downloads/Noto" "$HOME/.local/share/fonts/"
 	mv "$HOME/Downloads/JetBrainsMono" "$HOME/.local/share/fonts/"
+ 	mv "$HOME/Downloads/SF-Pro" "$HOME/.local/share/fonts"
 	rm "$HOME/Downloads/Noto.zip"
 	rm "$HOME/Downloads/JetBrainsMono-.zip"
+ 	gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono 12'
+  	gsettings set org.gnome.desktop.interface font-name 'SF Pro Display Medium 12'
 }
 
-# core
-# fonts
+core
+fonts
 gnome
-# cleanup
+cleanup
