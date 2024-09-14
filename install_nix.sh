@@ -10,6 +10,11 @@ if ! grep -q "eval \"\$(fzf --bash)\"" "$HOME/.bashrc"; then
     echo 'eval "$(fzf --bash)"' >> "$HOME/.bashrc"
 fi
 
+nix-env -iA nixpkgs.direnv
+if ! grep -q "eval \"\$(direnv hook bash)\"" "$HOME/.bashrc"; then
+    echo 'eval "$(direnv hook bash)"' >> "$HOME/.bashrc"
+fi 
+
 nix-env -iA nixpkgs.btop
 
 # helix language servers
