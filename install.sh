@@ -10,7 +10,9 @@ function core(){
 	sudo apt install xsel
 	sudo apt install wget
 	curl -sS https://starship.rs/install.sh | sh
-	echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
+ 	if ! grep -q "eval \"\$(starship init bash)\"" "$HOME/.bashrc"; then
+		echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
+	fi
 	curl -L https://nixos.org/nix/install | sh -s -- --daemon
 }
 
