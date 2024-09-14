@@ -14,6 +14,7 @@ function core(){
 		echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
 	fi
 	curl -L https://nixos.org/nix/install | sh -s -- --daemon
+ 	mv helix.desktop "$HOME/.local/share/applications"
 }
 
 function gnome(){
