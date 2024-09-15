@@ -3,7 +3,19 @@
 nix-env -iA nixpkgs.neovim
 nix-env -iA nixpkgs.vim
 nix-env -iA nixpkgs.helix
+if ! grep -q "EDITOR=hx" "$HOME/.bashrc"; then
+    echo 'EDITOR=hx' >> "$HOME/.bashrc"
+fi
+
 nix-env -iA nixpkgs.yazi
+if ! grep -q "alias yazi=\"\$HOME/.local/bin/yazi_cd\"" "$HOME/.bashrc"; then
+    echo 'alias yazi="$HOME/.local/bin/yazi_cd"' >> "$HOME/.bashrc"
+    echo 'alias ya=yazi' >> "$HOME/.bashrc"
+fi
+if [ ! -d "$HOME/.local/bin" ]; then
+    mkdir -p "$HOME/.local/bin"
+    cp yazi_cd "$HOME/.local/bin"
+fi
 
 nix-env -iA nixpkgs.fzf
 if ! grep -q "eval \"\$(fzf --bash)\"" "$HOME/.bashrc"; then
