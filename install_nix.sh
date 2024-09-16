@@ -4,7 +4,8 @@ nix-env -iA nixpkgs.neovim
 nix-env -iA nixpkgs.vim
 nix-env -iA nixpkgs.helix
 if ! grep -q "EDITOR=hx" "$HOME/.bashrc"; then
-    echo 'EDITOR=hx' >> "$HOME/.bashrc"
+    echo 'export EDITOR=hx' >> "$HOME/.bashrc"
+    echo 'export XDG_DATA_DIRS="$HOME/.nix-profile/share:$XDG_DATA_DIRS"' >> "$HOME/.bashrc"
 fi
 
 nix-env -iA nixpkgs.yazi
