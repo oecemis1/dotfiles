@@ -15,6 +15,9 @@ function core(){
 	fi
 	curl -L https://nixos.org/nix/install | sh -s -- --daemon
  	cp helix.desktop "$HOME/.local/share/applications"
+	if ! grep -q "experimental-features = nix-command flakes" /etc/nix/nix.conf; then
+		echo "experimental-features = nix-command flakes" | sudo tee -a /etc/nix/nix.conf
+	fi
 }
 
 function gnome(){
