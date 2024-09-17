@@ -7,7 +7,7 @@
 # : Manager {{{
 
 [manager]
-cwd = { fg = "white", bold = true }
+cwd = { fg = "magenta", bold = true }
 
 # Hovered
 hovered = { reversed = true }
@@ -29,7 +29,7 @@ tab_width    = 1
 
 # Border
 border_symbol = "│"
-border_style  = { fg = "red" }
+border_style  = { fg = "gray" }
 
 # Highlighting
 syntect_theme = ""
@@ -169,7 +169,7 @@ rules = [
     { name = "*",  fg = "cyan",   bold = true, is = "link" },
     { name = "*",  fg = "green",  bold = true, is = "exec" },
     { name = "*/", fg = "cyan",   bold = true, is = "link" },
-    { name = "*/", fg = "white",   bold = true }
+    { name = "*/", fg = "#f10e61",   bold = true }
 ]
 
 [icon]
