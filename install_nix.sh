@@ -20,6 +20,7 @@ if [ ! -f "$HOME/.local/bin/yazi_cd" ]; then
     cp yazi_cd "$HOME/.local/bin"
     sudo chmod +x "$HOME/.local/bin/yazi_cd"
 fi
+git clone https://github.com/BennyOe/tokyo-night.yazi.git ./.config/yazi/flavors/tokyo-night.yazi
 
 nix-env -iA nixpkgs.fzf
 if ! grep -q "eval \"\$(fzf --bash)\"" "$HOME/.bashrc"; then
