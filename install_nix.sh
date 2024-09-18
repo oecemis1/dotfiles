@@ -15,7 +15,10 @@ if ! grep -q "alias yazi=\"\$HOME/.local/bin/yazi_cd\"" "$HOME/.bashrc"; then
 fi
 if [ ! -d "$HOME/.local/bin" ]; then
     mkdir -p "$HOME/.local/bin"
+fi
+if [ ! -f "$HOME/.local/bin/yazi_cd" ]; then
     cp yazi_cd "$HOME/.local/bin"
+    sudo chmod +x "$HOME/.local/bin/yazi_cd"
 fi
 
 nix-env -iA nixpkgs.fzf
