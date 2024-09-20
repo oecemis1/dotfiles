@@ -32,6 +32,7 @@ function gnome(){
 function cleanup(){
 	sudo apt remove yelp
 	sudo apt remove gnome-text-editor
+	sudo apt remove gedit
 	sudo apt remove gnome-system-monitor
 	sudo snap remove firefox
  	gnome-extensions disable ding@rastersoft.com
