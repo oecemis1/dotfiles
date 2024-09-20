@@ -3,6 +3,7 @@
 VIVADO_VERSION="2024.1"
 echo " " >> "$HOME/.bashrc"
 echo "export VIVADO_VERSION=\"$VIVADO_VERSION\"" >> "$HOME/.bashrc"
+echo "export VIVADO_HOME=\"/tools/Xilinx/Vivado/\$VIVADO_VERSION/\"" >> "$HOME/.bashrc"
 echo "export PATH=\$PATH:\"/tools/Xilinx/xic/\"" >> "$HOME/.bashrc"
 echo "export PATH=\$PATH:\"/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin\"" >> "$HOME/.bashrc"
 echo "alias vivado='vivado -nolog -nojournal'" >> "$HOME/.bashrc"
