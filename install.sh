@@ -62,7 +62,15 @@ function fonts(){
   	gsettings set org.gnome.desktop.interface font-name 'SF Pro Display Medium 12'
 }
 
+function miniconda(){
+	if [ ! -f "$HOME/.direnvrc" ]; then
+		echo "Moving .direnvrc file to $HOME"
+		cp .direnvrc "$HOME/.direnvrc"
+	fi
+}
+
 core
 fonts
 gnome
 cleanup
+miniconda
