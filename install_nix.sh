@@ -9,6 +9,7 @@ if ! grep -q "EDITOR=hx" "$HOME/.bashrc"; then
 fi
 
 nix-env -iA nixpkgs.yazi
+nix-env -iA nixpkgs.ueberzugpp
 if ! grep -q "alias yazi=\"\$HOME/.local/bin/yazi_cd\"" "$HOME/.bashrc"; then
     echo 'alias yazi="$HOME/.local/bin/yazi_cd"' >> "$HOME/.bashrc"
     echo 'alias ya=yazi' >> "$HOME/.bashrc"
