@@ -57,7 +57,7 @@
       immutableConfigFiles = builtins.listToAttrs (
         map (file: {
           name = file;
-          value = builtins.trace "Immutable ${file}" (makeImmutable ".config" file);
+          value = makeImmutable ".config" file;
         }) immutable_configs
       );
 
@@ -90,10 +90,10 @@
     };
     
   home.file = {
-    # ".local/bin" = {
-    #   source = "${inputs.self}/.local/bin";
-    #   recursive = true;
-    #   executable = true;
-    # };
+    ".local/bin" = {
+      source = "${inputs.self}/.local/bin";
+      recursive = true;
+      executable = true;
+    };
   };
 }

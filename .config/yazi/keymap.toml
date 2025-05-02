@@ -5,7 +5,7 @@
 # https://yazi-rs.github.io/docs/tips#smart-enter
 [[manager.prepend_keymap]]
 on   = [ "l" ]
-run  = "plugin --sync smart-enter"
+run  = "plugin smart-enter"
 desc = "Enter the child directory, or open the file"
 
 [[manager.prepend_keymap]]
@@ -27,7 +27,7 @@ keymap = [
 	{ on = [ "<C-d>" ], run = "arrow 50%",   desc = "Move cursor down half page" },
 	{ on = [ "<Esc>" ], run = "escape",      desc = "Exit visual mode, clear selected, or cancel search" },
 
-	{ on = [ "x" ], run = [ "select --state=none", "arrow 1" ], desc = "Toggle the current selection state" },
+	{ on = [ "x" ], run = [ "toggle --state=none", "arrow 1" ], desc = "Toggle the current selection state" },
 	{ on = [ "r" ], run = "rename --cursor=before_ext", desc = "Rename a file or directory" },
 
   # Delete
@@ -42,17 +42,19 @@ keymap = [
 	{ on = [ "<Space>", "y" ], run = "copy path",  desc = "Copy the absolute path" },
 	# { on = [ "<Space>", "x" ], run = "extract",    desc = "Extract archive" },
 	{ on = [ "<Space>", "c" ], run = ["shell --block --confirm 'yazi_zip $@'","escape"], desc = "Zip selected" },
-	{ on = [ "<Space>", "d" ], run = ['''shell 'ripdrag "$@" -x 2>/dev/null &' --confirm''',"escape"],desc = "Show files in drag and drop menu" },
+	# ripdrag fails when nvidia gpu is enabled. Use dragon as alternative
+	# { on = [ "<Space>", "d" ], run = ['''shell 'ripdrag "$@" -x 2>/dev/null &' --confirm''',"escape"],desc = "Show files in drag and drop menu" },
+	{ on = [ "<Space>", "d" ], run = ['''shell 'xdragon "$@" --all -x 2>/dev/null &' --confirm''',"escape"],desc = "Show files in drag and drop menu" },
 	# Goto
-	{ on = [ "g", "g" ], run = "arrow -99999999", desc = "Move cursor to the top" },
-	{ on = [ "g", "e" ], run = "arrow  99999999", desc = "Move cursor to the end" },
-	{ on = [ "g", "h" ],       run = "cd ~",             desc = "Go to the Home directory" },
-	{ on = [ "g", "c" ],       run = "cd ~/.config",     desc = "Go to the Config directory" },
-	{ on = [ "g", "D" ],       run = "cd ~/Downloads",   desc = "Go to the Downloads directory" },
+	{ on = [ "g", "g" ], run = "arrow top", desc = "Move cursor to the top" },
+	{ on = [ "g", "e" ], run = "arrow bot", desc = "Move cursor to the end" },
+	{ on = [ "g", "h" ],       run = "cd ~",             desc = "Go to the home directory" },
+	{ on = [ "g", "c" ],       run = "cd ~/.config",     desc = "Go to the config directory" },
 	{ on = [ "g", "d" ],       run = "cd ~/Documents",   desc = "Go to the Documents directory" },
+	{ on = [ "g", "D" ],       run = "cd ~/Downloads",   desc = "Go to the downloads directory" },
 	{ on = [ "g", "t" ],       run = "cd /tmp",          desc = "Go to the temporary directory" },
 	{ on = [ "g", "<Space>" ], run = "cd --interactive", desc = "Go to a directory interactively" },
-
+	{ on = [ "g", "l" ], run = '''shell --orphan -- ya emit reveal "$(readlink -f "$0")" ''', desc = "Follow hovered symlink" },
 	# Find
 	# implemented via plugin
 	# { on = [ "f" ], run = "find",            desc = "Find next file" },
@@ -64,8 +66,17 @@ keymap = [
 	{ on = [ "/" ], run = "filter --smart", desc = "Filter the files" },
 
 	# Bookmarks
-	{ on = [ "b", "d" ],       run = "cd ~/Desktop/dotfiles", desc = "cd dotfiles" },
-	{ on = [ "b", "p" ],       run = "cd /mnt/second/rep/personal_repo", desc = "cd personal_repo" },
+	{ on = [ "b", "t" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 1  | tail -n 1)" ', desc = "cd bookmark 0"    },
+	{ on = [ "b", "x" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 2  | tail -n 1)" ', desc = "cd bookmark 1"    },
+	{ on = [ "b", "c" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 3  | tail -n 1)" ', desc = "cd bookmark 2"    },
+	{ on = [ "b", "v" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 4  | tail -n 1)" ', desc = "cd bookmark 3"    },
+	{ on = [ "b", "s" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 5  | tail -n 1)" ', desc = "cd bookmark 4"    },
+	{ on = [ "b", "d" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 6  | tail -n 1)" ', desc = "cd bookmark 5"    },
+	{ on = [ "b", "f" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 7  | tail -n 1)" ', desc = "cd bookmark 6"    },
+	{ on = [ "b", "w" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 8  | tail -n 1)" ', desc = "cd bookmark 7"    },
+	{ on = [ "b", "e" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 9  | tail -n 1)" ', desc = "cd bookmark 8"    },
+	{ on = [ "b", "r" ], run = 'shell --orphan -- ya emit cd "$(cat ~/.cache/yazi_bookmark/bookmarks.yaml | head -n 10 | tail -n 1)" ', desc = "cd bookmark 9"    },
+
 	# XXXXXXXXXXXXXXXXXXXXXX
 	# Default bindings below
 	# XXXXXXXXXXXXXXXXXXXXXX
@@ -88,8 +99,8 @@ keymap = [
 	{ on = [ "<PageDown>" ],   run = "arrow 100%",  desc = "Move cursor down one page" },
 
 
-	{ on = [ "H" ], run = "back",    desc = "Go back to the previous directory" },
-	{ on = [ "L" ], run = "forward", desc = "Go forward to the next directory" },
+	{ on = [ "<C-o>" ], run = "back",    desc = "Go back to the previous directory" },
+	{ on = [ "<C-i>" ], run = "forward", desc = "Go forward to the next directory" },
 
 	{ on = [ "<A-k>" ], run = "seek -5", desc = "Seek up 5 units in the preview" },
 	{ on = [ "<A-j>" ], run = "seek 5",  desc = "Seek down 5 units in the preview" },
@@ -105,8 +116,8 @@ keymap = [
 	# Selection
 	{ on = [ "v" ],       run = "visual_mode",                        desc = "Enter visual mode (selection mode)" },
 	{ on = [ "V" ],       run = "visual_mode --unset",                desc = "Enter visual mode (unset mode)" },
-	{ on = [ "<C-a>" ],   run = "select_all --state=true",            desc = "Select all files" },
-	{ on = [ "<C-r>" ],   run = "select_all --state=none",            desc = "Inverse selection of all files" },
+	{ on = [ "%" ],       run = "toggle_all --state=true",            desc = "Select all files" },
+	# { on = [ "%" ],       run = "toggle_all --state=none",            desc = "Inverse selection of all files" },
 
 
 	# Operation

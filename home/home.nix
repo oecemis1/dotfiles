@@ -24,6 +24,7 @@ in {
     })
     ./modules/shell.nix
     ./modules/gnome.nix
+    ./modules/env.nix
   ];
   
   home.packages = with pkgs; [
@@ -41,6 +42,9 @@ in {
     btop
     yazi
     ueberzugpp
+    wl-clipboard
+    wl-clip-persist
+    xdragon
     
     # Helix language servers
     nodePackages.bash-language-server
