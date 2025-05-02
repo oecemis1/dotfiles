@@ -18,7 +18,7 @@
         };
       })
       (lib.filterAttrs
-        (name: type: name != "README.md" && name != "fonts")
+        (name: type: name != "README.md") # Only excluding README.md
         (builtins.readDir ../../config));
   };
   
