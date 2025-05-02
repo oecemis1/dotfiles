@@ -1,12 +1,6 @@
-{
-  config,
-  pkgs,
-  lib,
-  ...
-}: {
+_: rec {
   # Bash environment variables and functions
-  programs.bash.initExtra = ''
-    export EDITOR=hx
-     
-  '';
+  home.sessionVariables = {
+    EDITOR = "hx";
+  };    
 }

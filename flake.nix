@@ -1,43 +1,40 @@
 {
-  description = "NixOS and Home Manager configuration of orhun";
+  description = "o config e";
 
   inputs = {
-    # Specify unstable nixpkgs
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    
-    # Specify home-manager
     home-manager = {
       url = "github:nix-community/home-manager";
-      # This makes home-manager use the same nixpkgs as we specified above
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, ... }@inputs:
+  outputs = { nixpkgs, ... }@inputs:
     let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      mkSystem =
+        {
+          baseConfigPath,
+          hardwareConfigPath,
+          system ? throw "You must specify system (e.g. x86_64-linux)",
+          argOverrides ? { },
+        }:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = {
+            inherit inputs system;
+          } // argOverrides;
+          modules = [
+            baseConfigPath
+            hardwareConfigPath
+            inputs.home-manager.nixosModules.home-manager
+          ];
+        };
     in {
-      # NixOS system configuration
-      nixosConfigurations."odyssey" = nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = { inherit inputs; };
-        modules = [
-          ./nixos/configuration.nix
-        ];
-      };
-      
-      # Standalone Home Manager configuration
-      homeConfigurations."orhun" = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-        
-        # Specify home-manager configuration
-        modules = [ ./home/home.nix ];
-        
-        # Explicitly pass unstable attribute to your config
-        extraSpecialArgs = {
-          unstable = pkgs;
-          inherit inputs;
+      nixosConfigurations = {
+        odyssey = mkSystem {
+          baseConfigPath = ./nixos/odyssey/configuration.nix;
+          hardwareConfigPath = ./nixos/odyssey/hardware-configuration.nix;
+          system = "x86_64-linux";
         };
       };
     };

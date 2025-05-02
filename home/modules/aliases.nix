@@ -1,11 +1,6 @@
-{
-  config,
-  pkgs,
-  lib,
-  ...
-}: {
+_: {
   # Bash aliases configuration
-  programs.bash.shellAliases = {
+  home.shellAliases = {
     # Yazi alias
     ya = "yazi_cd";
     

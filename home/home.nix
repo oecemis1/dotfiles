@@ -50,5 +50,5 @@
   fonts.fontconfig.enable = true; 
 
   # Version that this configuration is compatible with
-  home.stateVersion = "24.11";
+  home.stateVersion = "25.05";
 }

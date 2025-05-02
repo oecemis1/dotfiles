@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  inputs,
   ...
 }: {
   # Configure XDG directories to manage mutable configs
@@ -13,19 +14,12 @@
       (name: type: {
         name = name;
         value = {
-          source = ../../config/${name};
+          source = "${inputs.self}/config/${name}";
           recursive = true;
         };
       })
       (lib.filterAttrs
-        (name: type: name != "README.md") # Only excluding README.md
-        (builtins.readDir ../../config));
-  };
-  
-  # Create and manage necessary directories
-  home.activation = {
-    ensureConfigDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      mkdir -p $HOME/.config
-    '';
+         (name: type: name != "README.md" && name != ".gitkeep")
+         (builtins.readDir "${inputs.self}/config/"));
   };
 }
