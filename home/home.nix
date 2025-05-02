@@ -2,11 +2,15 @@
   config,
   pkgs,
   lib,
+  inputs,
   ...
-}: {
+}:
+let
+  username = "orhun";
+in {
   # Home Manager needs to know which is the home directory and username
-  home.username = "orhun";
-  home.homeDirectory = "/home/orhun";
+  home.username = "${username}";
+  home.homeDirectory = "/home/${username}";
   
   # Let Home Manager manage itself
   programs.home-manager.enable = true;
@@ -14,7 +18,10 @@
   
   # Import modules
   imports = [
-    ./xdg.nix
+    (import ./xdg.nix {
+      inherit pkgs inputs config;
+      dotfilesDir = "/home/${username}/Documents/dotfiles";
+    })
     ./modules/shell.nix
     ./modules/gnome.nix
   ];

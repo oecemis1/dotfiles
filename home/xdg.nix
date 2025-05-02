@@ -1,25 +1,99 @@
 {
-  config,
   pkgs,
-  lib,
   inputs,
+  dotfilesDir ? throw "Set this to your dotfiles dir",
   ...
-}: {
-  # Configure XDG directories to manage mutable configs
-  xdg = {
-    enable = true;
+}:
+{
+  xdg =
+    let
+      mutable_configs = [
+      ];
+
+      immutable_configs = [
+        "fonts"
+        "helix"
+        "kitty"
+        "yazi"
+        "mimeapps.list"
+        "GNOME-xdg-terminals.list"
+        "xdg-terminals.list"
+      ];
+
+      immutable_data = [
+        # "applications"
+      ];
+
+      mutable_data = [
+      ];
+
+      mutable_state = [
+        # "bash"
+        # "gdb"
+      ];
+
+      makeMutable = path: file: {
+        target = file;
+        source = pkgs.runCommand "${file}-dotfiles" { } ''
+          ln -s "${dotfilesDir}/${path}/${file}" $out
+        '';
+        recursive = true;
+      };
+
+      makeImmutable = path: file: {
+        target = file;
+        source = "${inputs.self}/${path}/${file}";
+        recursive = true;
+      };
+
+      # Generate the attribute sets for each type of file
+      mutableConfigFiles = builtins.listToAttrs (
+        map (file: {
+          name = file;
+          value = makeMutable ".config" file;
+        }) mutable_configs
+      );
+
+      immutableConfigFiles = builtins.listToAttrs (
+        map (file: {
+          name = file;
+          value = builtins.trace "Immutable ${file}" (makeImmutable ".config" file);
+        }) immutable_configs
+      );
+
+      mutableDataFiles = builtins.listToAttrs (
+        map (file: {
+          name = file;
+          value = makeMutable ".local/share" file;
+        }) mutable_data
+      );
+
+      mutableStateFiles = builtins.listToAttrs (
+        map (file: {
+          name = file;
+          value = makeMutable ".local/state" file;
+        }) mutable_state
+      );
+
+      immutableDataFiles = builtins.listToAttrs (
+        map (file: {
+          name = file;
+          value = makeImmutable ".local/share" file;
+        }) immutable_data
+      );
+    in
+    {
+      # Combine all file configurations
+      configFile = mutableConfigFiles // immutableConfigFiles;
+      dataFile = mutableDataFiles // immutableDataFiles;
+      stateFile = mutableStateFiles;
+    };
     
-    # Map files from the config directory to ~/.config
-    configFile = lib.mapAttrs'
-      (name: type: {
-        name = name;
-        value = {
-          source = "${inputs.self}/config/${name}";
-          recursive = true;
-        };
-      })
-      (lib.filterAttrs
-         (name: type: name != "README.md" && name != ".gitkeep")
-         (builtins.readDir "${inputs.self}/config/"));
+  home.file = {
+    # ".local/bin" = {
+    #   source = "${inputs.self}/.local/bin";
+    #   recursive = true;
+    #   executable = true;
+    # };
   };
 }
