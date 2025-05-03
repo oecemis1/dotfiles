@@ -147,6 +147,10 @@ in
       };
     };
   };
+
+  nixpkgs.overlays = [
+    (import ../overlays)
+  ];
   
   system.stateVersion = "25.05";
 }
