@@ -25,7 +25,7 @@ in
   # Additional GNOME related packages
   environment.systemPackages = with pkgs; [
     gnome-tweaks
-    gnome-console
+    gnome-terminal
     nautilus
     yaru-theme
     gnome-keyring

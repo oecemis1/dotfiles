@@ -7,6 +7,19 @@
 }: {
   # GNOME desktop settings via dconf
   dconf.settings = {
+    "org/gnome/desktop/wm/preferences" = {
+      button-layout = "appmenu:minimize,maximize,close";
+    };
+
+    "org/gnome/desktop/input-sources" = {
+      show-all-sources = lib.mkDefault true;
+      sources = [
+        (lib.hm.gvariant.mkTuple ["xkb" "us"])
+        (lib.hm.gvariant.mkTuple ["xkb" "tr"])
+      ];
+      xkb-options = ["grp:win_space_toggle"];
+    };
+
     # Window management shortcuts
     "org/gnome/desktop/wm/keybindings" = {
       "close" = ["<Alt>F4"];
@@ -39,7 +52,8 @@
       "apply-custom-theme" = false;
       "custom-theme-shrink" = true;
       "transparency-mode" = "DYNAMIC";
-      "background-opacity" = 0.8;
+      "background-opacity" = 0.9;
+      "dash-max-icon-size" = 44;
       "unity-backlit-items" = true;
       "click-action" = "minimize-or-previews";
       "intellihide-mode" = "ALL_WINDOWS";
@@ -62,10 +76,16 @@
     "org/gnome/desktop/applications/terminal" = {
       "exec" = "kitty";
     };
-    
-    # Configure Nautilus to use kitty for the "Open in Terminal" action
-    "org/gnome/nautilus/preferences" = {
-      "terminal-executable" = "kitty";
+
+    "org/gnome/terminal/legacy/profiles:" = {
+      default = "b1dcc9dd-5262-4d8d-a863-c897e6d979b9";
+      list = ["b1dcc9dd-5262-4d8d-a863-c897e6d979b9"];
     };
+  
+   "org/gnome/terminal/legacy/profiles:/b1dcc9dd-5262-4d8d-a863-c897e6d979b9" = {
+      visible-name = "Default";
+      font = "JetBrains Mono 11";
+      use-system-font = false;
+    }; 
   };
 }

@@ -45,6 +45,7 @@ in {
     wl-clipboard
     wl-clip-persist
     xdragon
+    ripgrep
     
     # Helix language servers
     nodePackages.bash-language-server
