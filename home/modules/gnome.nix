@@ -4,11 +4,24 @@
   lib,
   inputs,
   ...
-}: {
+}:
+let
+  wallpaper = pkgs.stdenv.mkDerivation {
+    name = "wallpaper";
+    src = ../../assets/wallpaper.jpg;
+    dontUnpack = true;
+    installPhase = ''
+      mkdir -p $out
+      cp $src $out/wallpaper.jpg;
+    '';
+  };
+in {
   # GNOME desktop settings via dconf
   dconf.settings = {
     "org/gnome/desktop/wm/preferences" = {
       button-layout = "appmenu:minimize,maximize,close";
+      theme = "Yaru";
+      num-workspaces = 2;
     };
 
     "org/gnome/desktop/input-sources" = {
@@ -65,13 +78,21 @@
     
     # GNOME appearance settings
     "org/gnome/desktop/interface" = {
+      "accent-color" = "purple";
       "icon-theme" = "Yaru";
       "gtk-theme" = "Yaru-magenta-dark";
       "color-scheme" = "prefer-dark";
       "monospace-font-name" = "JetBrains Mono 11";
       "font-name" = "SF Pro Display Regular 11";
+      enable-hot-corners = false;
     };
-    
+
+    "org/gnome/desktop/background" = {
+      picture-uri = "file://${wallpaper}/wallpaper.jpg";
+      picture-uri-dark = "file://${wallpaper}/wallpaper.jpg";
+      picture-options = "zoom";
+    };    
+
     # Set default terminal to kitty
     "org/gnome/desktop/applications/terminal" = {
       "exec" = "kitty";
