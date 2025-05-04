@@ -56,6 +56,7 @@ in
     ../common/services/gdm-gnome.nix
 
     ./hardware-configuration.nix
+    # ./battery.nix
   ] ++ finalArgs.extraImports;
   
   networking = {

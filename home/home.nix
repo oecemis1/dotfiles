@@ -46,6 +46,8 @@ in {
     wl-clip-persist
     xdragon
     ripgrep
+
+    cmake
     
     # Helix language servers
     nodePackages.bash-language-server
