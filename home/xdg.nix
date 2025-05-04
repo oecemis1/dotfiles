@@ -11,9 +11,11 @@
       ];
 
       immutable_configs = [
+        "btop"
         "fonts"
         "helix"
         "kitty"
+        "tmux"
         "yazi"
         "mimeapps.list"
         "GNOME-xdg-terminals.list"
