@@ -32,12 +32,12 @@ in {
     google-chrome
     
     # Development tools
+    tmux
     helix
     neovim
     direnv
     
     # Terminal tools
-    tmux
     kitty
     btop
     yazi
@@ -48,6 +48,9 @@ in {
     ripgrep
 
     cmake
+
+    glxinfo
+    pciutils
     
     # Helix language servers
     nodePackages.bash-language-server
@@ -58,6 +61,7 @@ in {
     verilator
     clang-tools
     lldb
+    gnomeExtensions.dash-to-dock
   ];
   
   # Font configuration

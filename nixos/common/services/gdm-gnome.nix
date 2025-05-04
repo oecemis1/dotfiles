@@ -30,7 +30,6 @@ in
     yaru-theme
     gnome-keyring
     libsecret
-    gnomeExtensions.dash-to-dock
     dconf-editor
   ];
 }
