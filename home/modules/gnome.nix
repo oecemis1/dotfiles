@@ -15,7 +15,17 @@ let
       cp $src $out/wallpaper.jpg;
     '';
   };
+
+  # Enabled extensions
+  extensions = with pkgs.gnomeExtensions; [
+    # hide-top-bar
+    dash-to-dock
+  ];
+  extension_UUID = map (extension: extension.extensionUuid) extensions;
+
 in {
+  home.packages = extensions;
+
   # GNOME desktop settings via dconf
   dconf.settings = {
     "org/gnome/desktop/wm/preferences" = {
@@ -50,8 +60,39 @@ in {
       "switch-to-workspace-4" = ["<Super>4"];
       "switch-windows" = ["<Alt>Tab"];
       "switch-applications" = [""];
-      "terminal" = ["<Primary><Alt>t"];
     };
+
+    # Fixed custom keybindings section
+    "org/gnome/settings-daemon/plugins/media-keys" = {
+      custom-keybindings = [
+        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
+      ];
+    };
+
+    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
+      name = "Terminal";
+      command = "kitty";
+      binding = "<Primary><Alt>t";
+    };
+
+    "org/gnome/shell" = {
+      disable-user-extensions = false;
+      enabled-extensions = extension_UUID;
+      disable-overview-on-startup = true;
+    };
+
+    # GNOME Panel Visibility (via Hide Topbar)
+    # "org/gnome/shell/extensions/hidetopbar" = {
+    #   mouse-sensitive = false;
+    #   shortcut-toggles = true;
+    #   shortcut-keybind = ["<Super>k"];
+    #   shortcut-delay = 0;
+    #   animation-time-autohide = 0.1;
+    #   animation-time-overview = 0.1;
+    #   enable-intellihide = false;
+    #   enable-active-window = false;
+    #   pressure-threshold = 0;
+    # };
     
     # Dash to dock settings
     "org/gnome/shell/extensions/dash-to-dock" = {
@@ -64,6 +105,7 @@ in {
       "show-apps-at-top" = true;
       "apply-custom-theme" = false;
       "custom-theme-shrink" = true;
+      "disable-overview-on-startup" = true;
       "transparency-mode" = "DYNAMIC";
       "background-opacity" = 0.9;
       "dash-max-icon-size" = 44;
@@ -103,7 +145,7 @@ in {
       list = [":b1dcc9dd-5262-4d8d-a863-c897e6d979b9"];
     };
   
-   "org/gnome/terminal/legacy/profiles:/:b1dcc9dd-5262-4d8d-a863-c897e6d979b9" = {
+    "org/gnome/terminal/legacy/profiles:/:b1dcc9dd-5262-4d8d-a863-c897e6d979b9" = {
       visible-name = "Default";
       background-color="rgb(26,25,25)";
       background-transparency-percent=6;

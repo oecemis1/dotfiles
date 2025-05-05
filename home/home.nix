@@ -61,7 +61,6 @@ in {
     verilator
     clang-tools
     lldb
-    gnomeExtensions.dash-to-dock
   ];
   
   # Font configuration
