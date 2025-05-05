@@ -41,7 +41,15 @@
     enable = true;
     enableBashIntegration = true;
   };
-  
+
+  programs.kitty = {
+    enable = true;
+    shellIntegration = {
+      enableBashIntegration = true;
+      mode = "enabled";
+    };
+  };
+
   # Direnv integration
   programs.direnv = {
     enable = true;
