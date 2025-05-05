@@ -3,7 +3,7 @@
   ...
 }@specialArgsFromFlake:
 let
-  defaultArgs = rec {
+  defaultArgs = {
     hostName = "odyssey";
     timeZone = "Europe/Istanbul";
     defaultLocale = "en_US.UTF-8";

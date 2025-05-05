@@ -5,20 +5,18 @@
   ...
 }:
 {
-  hardware.opengl = {
+  hardware.graphics = {
     enable = true;
-    # driSupport = true;
-    # driSupport32Bit = true;
   };
 
-  hardware.opengl.extraPackages = with pkgs; [
+  hardware.graphics.extraPackages = with pkgs; [
     intel-media-driver
     intel-vaapi-driver
     vaapiVdpau
     libvdpau-va-gl
   ];
 
-  hardware.opengl.extraPackages32 = with pkgs.pkgsi686Linux; [
+  hardware.graphics.extraPackages32 = with pkgs.pkgsi686Linux; [
     intel-vaapi-driver
     vaapiVdpau
     libvdpau-va-gl
@@ -38,7 +36,7 @@
     nvidiaBusId = "PCI:1:0:0";
   };
 
-  hardware.pulseaudio.support32Bit = true;
+  services.pulseaudio.support32Bit = true;
   services.xserver.videoDrivers = [ "nvidia" "intel" ];
 
   environment.variables = {

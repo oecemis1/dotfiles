@@ -13,11 +13,12 @@ in
   # Customize GNOME installation
   services.gnome.core-utilities.enable = false;
   environment.gnome.excludePackages = [pkgs.gnome-tour];
+  programs.gnome-disks.enable = true;
 
   # GNOME keyring configuration
+  services.gnome.gnome-keyring.enable = true;
   security.pam.services.login.enableGnomeKeyring = true;
   security.pam.services.gdm.enableGnomeKeyring = true;
-  services.gnome.gnome-keyring.enable = true;
   environment.variables.XDG_RUNTIME_DIR = "/run/user/$UID";
   services.dbus.packages = [ pkgs.gnome-keyring ];
   security.pam.services.gdm-autologin.enableGnomeKeyring = true;
@@ -26,9 +27,9 @@ in
   environment.systemPackages = with pkgs; [
     gnome-tweaks
     gnome-terminal
+    gnome-calculator
     nautilus
     yaru-theme
-    gnome-keyring
     libsecret
     dconf-editor
   ];

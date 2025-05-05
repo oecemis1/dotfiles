@@ -24,8 +24,13 @@
       options = [ "fmask=0077" "dmask=0077" ];
     };
 
-  swapDevices =
-    [ { device = "/dev/disk/by-uuid/9e141b79-bec0-4691-af3f-6897c8e7cfe7"; }
+    swapDevices = [
+      {
+        device = "/var/lib/swapfile";
+        size = 30 * 1024;
+      }
+    # swapDevices =
+    #   [ { device = "/dev/disk/by-uuid/9e141b79-bec0-4691-af3f-6897c8e7cfe7"; }
     ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
