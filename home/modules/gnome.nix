@@ -23,7 +23,8 @@ let
   ];
   extension_UUID = map (extension: extension.extensionUuid) extensions;
 
-in {
+in
+{
   home.packages = extensions;
 
   # GNOME desktop settings via dconf
@@ -34,32 +35,43 @@ in {
       num-workspaces = 2;
     };
 
+    "org/gnome/desktop/peripherals/touchpad" = {
+      click-method = "areas";
+      tap-to-click = true;
+    };
+
     "org/gnome/desktop/input-sources" = {
       show-all-sources = lib.mkDefault true;
       sources = [
-        (lib.hm.gvariant.mkTuple ["xkb" "us"])
-        (lib.hm.gvariant.mkTuple ["xkb" "tr"])
+        (lib.hm.gvariant.mkTuple [
+          "xkb"
+          "us"
+        ])
+        (lib.hm.gvariant.mkTuple [
+          "xkb"
+          "tr"
+        ])
       ];
-      xkb-options = ["grp:win_space_toggle"];
+      xkb-options = [ "grp:win_space_toggle" ];
     };
 
     # Window management shortcuts
     "org/gnome/desktop/wm/keybindings" = {
-      "close" = ["<Alt>F4"];
-      "maximize" = ["<Super>Up"];
-      "unmaximize" = ["<Super>Down"];
-      "toggle-maximized" = ["<Alt>F10"];
-      "minimize" = ["<Super>h"];
-      "move-to-workspace-1" = ["<Shift><Super>1"];
-      "move-to-workspace-2" = ["<Shift><Super>2"];
-      "move-to-workspace-3" = ["<Shift><Super>3"];
-      "move-to-workspace-4" = ["<Shift><Super>4"];
-      "switch-to-workspace-1" = ["<Super>1"];
-      "switch-to-workspace-2" = ["<Super>2"];
-      "switch-to-workspace-3" = ["<Super>3"];
-      "switch-to-workspace-4" = ["<Super>4"];
-      "switch-windows" = ["<Alt>Tab"];
-      "switch-applications" = [""];
+      "close" = [ "<Alt>F4" ];
+      "maximize" = [ "<Super>Up" ];
+      "unmaximize" = [ "<Super>Down" ];
+      "toggle-maximized" = [ "<Alt>F10" ];
+      "minimize" = [ "<Super>h" ];
+      "move-to-workspace-1" = [ "<Shift><Super>1" ];
+      "move-to-workspace-2" = [ "<Shift><Super>2" ];
+      "move-to-workspace-3" = [ "<Shift><Super>3" ];
+      "move-to-workspace-4" = [ "<Shift><Super>4" ];
+      "switch-to-workspace-1" = [ "<Super>1" ];
+      "switch-to-workspace-2" = [ "<Super>2" ];
+      "switch-to-workspace-3" = [ "<Super>3" ];
+      "switch-to-workspace-4" = [ "<Super>4" ];
+      "switch-windows" = [ "<Alt>Tab" ];
+      "switch-applications" = [ "" ];
     };
 
     # Fixed custom keybindings section
@@ -93,7 +105,7 @@ in {
     #   enable-active-window = false;
     #   pressure-threshold = 0;
     # };
-    
+
     # Dash to dock settings
     "org/gnome/shell/extensions/dash-to-dock" = {
       "dock-position" = "BOTTOM";
@@ -117,7 +129,7 @@ in {
       "show-mounts" = false;
       "height-fraction" = 0.9;
     };
-    
+
     # GNOME appearance settings
     "org/gnome/desktop/interface" = {
       "accent-color" = "purple";
@@ -133,7 +145,7 @@ in {
       picture-uri = "file://${wallpaper}/wallpaper.jpg";
       picture-uri-dark = "file://${wallpaper}/wallpaper.jpg";
       picture-options = "zoom";
-    };    
+    };
 
     # Set default terminal to kitty
     "org/gnome/desktop/applications/terminal" = {
@@ -142,16 +154,16 @@ in {
 
     "org/gnome/terminal/legacy/profiles:" = {
       default = ":b1dcc9dd-5262-4d8d-a863-c897e6d979b9";
-      list = [":b1dcc9dd-5262-4d8d-a863-c897e6d979b9"];
+      list = [ ":b1dcc9dd-5262-4d8d-a863-c897e6d979b9" ];
     };
-  
+
     "org/gnome/terminal/legacy/profiles:/:b1dcc9dd-5262-4d8d-a863-c897e6d979b9" = {
       visible-name = "Default";
-      background-color="rgb(26,25,25)";
-      background-transparency-percent=6;
-      font="JetBrainsMono Nerd Font 11";
-      foreground-color="rgb(255,255,255)";
-      palette=[
+      background-color = "rgb(26,25,25)";
+      background-transparency-percent = 6;
+      font = "JetBrainsMono Nerd Font 11";
+      foreground-color = "rgb(255,255,255)";
+      palette = [
         "rgb(7,54,66)"
         "rgb(220,50,47)"
         "rgb(133,153,0)"
@@ -169,10 +181,10 @@ in {
         "rgb(147,161,161)"
         "rgb(253,246,227)"
       ];
-      use-system-font=false;
-      use-theme-colors=false;
-      use-theme-transparency=false;
-      use-transparent-background=true;
-    }; 
+      use-system-font = false;
+      use-theme-colors = false;
+      use-theme-transparency = false;
+      use-transparent-background = true;
+    };
   };
 }
