@@ -26,10 +26,10 @@ let
     homeManagerImports = [
       ../../home/home.nix
     ];
-    homeManagerArgs = {};
+    homeManagerArgs = { };
 
-    extraImports = [];
-    extraGroups = [];
+    extraImports = [ ];
+    extraGroups = [ ];
 
     allowUnfree = true;
 
@@ -57,18 +57,19 @@ in
 
     ./hardware-configuration.nix
     ./hardware-gpu.nix
+    ./virtualisation.nix
     # ./battery.nix
   ] ++ finalArgs.extraImports;
-  
+
   networking = {
     hostName = finalArgs.hostName;
     networkmanager.enable = true;
   };
-  
+
   # Enable automatic login for the user.
   services.displayManager.autoLogin.enable = true;
   services.displayManager.autoLogin.user = finalArgs.username;
-  
+
   # Workaround for GNOME autologin
   systemd.services."getty@tty1".enable = false;
   systemd.services."autovt@tty1".enable = false;
@@ -98,12 +99,12 @@ in
     settings = {
       Policy = {
         AutoEnable = "false";
-      };     
+      };
     };
   };
 
   services.blueman.enable = true;
-  
+
   # Basic system packages
   environment.systemPackages = with pkgs; [
     curl
@@ -123,7 +124,7 @@ in
     btop
     starship
   ];
-  
+
   fonts = {
     fontDir.enable = true;
     packages = with pkgs; [
@@ -153,6 +154,6 @@ in
   nixpkgs.overlays = [
     (import ../overlays)
   ];
-  
+
   system.stateVersion = "25.05";
 }
