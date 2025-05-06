@@ -13,6 +13,7 @@
       immutable_configs = [
         "btop"
         "fonts"
+        "gdb"
         "helix"
         "kitty"
         "tmux"
@@ -31,7 +32,7 @@
 
       mutable_state = [
         # "bash"
-        # "gdb"
+        "gdb"
       ];
 
       makeMutable = path: file: {
@@ -90,7 +91,7 @@
       dataFile = mutableDataFiles // immutableDataFiles;
       stateFile = mutableStateFiles;
     };
-    
+
   home.file = {
     ".local/bin" = {
       source = "${inputs.self}/.local/bin";
