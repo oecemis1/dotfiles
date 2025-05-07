@@ -28,6 +28,13 @@ let
     ];
     homeManagerArgs = { };
 
+    maxJobs = 8;
+    maxSubstitutionJobs = 256;
+    nixCores = 8;
+
+    extraSubstituters = [ ];
+    extraTrustedPublicKeys = [ ];
+
     extraImports = [ ];
     extraGroups = [ ];
 

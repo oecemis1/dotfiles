@@ -21,7 +21,7 @@
     vaapiVdpau
     libvdpau-va-gl
   ];
-  
+
   hardware.nvidia = {
     open = true;
     modesetting.enable = true;
@@ -38,7 +38,10 @@
   };
 
   services.pulseaudio.support32Bit = true;
-  services.xserver.videoDrivers = [ "nvidia" "intel" ];
+  services.xserver.videoDrivers = [
+    "nvidia"
+    "intel"
+  ];
 
   environment.variables = {
     LIBVA_DRIVER_NAME = "iHD";
