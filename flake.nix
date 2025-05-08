@@ -9,7 +9,8 @@
     };
   };
 
-  outputs = { nixpkgs, ... }@inputs:
+  outputs =
+    { nixpkgs, ... }@inputs:
     let
       mkSystem =
         {
@@ -29,11 +30,12 @@
             inputs.home-manager.nixosModules.home-manager
           ];
         };
-    in {
+    in
+    {
       nixosConfigurations = {
         odyssey = mkSystem {
-          baseConfigPath = ./nixos/odyssey/configuration.nix;
-          hardwareConfigPath = ./nixos/odyssey/hardware-configuration.nix;
+          baseConfigPath = ./hosts/odyssey/configuration.nix;
+          hardwareConfigPath = ./hosts/odyssey/hardware-configuration.nix;
           system = "x86_64-linux";
         };
       };

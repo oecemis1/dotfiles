@@ -35,6 +35,7 @@ in
     # Development tools
     tmux
     helix
+    # evil-helix
     neovim
     direnv
 
