@@ -12,7 +12,7 @@ in
 
   # Customize GNOME installation
   services.gnome.core-utilities.enable = false;
-  environment.gnome.excludePackages = [pkgs.gnome-tour];
+  environment.gnome.excludePackages = [ pkgs.gnome-tour ];
   programs.gnome-disks.enable = true;
 
   # GNOME keyring configuration
@@ -32,5 +32,6 @@ in
     yaru-theme
     libsecret
     dconf-editor
+    baobab
   ];
 }
