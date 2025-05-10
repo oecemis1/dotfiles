@@ -98,5 +98,10 @@
       recursive = true;
       executable = true;
     };
+    ".local/docker-scripts" = {
+      source = "${inputs.self}/.local/docker-scripts";
+      recursive = true;
+      executable = true;
+    };
   };
 }

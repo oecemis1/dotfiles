@@ -82,6 +82,9 @@ in
     trash-cli
     unar
     zip
+
+    xorg.xhost
+    xorg.xauth
   ];
 
   # Font configuration
