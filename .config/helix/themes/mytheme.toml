@@ -1,2 +1,2 @@
-inherits = "tokyonight"
+inherits = "dracula"
 "ui.background" ={}
