@@ -17,11 +17,23 @@ if ! grep -q "VIVADO_VERSION" "$HOME/.bashrc"; then
     
     # Use the absolute path with specific directory for the vivado command
     echo "alias vivado='/home/user/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin/vivado -nolog -nojournal'" >> "$HOME/.bashrc"
-    echo " " >> "$HOME/.bashrc"
+    echo "alias vstart='cd \$HOME/Xilinx && vivado'" >> "$HOME/.bashrc"
+    echo "alias vsyn='vivado -mode batch -source'" >> "$HOME/.bashrc"
+    echo "alias vgui='vivado -mode gui'" >> "$HOME/.bashrc"
+    echo "alias vtcl='vivado -mode tcl'" >> "$HOME/.bashrc"
     
     echo "Vivado environment configured in .bashrc"
 else
     echo "Vivado environment already configured in .bashrc"
+fi
+
+# Ensure .bash_profile exists and sources .bashrc
+if [ ! -f "$HOME/.bash_profile" ]; then
+    echo "Creating .bash_profile to ensure .bashrc is loaded in login shells"
+    echo "# Load .bashrc for login shells" > "$HOME/.bash_profile"
+    echo "if [ -f \"\$HOME/.bashrc\" ]; then" >> "$HOME/.bash_profile"
+    echo "    source \"\$HOME/.bashrc\"" >> "$HOME/.bash_profile"
+    echo "fi" >> "$HOME/.bash_profile"
 fi
 
 # Create a convenience script to install drivers
@@ -49,3 +61,12 @@ if [ -d "$DRIVERS_PATH" ] && [ -x "$DRIVERS_PATH/install_drivers" ]; then
 fi
 
 echo "Vivado environment setup complete!"
+echo "Available aliases:"
+echo "  - vivado  : Run Vivado with -nolog -nojournal flags"
+echo "  - vstart  : Change to Xilinx directory and launch Vivado"
+echo "  - vsyn    : Run Vivado in batch mode (vivado -mode batch -source)"
+echo "  - vgui    : Run Vivado in GUI mode"
+echo "  - vtcl    : Run Vivado in TCL mode"
+echo ""
+echo "Helper scripts:"
+echo "  - install_vivado_drivers.sh : Install Xilinx hardware drivers"

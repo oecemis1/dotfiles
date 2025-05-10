@@ -55,12 +55,16 @@ mkdir -p /home/user/tools
 mkdir -p /home/user/Documents
 mkdir -p /home/user/Downloads
 mkdir -p /home/user/.Xilinx
+mkdir -p /home/user/Xilinx
+mkdir -p /home/user/bin
 
 # CRITICAL - This ensures mounted volumes will have correct ownership
 chown -R $USER_ID:$GROUP_ID /home/user/tools
 chown -R $USER_ID:$GROUP_ID /home/user/Documents
 chown -R $USER_ID:$GROUP_ID /home/user/Downloads
 chown -R $USER_ID:$GROUP_ID /home/user/.Xilinx
+chown -R $USER_ID:$GROUP_ID /home/user/Xilinx
+chown -R $USER_ID:$GROUP_ID /home/user/bin
 chown -R $USER_ID:$GROUP_ID /home/user
 
 # Fix X authority permissions
@@ -76,13 +80,26 @@ echo "  - Host Documents → Container /home/user/Documents"
 echo "  - Host tools → Container /home/user/tools"
 echo "  - Host Downloads → Container /home/user/Downloads"
 echo "  - Host .Xilinx → Container /home/user/.Xilinx"
+echo "  - Host Xilinx → Container /home/user/Xilinx"
 echo ""
 echo "Display: $DISPLAY"
+if [ -n "$WAYLAND_DISPLAY" ]; then
+    echo "Wayland Display: $WAYLAND_DISPLAY (running via XWayland)"
+fi
 echo ""
 echo "To test display connectivity, run: test_display.sh"
 
 # Set up Vivado environment as the user
+# This will create both .bashrc entries and .bash_profile
 gosu user /usr/local/bin/setup_vivado_alias.sh
+
+# Ensure .bashrc is always loaded for interactive non-login shells too
+if ! grep -q "Force loading aliases in all shells" /etc/bash.bashrc; then
+    echo "# Force loading aliases in all shells" >> /etc/bash.bashrc
+    echo "if [ -f /home/user/.bashrc ]; then" >> /etc/bash.bashrc
+    echo "    . /home/user/.bashrc" >> /etc/bash.bashrc
+    echo "fi" >> /etc/bash.bashrc
+fi
 
 cd /home/user
 

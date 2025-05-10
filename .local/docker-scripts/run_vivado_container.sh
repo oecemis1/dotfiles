@@ -42,46 +42,79 @@ if [ ! -w "$DOCUMENTS_DIR" ] || [ ! -w "$TOOLS_DIR" ] || [ ! -w "$DOWNLOADS_DIR"
     fi
 fi
 
-# Allow local X server connections if xhost is available
+# Create a persistent xauth file in the user's home directory if it doesn't exist
+XAUTH_DIR="$HOME/.docker"
+XAUTH_FILE="$XAUTH_DIR/docker-xauth"
+mkdir -p "$XAUTH_DIR"
+
+# Default DISPLAY if not set
+if [ -z "$DISPLAY" ]; then
+    # Try to auto-detect display
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+        # Running under Wayland
+        export DISPLAY=:0
+        echo "Wayland detected, setting DISPLAY to $DISPLAY"
+    else
+        # Assume X11
+        export DISPLAY=:0
+        echo "Set DISPLAY to $DISPLAY"
+    fi
+fi
+
+# Setup for both X11 and Wayland
 if command -v xhost &> /dev/null; then
     xhost +local: >/dev/null 2>&1
     echo "X11 local connections enabled"
-else
-    echo "xhost command not found. X11 forwarding might not work correctly."
+fi
+
+# Create a persistent directory for container configuration
+CONFIG_DIR="$HOME/.docker/vivado-config"
+mkdir -p "$CONFIG_DIR"
+
+# Regenerate xauth file (clean and create new)
+XAUTH_FILE="$CONFIG_DIR/docker-xauth"
+touch "$XAUTH_FILE"
+xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f "$XAUTH_FILE" nmerge -
+chmod 644 "$XAUTH_FILE"
+echo "X authentication file created at $XAUTH_FILE"
+
+# Wayland specific setup
+WAYLAND_PARAMS=""
+if [ -n "$WAYLAND_DISPLAY" ] && [ -e "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+    echo "Configuring Wayland support"
+    WAYLAND_PARAMS="-v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+    
+    # If XDG_RUNTIME_DIR exists, also mount it
+    if [ -n "$XDG_RUNTIME_DIR" ]; then
+        WAYLAND_PARAMS="$WAYLAND_PARAMS -v $XDG_RUNTIME_DIR:$XDG_RUNTIME_DIR"
+        WAYLAND_PARAMS="$WAYLAND_PARAMS -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+        WAYLAND_PARAMS="$WAYLAND_PARAMS -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+    fi
 fi
 
 # Check if container is running
 if docker ps -q -f name="$CONTAINER_NAME" | grep -q .; then
     echo "Container $CONTAINER_NAME is already running."
-    echo "Attaching to container..."
-    docker exec -it -w /home/user "$CONTAINER_NAME" bash
+    echo "Attaching to container as user..."
+    # Always exec as user with login shell (-l) to ensure .bash_profile is loaded
+    docker exec -it -u user -w /home/user "$CONTAINER_NAME" bash -l
     exit 0
 fi
 
-# If container exists but is stopped, remove it and create a new one
+# If container exists but is stopped, start it instead of removing
 if docker ps -a -q -f name="$CONTAINER_NAME" | grep -q .; then
     echo "Container $CONTAINER_NAME exists but is stopped."
-    echo "Removing it and creating a new one..."
-    docker rm "$CONTAINER_NAME"
+    echo "Starting it again..."
+    docker start "$CONTAINER_NAME"
+    # Always exec as user with login shell (-l) to ensure .bash_profile is loaded
+    docker exec -it -u user -w /home/user "$CONTAINER_NAME" bash -l
+    exit 0
 fi
 
 # At this point, we're creating a new container
 echo "Creating new container $CONTAINER_NAME..."
 
-# Default DISPLAY if not set
-if [ -z "$DISPLAY" ]; then
-    export DISPLAY=:0
-    echo "Set DISPLAY to $DISPLAY"
-fi
-
-# Set up X11 forwarding for the new container
-echo "Setting up X11 forwarding for new container..."
-XAUTH_FILE=$(mktemp /tmp/docker-xauth-XXXXXX)
-touch $XAUTH_FILE
-xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH_FILE nmerge -
-chmod 644 $XAUTH_FILE
-
-# Create the new container
+# Create the new container with X11 and optional Wayland support
 docker run -it \
     --name "$CONTAINER_NAME" \
     -v "$DOCUMENTS_DIR":/home/user/Documents \
@@ -91,6 +124,7 @@ docker run -it \
     -v "$XILINX_PROJ_DIR":/home/user/Xilinx \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     -v "$XAUTH_FILE":/tmp/.docker.xauth \
+    $WAYLAND_PARAMS \
     -e DISPLAY="$DISPLAY" \
     -e XAUTHORITY=/tmp/.docker.xauth \
     -e HOST_USER_ID="$HOST_UID" \
@@ -98,9 +132,6 @@ docker run -it \
     --ipc=host \
     --net=host \
     "$IMAGE_NAME"
-
-# Clean up the temporary X authority file
-rm -f $XAUTH_FILE
 
 # Check if container started successfully
 if [ $? -ne 0 ]; then
