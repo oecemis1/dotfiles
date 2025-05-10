@@ -1,7 +1,7 @@
 [[language]]
 name = "python"
 roots = ["pyproject.toml", "."]
-language-servers = [ "pyright","ruff-lsp" ]
+language-servers = [ "pyright","ruff"]
 auto-format = true
 # Add this to pyproject.toml in root directory of project to add extra paths.
 # [tool.pyright]
@@ -10,20 +10,26 @@ auto-format = true
 [[language]]
 name = "verilog"
 auto-format = true
-# file-types = ["v", "sv", "h", "svh"]
-formatter = { command = 'verible-verilog-format', args = ["--indentation_spaces","3","--wrap_spaces", "3","-"] }
-language-servers = [ "dls" , "veridian" ]
-indent = { tab-width = 3, unit = "    " }
+formatter = { command = 'verible-verilog-format', args = ["--wrap_spaces","3","--indentation_spaces","3","-"] }
+language-servers = ["veridian"]
+indent = { tab-width = 3, unit = "   " }
 
 [[language]]
 name = "nix"
-formatter = { command = 'alejandra', args = [] }
+formatter = { command = 'nixfmt', args = [] }
 language-servers = ["nixd"]
+auto-format = true
+
+[[language]]
+name = "scala"
 auto-format = true
 
 [[language]]
 name = "html"
 formatter = { command = 'prettier', args = ["--parser", "html"] }
+language-servers = [
+  "html-preview-lsp"
+]
 
 [[language]]
 name = "json"
@@ -46,6 +52,14 @@ auto-format = true
 [[language]]
 name = "markdown"
 formatter = { command = 'prettier', args = ["--parser", "markdown"] }
+language-servers = [
+  "marksman",
+  # "mdpls",
+  # "markdown-oxide",
+  # "typos",
+  # "vale",
+  # "ltex"
+]
 # auto-format = true
 
 [[language]]
@@ -73,87 +87,101 @@ name = "latex"
 language-servers = ["texlab"]
 auto-format = true
 
-
 [[language]]
 name = "rust"
 auto-format = true
 [language.formatter]
 command = "rustfmt"
 
+# [[language]]
+# name = "gas"
+# scope = "source.llvm"
+# roots = ["Makefile"]
+# file-types = ["S", "s"]
+# comment-token = "#"
+# indent = { tab-width = 4, unit = "    " }
+# language-servers = ["asm-lsp"]
+# auto-format = true
 
-
+# [[language]]
+# name = "git-commit"
+# language-servers = [
+#   "typos",
+#   "vale",
+#   "ltex",
+# ]
 
 
 [language-server.rust-analyzer.config.check]
 command = "clippy"
 
-[language-server]
-clangd = { command = "clangd", args = ['--fallback-style=Webkit'] }
+[language-server.clangd]
+command = "clangd"
+args = ['--fallback-style=Webkit']
 
 [language-server.texlab]
 command = "texlab"
 cleanArtifacts = true
 
 [language-server.texlab.config.texlab.build]
+args = ["-shell-escape", "-pdf", "-interaction=nonstopmode", "-synctex=1", "%f"]
 onSave = true
 forwardSearchAfter = true
 
-[language-server.texlab.config.texlab.forwardSearch]
-executable = "sioyek"
-args = [
-  "--execute-command",
-  "turn_on_synctex",
-  "%p",
-  "--forward-search-file",
-  "%f",
-  "--forward-search-line",
-  "%l",
-]
 
 [language-server.texlab.config.texlab.chktex]
 onEdit = true
 
-
 [language-server.veridian]
 command = "veridian"
 
-[language-server.ruff-lsp]
-command = "ruff-lsp"
-
-
-
-
-[language-server.dls]
-command = "diagnostic-languageserver"
-args = [ "--stdio", "--log-level=2" ]
-
-[language-server.dls.config.filetypes]
-verilog = "verilator"
-systemverilog =  "verilator"
-
-[language-server.dls.config.linters.verilator]
-command= "sh"
-args= [
-    "-c",
-    "verilator --lint-only -Wall $(find ./ -type f -regex '.*\\.\\(v\\|sv\\|vh\\|svh\\)$' | xargs -n1 dirname | sort -u | awk '{print \"-I\" $0}') %file 2>&1 | grep %file"
-]
-isStdout = true
-isStderr = false
-sourceName = "verilator"
-# onSaveOnly = true -- DLS never receives onDidSave event.
-#  See:
-#    https://github.com/helix-editor/helix/issues/9034
-#    https://github.com/helix-editor/helix/pull/9101
-debounce = 1000
-formatLines = 1
-formatPattern= [
-    "^(%(Warning|Error)[^:]*:)?\\s*([^:]+):(\\d+):(\\d+)?:?\\s*(\\.\\.\\.)?\\s*(.*)$",
-    {line = 4, column = 5, message= [ 7 ], security= 2}
-]
-securities= {Error = "error", Warning= "warning", undefined= "info"}
-
-
+[language-server.ruff]
+command = "ruff"
+args = ["server"]
 
 [language-server.nixd]
 command = "nixd"
+
+[language-server.vale]
+command = "vale-ls"
+
+[language-server.typos]
+command = "typos-lsp"
+
+[language-server.ltex]
+command = "ltex-ls"
+
+# [language-server.mdpls]
+# command = "mdpls"
+# config = { markdown.preview.serveStatic = true, markdown.preview.codeTheme = "github", markdown.preview.auto = true, markdown.preview.browser = "firefox" }
+
+[language-server.html-preview-lsp]
+command = "html-preview-lsp"
+
+# [language-server.dls]
+# command = "diagnostic-languageserver"
+# args = [ "--stdio", "--log-level=2" ]
+# [language-server.dls.config.filetypes]
+# verilog = "verilator"
+# systemverilog =  "verilator"
+# [language-server.dls.config.linters.verilator]
+# command= "sh"
+# args= [
+#     "-c",
+#     "verilator --lint-only -Wall $(find . -type f -name '*.*' | xargs -n1 dirname | sort -u | awk '{print \"-I\" $0}') %file 2>&1 | grep %file"
+# ]
+# isStdout = true
+# isStderr = false
+# sourceName = "verilator"
+# # onSaveOnly = true -- DLS never receives onDidSave event.
+# #  See:
+# #    https://github.com/helix-editor/helix/issues/9034
+# #    https://github.com/helix-editor/helix/pull/9101
+# debounce = 1000
+# formatLines = 1
+# formatPattern= [
+#     "^(%(Warning|Error)[^:]*:)?\\s*([^:]+):(\\d+):(\\d+)?:?\\s*(\\.\\.\\.)?\\s*(.*)$",
+#     {line = 4, column = 5, message= [ 7 ], security= 2}
+# ]
+# securities= {Error = "error", Warning= "warning", undefined= "info"}
 
