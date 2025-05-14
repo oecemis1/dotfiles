@@ -16,7 +16,7 @@ if ! grep -q "VIVADO_VERSION" "$HOME/.bashrc"; then
     echo "export PATH=\$PATH:\"\$HOME/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin\"" >> "$HOME/.bashrc"
     
     # Use the absolute path with specific directory for the vivado command
-    echo "alias vivado='/home/user/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin/vivado -nolog -nojournal'" >> "$HOME/.bashrc"
+    echo "alias vivado='/home/ubuntu/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin/vivado -nolog -nojournal'" >> "$HOME/.bashrc"
     echo "alias vstart='cd \$HOME/Xilinx && vivado'" >> "$HOME/.bashrc"
     echo "alias vsyn='vivado -mode batch -source'" >> "$HOME/.bashrc"
     echo "alias vgui='vivado -mode gui'" >> "$HOME/.bashrc"
@@ -40,7 +40,7 @@ fi
 cat > "$HOME/install_vivado_drivers.sh" << 'EOF'
 #!/bin/bash
 VIVADO_VERSION=$(grep "VIVADO_VERSION" ~/.bashrc | cut -d '"' -f 2)
-DRIVERS_PATH="/home/user/tools/Xilinx/Vivado/$VIVADO_VERSION/data/xicom/cable_drivers/lin64/install_script/install_drivers/"
+DRIVERS_PATH="/home/ubuntu/tools/Xilinx/Vivado/$VIVADO_VERSION/data/xicom/cable_drivers/lin64/install_script/install_drivers/"
 if [ -d "$DRIVERS_PATH" ]; then
     echo "Installing Xilinx cable drivers..."
     cd "$DRIVERS_PATH"
@@ -54,7 +54,7 @@ EOF
 chmod +x "$HOME/install_vivado_drivers.sh"
 
 # Check if drivers already exist and print message
-DRIVERS_PATH="/home/user/tools/Xilinx/Vivado/$VIVADO_VERSION/data/xicom/cable_drivers/lin64/install_script/install_drivers/"
+DRIVERS_PATH="/home/ubuntu/tools/Xilinx/Vivado/$VIVADO_VERSION/data/xicom/cable_drivers/lin64/install_script/install_drivers/"
 if [ -d "$DRIVERS_PATH" ] && [ -x "$DRIVERS_PATH/install_drivers" ]; then
     echo "Found Vivado drivers at $DRIVERS_PATH"
     echo "Run install_vivado_drivers.sh to install them when needed."

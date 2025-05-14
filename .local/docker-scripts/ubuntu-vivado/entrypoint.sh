@@ -26,46 +26,46 @@ if getent passwd $USER_ID > /dev/null; then
     echo "User with UID $USER_ID exists: $EXISTING_USER"
     
     # If the existing user is not named 'user', handle the conflict
-    if [ "$EXISTING_USER" != "user" ]; then
-        echo "Renaming user $EXISTING_USER to user"
-        usermod -l user $EXISTING_USER
-        usermod -d /home/user $EXISTING_USER 2>/dev/null || true
+    if [ "$EXISTING_USER" != "ubuntu" ]; then
+        echo "Renaming user $EXISTING_USER to ubuntu"
+        usermod -l ubuntu $EXISTING_USER
+        usermod -d /home/ubuntu $EXISTING_USER 2>/dev/null || true
         
         # Fix home directory if needed
-        if [ ! -d "/home/user" ]; then
-            mkdir -p /home/user
+        if [ ! -d "/home/ubuntu" ]; then
+            mkdir -p /home/ubuntu
         fi
         
         # Ensure user has the correct group
-        usermod -g $GROUP_ID user
+        usermod -g $GROUP_ID ubuntu
     fi
 else
     echo "Creating user with UID $USER_ID and GID $GROUP_ID"
-    useradd -u $USER_ID -g $GROUP_ID -s /bin/bash -m -d /home/user user
+    useradd -u $USER_ID -g $GROUP_ID -s /bin/bash -m -d /home/ubuntu ubuntu
 fi
 
 # Add to sudo group
 if getent group sudo > /dev/null; then
-    usermod -aG sudo user 2>/dev/null || echo "Could not add user to sudo group"
-    echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+    usermod -aG sudo ubuntu 2>/dev/null || echo "Could not add user to sudo group"
+    echo "ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 fi
 
 # Create directories if they don't exist and ensure ownership
-mkdir -p /home/user/tools
-mkdir -p /home/user/Documents
-mkdir -p /home/user/Downloads
-mkdir -p /home/user/.Xilinx
-mkdir -p /home/user/Xilinx
-mkdir -p /home/user/bin
+mkdir -p /home/ubuntu/tools
+mkdir -p /home/ubuntu/Documents
+mkdir -p /home/ubuntu/Downloads
+mkdir -p /home/ubuntu/.Xilinx
+mkdir -p /home/ubuntu/Xilinx
+mkdir -p /home/ubuntu/bin
 
 # CRITICAL - This ensures mounted volumes will have correct ownership
-chown -R $USER_ID:$GROUP_ID /home/user/tools
-chown -R $USER_ID:$GROUP_ID /home/user/Documents
-chown -R $USER_ID:$GROUP_ID /home/user/Downloads
-chown -R $USER_ID:$GROUP_ID /home/user/.Xilinx
-chown -R $USER_ID:$GROUP_ID /home/user/Xilinx
-chown -R $USER_ID:$GROUP_ID /home/user/bin
-chown -R $USER_ID:$GROUP_ID /home/user
+chown -R $USER_ID:$GROUP_ID /home/ubuntu/tools
+chown -R $USER_ID:$GROUP_ID /home/ubuntu/Documents
+chown -R $USER_ID:$GROUP_ID /home/ubuntu/Downloads
+chown -R $USER_ID:$GROUP_ID /home/ubuntu/.Xilinx
+chown -R $USER_ID:$GROUP_ID /home/ubuntu/Xilinx
+chown -R $USER_ID:$GROUP_ID /home/ubuntu/bin
+chown -R $USER_ID:$GROUP_ID /home/ubuntu
 
 # Fix X authority permissions
 if [ -f /tmp/.docker.xauth ]; then
@@ -73,14 +73,20 @@ if [ -f /tmp/.docker.xauth ]; then
     echo "X authority file configured for user"
 fi
 
+# DBus setup for Vitis
+if [ -e "/run/dbus/system_bus_socket" ]; then
+    echo "System DBus socket found, configuring permissions"
+    chmod 777 /run/dbus/system_bus_socket 2>/dev/null || true
+fi
+
 # Print information message
-echo "Container started with user user ($USER_ID:$GROUP_ID)"
+echo "Container started with user ubuntu ($USER_ID:$GROUP_ID)"
 echo "Mounted directories:"
-echo "  - Host Documents → Container /home/user/Documents"
-echo "  - Host tools → Container /home/user/tools"
-echo "  - Host Downloads → Container /home/user/Downloads"
-echo "  - Host .Xilinx → Container /home/user/.Xilinx"
-echo "  - Host Xilinx → Container /home/user/Xilinx"
+echo "  - Host Documents → Container /home/ubuntu/Documents"
+echo "  - Host tools → Container /home/ubuntu/tools"
+echo "  - Host Downloads → Container /home/ubuntu/Downloads"
+echo "  - Host .Xilinx → Container /home/ubuntu/.Xilinx"
+echo "  - Host Xilinx → Container /home/ubuntu/Xilinx"
 echo ""
 echo "Display: $DISPLAY"
 if [ -n "$WAYLAND_DISPLAY" ]; then
@@ -90,18 +96,20 @@ echo ""
 echo "To test display connectivity, run: test_display.sh"
 
 # Set up Vivado environment as the user
-# This will create both .bashrc entries and .bash_profile
-gosu user /usr/local/bin/setup_vivado_alias.sh
+gosu ubuntu /usr/local/bin/setup_vivado_alias.sh
+
+# Set up Vitis environment as the user
+gosu ubuntu /usr/local/bin/setup_vitis_alias.sh
 
 # Ensure .bashrc is always loaded for interactive non-login shells too
 if ! grep -q "Force loading aliases in all shells" /etc/bash.bashrc; then
     echo "# Force loading aliases in all shells" >> /etc/bash.bashrc
-    echo "if [ -f /home/user/.bashrc ]; then" >> /etc/bash.bashrc
-    echo "    . /home/user/.bashrc" >> /etc/bash.bashrc
+    echo "if [ -f /home/ubuntu/.bashrc ]; then" >> /etc/bash.bashrc
+    echo "    . /home/ubuntu/.bashrc" >> /etc/bash.bashrc
     echo "fi" >> /etc/bash.bashrc
 fi
 
-cd /home/user
+cd /home/ubuntu
 
 # If command starts with an option, prepend bash
 if [ "${1:0:1}" = '-' ]; then
@@ -110,7 +118,7 @@ fi
 
 # Execute the command as the user
 if [ "$1" = 'bash' ] || [ "$1" = '/bin/bash' ]; then
-  exec gosu user "$@"
+  exec gosu ubuntu "$@"
 else
-  exec gosu user "$@"
+  exec gosu ubuntu "$@"
 fi

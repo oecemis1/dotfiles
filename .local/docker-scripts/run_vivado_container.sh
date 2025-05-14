@@ -78,7 +78,14 @@ xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f "$XAUTH_FILE" nmerge -
 chmod 644 "$XAUTH_FILE"
 echo "X authentication file created at $XAUTH_FILE"
 
-# Wayland specific setup
+# DBus socket parameters
+DBUS_PARAMS=""
+if [ -e "/run/dbus/system_bus_socket" ]; then
+    DBUS_PARAMS="-v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket"
+    echo "System DBus socket mounted"
+fi
+
+# Wayland specific setup with enhanced graphics support
 WAYLAND_PARAMS=""
 if [ -n "$WAYLAND_DISPLAY" ] && [ -e "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
     echo "Configuring Wayland support"
@@ -89,6 +96,16 @@ if [ -n "$WAYLAND_DISPLAY" ] && [ -e "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
         WAYLAND_PARAMS="$WAYLAND_PARAMS -v $XDG_RUNTIME_DIR:$XDG_RUNTIME_DIR"
         WAYLAND_PARAMS="$WAYLAND_PARAMS -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
         WAYLAND_PARAMS="$WAYLAND_PARAMS -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+        WAYLAND_PARAMS="$WAYLAND_PARAMS -e GDK_BACKEND=wayland,x11"
+        WAYLAND_PARAMS="$WAYLAND_PARAMS -e QT_QPA_PLATFORM=wayland"
+        WAYLAND_PARAMS="$WAYLAND_PARAMS -e CLUTTER_BACKEND=wayland"
+        WAYLAND_PARAMS="$WAYLAND_PARAMS -e SDL_VIDEODRIVER=wayland"
+    fi
+    
+    # Add DRI device for GPU acceleration
+    if [ -d "/dev/dri" ]; then
+        WAYLAND_PARAMS="$WAYLAND_PARAMS -v /dev/dri:/dev/dri --device /dev/dri"
+        echo "DRI devices mounted for GPU acceleration"
     fi
 fi
 
@@ -97,7 +114,7 @@ if docker ps -q -f name="$CONTAINER_NAME" | grep -q .; then
     echo "Container $CONTAINER_NAME is already running."
     echo "Attaching to container as user..."
     # Always exec as user with login shell (-l) to ensure .bash_profile is loaded
-    docker exec -it -u user -w /home/user "$CONTAINER_NAME" bash -l
+    docker exec -it -u ubuntu -w /home/ubuntu "$CONTAINER_NAME" bash -l
     exit 0
 fi
 
@@ -107,30 +124,33 @@ if docker ps -a -q -f name="$CONTAINER_NAME" | grep -q .; then
     echo "Starting it again..."
     docker start "$CONTAINER_NAME"
     # Always exec as user with login shell (-l) to ensure .bash_profile is loaded
-    docker exec -it -u user -w /home/user "$CONTAINER_NAME" bash -l
+    docker exec -it -u ubuntu -w /home/ubuntu "$CONTAINER_NAME" bash -l
     exit 0
 fi
 
 # At this point, we're creating a new container
 echo "Creating new container $CONTAINER_NAME..."
 
-# Create the new container with X11 and optional Wayland support
+# Create the new container with X11, DBus, and optional Wayland support
 docker run -it \
     --name "$CONTAINER_NAME" \
-    -v "$DOCUMENTS_DIR":/home/user/Documents \
-    -v "$TOOLS_DIR":/home/user/tools \
-    -v "$DOWNLOADS_DIR":/home/user/Downloads \
-    -v "$XILINX_DIR":/home/user/.Xilinx \
-    -v "$XILINX_PROJ_DIR":/home/user/Xilinx \
+    -v "$DOCUMENTS_DIR":/home/ubuntu/Documents \
+    -v "$TOOLS_DIR":/home/ubuntu/tools \
+    -v "$DOWNLOADS_DIR":/home/ubuntu/Downloads \
+    -v "$XILINX_DIR":/home/ubuntu/.Xilinx \
+    -v "$XILINX_PROJ_DIR":/home/ubuntu/Xilinx \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     -v "$XAUTH_FILE":/tmp/.docker.xauth \
+    $DBUS_PARAMS \
     $WAYLAND_PARAMS \
     -e DISPLAY="$DISPLAY" \
     -e XAUTHORITY=/tmp/.docker.xauth \
     -e HOST_USER_ID="$HOST_UID" \
     -e HOST_GROUP_ID="$HOST_GID" \
+    -e DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${HOST_UID}/bus" \
     --ipc=host \
     --net=host \
+    --privileged \
     "$IMAGE_NAME"
 
 # Check if container started successfully
