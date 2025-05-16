@@ -50,6 +50,10 @@ RUN apt-get update && apt-get -y upgrade && apt-get install -y \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
+    ripgrep \
+    git \
+    curl \
+    wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

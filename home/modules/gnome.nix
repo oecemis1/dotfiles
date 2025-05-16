@@ -72,6 +72,7 @@ in
       "switch-to-workspace-4" = [ "<Super>4" ];
       "switch-windows" = [ "<Alt>Tab" ];
       "switch-applications" = [ "" ];
+      "activate-window-menu" = [ "" ];
     };
 
     # Fixed custom keybindings section
