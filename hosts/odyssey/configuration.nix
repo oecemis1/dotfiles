@@ -61,6 +61,7 @@ in
     ../common/bootloader-grub-efi.nix
 
     ../common/services/gdm-gnome.nix
+    ../common/services/warp.nix
 
     ./hardware-configuration.nix
     ./hardware-gpu.nix
