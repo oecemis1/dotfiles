@@ -73,6 +73,7 @@ in
       "switch-windows" = [ "<Alt>Tab" ];
       "switch-applications" = [ "" ];
       "activate-window-menu" = [ "" ];
+      "switch-group" = [ "" ];
     };
 
     # Fixed custom keybindings section

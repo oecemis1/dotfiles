@@ -1,6 +1,6 @@
 [flavor]
-use = "dracula"
-dark = "dracula"
+use = "catppuccin-mocha"
+dark = "catppuccin-mocha"
 
 [status]
 separator_open  = ""
