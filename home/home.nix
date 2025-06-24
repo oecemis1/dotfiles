@@ -31,6 +31,7 @@ in
   home.packages = with pkgs; [
     # Browser
     google-chrome
+    spotify
 
     # Development tools
     tmux

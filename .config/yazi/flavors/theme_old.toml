@@ -1,0 +1,7 @@
+[flavor]
+use = "catppuccin-mocha"
+dark = "catppuccin-mocha"
+
+[status]
+separator_open  = ""
+separator_close = ""
