@@ -1,4 +1,9 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  username,
+  ...
+}:
 
 let
 in
@@ -8,6 +13,8 @@ in
 
   # Enable the GNOME Desktop Environment
   services.xserver.displayManager.gdm.enable = true;
+  services.xserver.displayManager.autoLogin.enable = true;
+  services.xserver.displayManager.autoLogin.user = username;
   services.xserver.desktopManager.gnome.enable = true;
 
   # Customize GNOME installation
