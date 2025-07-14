@@ -1,5 +1,7 @@
 {
   pkgs,
+  config,
+  lib,
   ...
 }@specialArgsFromFlake:
 let
@@ -28,9 +30,9 @@ let
     ];
     homeManagerArgs = { };
 
-    maxJobs = 8;
+    maxJobs = 16;
     maxSubstitutionJobs = 256;
-    nixCores = 8;
+    nixCores = 16;
 
     extraSubstituters = [ ];
     extraTrustedPublicKeys = [ ];
@@ -40,7 +42,7 @@ let
 
     allowUnfree = true;
 
-    useOSProber = false;
+    useOSProber = true;
     canTouchEfiVariables = true;
   };
   finalArgs = defaultArgs // specialArgsFromFlake;
@@ -69,18 +71,51 @@ in
     # ./battery.nix
   ] ++ finalArgs.extraImports;
 
+  boot.kernelPackages = pkgs.linuxPackages_latest;
+  # boot.kernelPatches =
+  #   let
+  #     version = config.boot.kernelPackages.kernel.version;
+  #   in
+  #   [
+  #     {
+  #       name = "g16";
+  #       patch = builtins.fetchurl {
+  #         url = "https://gitlab.com/asus-linux/fedora-kernel/-/raw/rog-${lib.versions.majorMinor version}/asus-patch-series.patch";
+  #         sha256 = "sha256:0sybd6l38fh68pmq35fwzqpm9sjxnainz36syybni0mbnj4zkbrb";
+  #       };
+  #       extraStructuredConfig = with lib.kernel; {
+  #         ASUS_ARMOURY = module;
+  #       };
+  #       extraMeta = {
+  #         branch = lib.versions.majorMinor version;
+  #       };
+  #     }
+  #   ];
+
+  boot.kernelParams = [
+    "i915.enable_dpcd_backlight=1"
+    "nvidia.NVreg_EnableBacklightHandler=0"
+    "nvidia.NVreg_RegistryDwords=EnableBrightnessControl=0"
+  ];
+
+  services.supergfxd.enable = true;
+  services.asusd = {
+    enable = true;
+    enableUserService = true;
+  };
+
   networking = {
     hostName = finalArgs.hostName;
     networkmanager.enable = true;
   };
 
   # Enable automatic login for the user.
-  services.displayManager.autoLogin.enable = true;
-  services.displayManager.autoLogin.user = finalArgs.username;
+  # services.displayManager.autoLogin.enable = true;
+  # services.displayManager.autoLogin.user = finalArgs.username;
 
   # Workaround for GNOME autologin
-  systemd.services."getty@tty1".enable = false;
-  systemd.services."autovt@tty1".enable = false;
+  # systemd.services."getty@tty1".enable = false;
+  # systemd.services."autovt@tty1".enable = false;
 
   # Enable CUPS to print documents.
   services.printing.enable = true;

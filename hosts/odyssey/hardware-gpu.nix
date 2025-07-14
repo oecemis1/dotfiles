@@ -12,19 +12,19 @@
 
   hardware.graphics.extraPackages = with pkgs; [
     intel-media-driver
-    intel-vaapi-driver
+    # intel-vaapi-driver
     vaapiVdpau
     libvdpau-va-gl
   ];
 
-  hardware.graphics.extraPackages32 = with pkgs.pkgsi686Linux; [
-    intel-vaapi-driver
-    vaapiVdpau
-    libvdpau-va-gl
-  ];
+  # hardware.graphics.extraPackages32 = with pkgs.pkgsi686Linux; [
+  #   intel-vaapi-driver
+  #   vaapiVdpau
+  #   libvdpau-va-gl
+  # ];
 
   hardware.nvidia = {
-    open = false;
+    open = true;
     modesetting.enable = true;
     package = config.boot.kernelPackages.nvidiaPackages.stable;
     powerManagement.enable = true;

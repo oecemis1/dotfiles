@@ -35,6 +35,14 @@ in
       num-workspaces = 2;
     };
 
+    "org/gnome/desktop/a11y" = {
+      "always-show-universal-access-status" = false;
+    };
+
+    # "org/gnome/mutter" = {
+    #   experimental-features = [ "scale-monitor-framebuffer" ];
+    # };
+
     "org/gnome/desktop/peripherals/touchpad" = {
       click-method = "areas";
       tap-to-click = true;
@@ -122,7 +130,7 @@ in
       "disable-overview-on-startup" = true;
       "transparency-mode" = "DYNAMIC";
       "background-opacity" = 0.9;
-      "dash-max-icon-size" = 44;
+      "dash-max-icon-size" = 70;
       "unity-backlit-items" = true;
       "click-action" = "minimize-or-previews";
       "intellihide-mode" = "ALL_WINDOWS";
@@ -140,6 +148,7 @@ in
       "color-scheme" = "prefer-dark";
       "monospace-font-name" = "JetBrains Mono 11";
       "font-name" = "SF Pro Display Regular 11";
+      "text-scaling-factor" = 1.5;
       enable-hot-corners = false;
     };
 

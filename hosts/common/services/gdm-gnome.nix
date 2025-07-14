@@ -13,8 +13,8 @@ in
 
   # Enable the GNOME Desktop Environment
   services.xserver.displayManager.gdm.enable = true;
-  services.xserver.displayManager.autoLogin.enable = true;
-  services.xserver.displayManager.autoLogin.user = username;
+  # services.xserver.displayManager.autoLogin.enable = true;
+  # services.xserver.displayManager.autoLogin.user = username;
   services.xserver.desktopManager.gnome.enable = true;
 
   # Customize GNOME installation
@@ -28,7 +28,7 @@ in
   security.pam.services.gdm.enableGnomeKeyring = true;
   environment.variables.XDG_RUNTIME_DIR = "/run/user/$UID";
   services.dbus.packages = [ pkgs.gnome-keyring ];
-  security.pam.services.gdm-autologin.enableGnomeKeyring = true;
+  # security.pam.services.gdm-autologin.enableGnomeKeyring = true;
 
   # Additional GNOME related packages
   environment.systemPackages = with pkgs; [

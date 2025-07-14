@@ -50,6 +50,8 @@ in
     wl-clip-persist
     xdragon
     ripgrep
+    yek
+    xsel
 
     cmake
 
@@ -85,6 +87,7 @@ in
     unar
     zip
 
+    kdePackages.xwaylandvideobridge
     xorg.xhost
     xorg.xauth
   ];
