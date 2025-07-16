@@ -14,7 +14,17 @@
   programs.bash = {
     enable = true;
 
-    # Environment variables and functions
+    historyFile = "$HOME/.local/state/bash/history";
+    historyFileSize = -1;
+    historySize = -1;
+    historyControl = [
+      "ignoredups"
+      "erasedups"
+    ];
+    enableCompletion = true;
+    bashrcExtra = ''
+      PROMPT_COMMAND="history -a; history -n"
+    ''; # Environment variables and functions
     initExtra = ''
       export EDITOR=hx
 
