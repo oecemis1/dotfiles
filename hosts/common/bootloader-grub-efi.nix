@@ -10,7 +10,7 @@
       enable = lib.mkDefault true;
       device = "nodev";
       efiSupport = true;
-      inherit  useOSProber;
+      inherit useOSProber;
       default = "saved";
       configurationLimit = 30;
     };

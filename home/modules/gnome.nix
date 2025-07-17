@@ -130,7 +130,7 @@ in
       "disable-overview-on-startup" = true;
       "transparency-mode" = "DYNAMIC";
       "background-opacity" = 0.9;
-      "dash-max-icon-size" = 70;
+      "dash-max-icon-size" = 50;
       "unity-backlit-items" = true;
       "click-action" = "minimize-or-previews";
       "intellihide-mode" = "ALL_WINDOWS";
@@ -148,7 +148,7 @@ in
       "color-scheme" = "prefer-dark";
       "monospace-font-name" = "JetBrains Mono 11";
       "font-name" = "SF Pro Display Regular 11";
-      "text-scaling-factor" = 1.5;
+      "text-scaling-factor" = 1.0;
       enable-hot-corners = false;
     };
 

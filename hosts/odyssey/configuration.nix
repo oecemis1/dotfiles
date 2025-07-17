@@ -71,6 +71,9 @@ in
     # ./battery.nix
   ] ++ finalArgs.extraImports;
 
+  systemd.services.NetworkManager-wait-online.enable = false;
+  systemd.network.wait-online.enable = false;
+
   boot.kernelPackages = pkgs.linuxPackages_latest;
   # boot.kernelPatches =
   #   let
@@ -118,7 +121,7 @@ in
   # systemd.services."autovt@tty1".enable = false;
 
   # Enable CUPS to print documents.
-  services.printing.enable = true;
+  # services.printing.enable = true;
 
   # Enable sound with pipewire.
   services.pulseaudio.enable = false;
