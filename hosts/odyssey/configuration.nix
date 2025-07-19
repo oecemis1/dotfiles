@@ -68,6 +68,7 @@ in
     ./hardware-configuration.nix
     ./hardware-gpu.nix
     ./virtualisation.nix
+    ./wifi.nix
     # ./battery.nix
   ] ++ finalArgs.extraImports;
 
