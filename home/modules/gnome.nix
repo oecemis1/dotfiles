@@ -39,9 +39,9 @@ in
       "always-show-universal-access-status" = false;
     };
 
-    # "org/gnome/mutter" = {
-    #   experimental-features = [ "scale-monitor-framebuffer" ];
-    # };
+    "org/gnome/mutter" = {
+      experimental-features = [ "scale-monitor-framebuffer" ];
+    };
 
     "org/gnome/desktop/peripherals/touchpad" = {
       click-method = "areas";
@@ -148,7 +148,7 @@ in
       "color-scheme" = "prefer-dark";
       "monospace-font-name" = "JetBrains Mono 11";
       "font-name" = "SF Pro Display Regular 11";
-      "text-scaling-factor" = 1.0;
+      "text-scaling-factor" = 1.2;
       enable-hot-corners = false;
     };
 
