@@ -1,0 +1,26 @@
+diff --git a/drivers/net/wireless/intel/iwlwifi/fw/regulatory.c b/drivers/net/wireless/intel/iwlwifi/fw/regulatory.c
+index 6adcfa6e214a..4512d846629c 100644
+--- a/drivers/net/wireless/intel/iwlwifi/fw/regulatory.c
++++ b/drivers/net/wireless/intel/iwlwifi/fw/regulatory.c
+@@ -622,7 +622,7 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
+ 		cmd->oem_uhb_allow_bitmap = cpu_to_le32(value);
+ 
+ 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_FORCE_DISABLE_CHANNELS, &value);
+-	if (!ret)
++	if (!ret && value != 0xFFFFFFFF)
+ 		cmd->force_disable_channels_bitmap = cpu_to_le32(value);
+ 
+ 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENERGY_DETECTION_THRESHOLD,
+diff --git a/drivers/net/wireless/intel/iwlwifi/mld/regulatory.c b/drivers/net/wireless/intel/iwlwifi/mld/regulatory.c
+index a75af8c1e8ab..e055a946b9e6 100644
+--- a/drivers/net/wireless/intel/iwlwifi/mld/regulatory.c
++++ b/drivers/net/wireless/intel/iwlwifi/mld/regulatory.c
+@@ -259,7 +259,7 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
+ 		cmd.oem_uhb_allow_bitmap = cpu_to_le32(value);
+ 
+ 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_FORCE_DISABLE_CHANNELS, &value);
+-	if (!ret)
++	if (!ret && value != 0xFFFFFFFF)
+ 		cmd.force_disable_channels_bitmap = cpu_to_le32(value);
+ 
+ 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENERGY_DETECTION_THRESHOLD,

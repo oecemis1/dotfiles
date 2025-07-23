@@ -76,25 +76,12 @@ in
   systemd.network.wait-online.enable = false;
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
-  # boot.kernelPatches =
-  #   let
-  #     version = config.boot.kernelPackages.kernel.version;
-  #   in
-  #   [
-  #     {
-  #       name = "g16";
-  #       patch = builtins.fetchurl {
-  #         url = "https://gitlab.com/asus-linux/fedora-kernel/-/raw/rog-${lib.versions.majorMinor version}/asus-patch-series.patch";
-  #         sha256 = "sha256:0sybd6l38fh68pmq35fwzqpm9sjxnainz36syybni0mbnj4zkbrb";
-  #       };
-  #       extraStructuredConfig = with lib.kernel; {
-  #         ASUS_ARMOURY = module;
-  #       };
-  #       extraMeta = {
-  #         branch = lib.versions.majorMinor version;
-  #       };
-  #     }
-  #   ];
+  boot.kernelPatches = [
+    {
+      name = "iwlwifi_patch";
+      patch = ../../pkgs/iwlwifi-no-disable-all-chans.patch;
+    }
+  ];
 
   boot.kernelParams = [
     "i915.enable_dpcd_backlight=1"
