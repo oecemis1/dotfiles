@@ -164,6 +164,7 @@ in
     packages = with pkgs; [
       (nerd-fonts.noto)
       (nerd-fonts.jetbrains-mono)
+      (nerd-fonts.monaspace)
       corefonts
       # (nerdfonts.override { fonts = [ "Noto" "JetBrainsMono" ]; })
       # jetbrains-mono
