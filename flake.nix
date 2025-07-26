@@ -38,6 +38,11 @@
           hardwareConfigPath = ./hosts/odyssey/hardware-configuration.nix;
           system = "x86_64-linux";
         };
+        obsidian = mkSystem {
+          baseConfigPath = ./hosts/obsidian/configuration.nix;
+          hardwareConfigPath = ./hosts/obsidian/hardware-configuration.nix;
+          system = "x86_64-linux";
+        };
       };
     };
 }
