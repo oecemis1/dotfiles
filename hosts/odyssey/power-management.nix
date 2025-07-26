@@ -5,6 +5,7 @@ _: {
     cpuFreqGovernor = "schedutil";
   };
 
+  services.thermald.enable = true;
   services.tlp = {
     enable = false;
     settings = {

@@ -69,7 +69,7 @@ in
     ./hardware-gpu.nix
     ./virtualisation.nix
     ./wifi.nix
-    # ./battery.nix
+    ./power-management.nix
   ] ++ finalArgs.extraImports;
 
   systemd.services.NetworkManager-wait-online.enable = false;

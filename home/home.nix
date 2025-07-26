@@ -43,7 +43,8 @@ in
 
     # Terminal tools
     kitty
-    btop
+    btop-cuda
+    # btop
     yazi
     ueberzugpp
     wl-clipboard
@@ -52,6 +53,7 @@ in
     ripgrep
     yek
     xsel
+    xremap
 
     cmake
 
