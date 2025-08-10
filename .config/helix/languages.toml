@@ -68,15 +68,15 @@ auto-format = false
 
 [[language]]
 name = "cpp"
-# auto-format = true
+auto-format = true
 language-servers = ["clangd"]
-indent = { tab-width = 4, unit = "    " }
+indent = { tab-width = 2, unit = "  " }
 
 [[language]]
 name = "c"
 auto-format = true
 language-servers = ["clangd"]
-indent = { tab-width = 4, unit = "    " }
+indent = { tab-width = 2, unit = "  " }
 # Diagnostics:
 #   Suppress: "pp_including_mainfile_in_preamble"
 # Add above codes into the .clangd file under your project directory.
@@ -117,7 +117,7 @@ command = "clippy"
 
 [language-server.clangd]
 command = "clangd"
-args = ['--fallback-style=Webkit']
+# args = ['--fallback-style=Webkit']
 
 [language-server.texlab]
 command = "texlab"

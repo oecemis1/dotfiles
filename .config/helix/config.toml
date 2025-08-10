@@ -1,4 +1,5 @@
-theme = "gruvbox_mix_dark_medium"
+# theme = "dracula"
+theme = "mytheme"
 
 [keys.normal]
 esc = ["collapse_selection", "keep_primary_selection"]
@@ -84,7 +85,7 @@ true-color = true
 line-number = "relative"
 mouse = false
 bufferline = "always"
-rulers = [80]
+rulers = [100]
 idle-timeout = 0
 completion-trigger-len = 1
 
