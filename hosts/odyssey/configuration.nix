@@ -68,7 +68,7 @@ in
     ./hardware-configuration.nix
     ./hardware-gpu.nix
     ./virtualisation.nix
-    ./wifi.nix
+    # ./wifi.nix
     ./power-management.nix
   ] ++ finalArgs.extraImports;
 
@@ -90,6 +90,28 @@ in
   ];
 
   services.supergfxd.enable = true;
+  specialisation = {
+    integrated-graphics.configuration = {
+      services.supergfxd = {
+        enable = true;
+        settings = {
+          mode = "Integrated";
+          vfio_enable = false;
+          vfio_save = false;
+          always_reboot = false;
+          no_logind = false;
+          logout_timeout_s = 180;
+          hotplug_type = "None";
+        };
+      };
+    };
+    # hybrid-graphics.configuration = {
+    #   services.supergfxd.settings = {
+    #     mode = "Hybrid";
+    #   };
+    # };
+  };
+
   services.asusd = {
     enable = true;
     enableUserService = true;
