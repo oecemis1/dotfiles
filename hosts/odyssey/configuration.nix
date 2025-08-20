@@ -76,6 +76,7 @@ in
   systemd.network.wait-online.enable = false;
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
+  # boot.kernelPackages = pkgs.linuxPackages_testing;
   boot.kernelPatches = [
     {
       name = "iwlwifi_patch";
@@ -84,6 +85,9 @@ in
   ];
 
   boot.kernelParams = [
+    "intel_pstate"
+    # "intel_pstate=no_hwp"
+    "resume_offset=13757716"
     "i915.enable_dpcd_backlight=1"
     "nvidia.NVreg_EnableBacklightHandler=0"
     "nvidia.NVreg_RegistryDwords=EnableBrightnessControl=0"
@@ -115,7 +119,64 @@ in
   services.asusd = {
     enable = true;
     enableUserService = true;
+
+    fanCurvesConfig = {
+      text = ''
+        (
+          profiles: (
+                quiet: [
+                    (
+                        fan: CPU,
+                        pwm: (0, 0, 0, 0, 64, 89, 115, 140),
+                        temp: (30, 40, 50, 60, 70, 80, 90, 100),
+                        enabled: true,
+                    ),
+                    (
+                        fan: GPU,
+                        pwm: (0, 0, 0, 0, 64, 89, 115, 140),
+                        temp: (30, 40, 50, 60, 70, 80, 90, 100),
+                        enabled: true,
+                    ),
+                ],
+                balanced: [
+                    (
+                        fan: CPU,
+                        pwm: (13, 26, 51, 77, 115, 153, 191, 217),
+                        temp: (30, 40, 50, 60, 70, 80, 90, 100),
+                        enabled: true,
+                    ),
+                    (
+                        fan: GPU,
+                        pwm: (13, 26, 51, 77, 115, 153, 191, 217),
+                        temp: (30, 40, 50, 60, 70, 80, 90, 100),
+                        enabled: true,
+                    ),
+                ],
+                performance: [
+                    (
+                        fan: CPU,
+                        pwm: (0, 0, 0, 80, 150, 220, 250, 250),
+                        temp: (30, 40, 50, 65, 70, 80, 90, 100),
+                        enabled: true,
+                    ),
+                    (
+                        fan: GPU,
+                        pwm: (0, 0, 0, 80, 150, 220, 250, 250),
+                        temp: (30, 40, 50, 60, 70, 80, 90, 100),
+                        enabled: true,
+                    ),
+                ],
+                custom: [],
+            ),
+        )
+      '';
+    };
   };
+
+  systemd.services.asusd = {
+    restartTriggers = [ config.services.asusd.fanCurvesConfig.text ];
+  };
+  programs.rog-control-center.enable = true;
 
   networking = {
     hostName = finalArgs.hostName;
