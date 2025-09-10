@@ -8,7 +8,7 @@ _: {
   };
 
   # services.acpid.enable = true;
-  services.thermald.enable = true;
+  # services.thermald.enable = true;
   services.power-profiles-daemon.enable = false;
   services.tlp = {
     enable = true;
@@ -22,10 +22,10 @@ _: {
 
       CPU_MIN_PERF_ON_AC = 0;
       CPU_MAX_PERF_ON_AC = 100;
-      CPU_MIN_PERF_ON_BAT = 0;
-      CPU_MAX_PERF_ON_BAT = 20;
+      CPU_MIN_PERF_ON_BAT = 1;
+      CPU_MAX_PERF_ON_BAT = 10;
 
-      CPU_SCALING_MAX_FREQ_ON_BAT = 1000000;
+      # CPU_SCALING_MAX_FREQ_ON_BAT = 1000000;
 
       CPU_BOOST_ON_BAT = 0;
       CPU_BOOST_ON_AC = 1;

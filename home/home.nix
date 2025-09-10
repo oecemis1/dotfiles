@@ -32,6 +32,7 @@ in
     # Browser
     google-chrome
     spotify
+    qbittorrent
 
     # Development tools
     tmux
@@ -54,6 +55,7 @@ in
     yek
     xsel
     xremap
+    mutagen
 
     cmake
 
