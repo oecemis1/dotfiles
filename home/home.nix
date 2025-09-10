@@ -35,9 +35,9 @@ in
 
     # Development tools
     tmux
-    # helix
+    helix
     # evil-helix
-    (pkgs.callPackage ../pkgs/helix.nix { })
+    # (pkgs.callPackage ../pkgs/helix.nix { })
     neovim
     direnv
 

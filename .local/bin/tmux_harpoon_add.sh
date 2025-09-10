@@ -6,7 +6,7 @@ cache_dir="$HOME/.cache/tmux_harpoon"
 data_file="$cache_dir/$tmux_cwd_hash.csv"
 
 # Get helix information
-status_line=$(tmux capture-pane -pS -3 | rg -e "(?:NOR\s+|NORMAL|INS\s+|INSERT|SEL\s+|SELECT)[\p{Braille}]*\s+(\S*)\s[^│]* (\d+):(\d+).*" -o --replace '$1 $2 $3')
+status_line=$(tmux capture-pane -pS -3 | tail -n 3 | rg -e "(?:NOR\s+|NORMAL|INS\s+|INSERT|SEL\s+|SELECT)[\p{Braille}]*\s+(\S*)\s[^│]* (\d+):(\d+).*" -o --replace '$1 $2 $3')
 read -r buffer_path cursor_row cursor_col <<< "$status_line"
 
 # Get tmux information
@@ -25,6 +25,28 @@ tmux_window=${tmux_window//@/}
 #   echo "ppath: $tmux_pane_path";
 # } > "$log_file"
 
+# If the pane command is 'yazi', check if Helix is the active foreground process.
+if [[ "$tmux_command" == "yazi" ]]; then
+  if [[ -n "$status_line" ]]; then
+    # Validate the captured info.
+    temp_full_path="$buffer_path"
+    if [[ "$temp_full_path" == ~* ]]; then
+      temp_full_path="${temp_full_path/#\~/$HOME}"
+    fi
+    if [[ "$temp_full_path" != /* ]]; then
+      temp_full_path="$tmux_pane_path/$temp_full_path"
+    fi
+    # Use realpath to resolve symlinks and '..'
+    temp_full_path=$(realpath "$temp_full_path" 2>/dev/null || echo "")
+
+    # the path is a valid file and if row/col are numbers.
+    if [[ -f "$temp_full_path" ]] && \
+       [[ "$cursor_row" =~ ^[0-9]+$ ]] && \
+       [[ "$cursor_col" =~ ^[0-9]+$ ]]; then
+      tmux_command="hx"
+    fi
+  fi
+fi
 
 if [[ "$buffer_path" == ~* ]]; then
   buffer_path="${buffer_path/#\~/$HOME}"
@@ -48,10 +70,12 @@ fi
 
 
 populated=1
-if [[ ! -f "$data_file" ]]; then
+if [[ ! -f "$data_file" ]]; then # File does not exist
   populated=0
   mkdir -p "$cache_dir"
   touch "$data_file"
+elif [[ ! -s "$data_file" ]]; then # File is empty
+  populated=0
 fi
 
 if [[ "$buffer_path" != *"/default_path"* ]]; then
@@ -87,6 +111,6 @@ if [[ "$populated" -eq 0 ]]; then
   done
   echo >> "$data_file"
   echo "# session_name: $tmux_session" >> "$data_file"
-  echo "# pane_id , command , file_name , file_path:r:c , workspace_dir" >> "$data_file"
+  echo "# pane_id , command , file_name:r:c , file_path , workspace_dir" >> "$data_file"
 fi
 
