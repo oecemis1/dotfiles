@@ -8,7 +8,7 @@ _: {
   };
 
   # services.acpid.enable = true;
-  # services.thermald.enable = true;
+  services.thermald.enable = true;
   services.power-profiles-daemon.enable = false;
   services.tlp = {
     enable = true;
@@ -29,6 +29,7 @@ _: {
 
       CPU_BOOST_ON_BAT = 0;
       CPU_BOOST_ON_AC = 1;
+      CPU_HWP_DYN_BOOST_ON_BAT = 0;
 
       PLATFORM_PROFILE_ON_AC = "performance";
       PLATFORM_PROFILE_ON_BAT = "quiet";
