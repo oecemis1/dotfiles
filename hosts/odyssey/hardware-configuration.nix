@@ -43,10 +43,10 @@
     ];
   };
 
-  fileSystems."/home/orhun/windows_mount" = {
-    device = "/dev/disk/by-uuid/02324ACE324AC67F";
-    fsType = "ntfs-3g";
-  };
+  # fileSystems."/home/orhun/windows_mount" = {
+  #   device = "/dev/disk/by-uuid/02324ACE324AC67F";
+  #   fsType = "ntfs-3g";
+  # };
 
   boot.resumeDevice = "/dev/disk/by-uuid/83e50462-b687-4d46-9557-e1a192581bcc";
   swapDevices = [ { device = "/swap/swapfile"; } ];
