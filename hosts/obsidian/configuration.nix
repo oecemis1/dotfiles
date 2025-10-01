@@ -26,7 +26,7 @@ let
     userExtraGroups = [ ];
     useHomeManager = true;
     homeManagerImports = [
-      ../../home/home.nix
+      ../../home/home-hypr.nix
     ];
     homeManagerArgs = { };
 
@@ -62,7 +62,7 @@ in
     ../common/settings.nix
     ../common/bootloader-grub-efi.nix
 
-    ../common/services/gdm-gnome.nix
+    ../common/services/sddm-hyprland.nix
     ../common/services/warp.nix
 
     ./hardware-configuration.nix
@@ -80,9 +80,24 @@ in
     networkmanager.enable = true;
   };
 
+  security = {
+    pam = {
+      services.hyprlock = { };
+      loginLimits = [
+        {
+          domain = "*";
+          type = "hard";
+          item = "nofile";
+          value = "1048576";
+        }
+      ];
+    };
+
+    rtkit.enable = lib.mkDefault false;
+  };
+
   # Enable sound with pipewire.
   services.pulseaudio.enable = false;
-  security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
     alsa.enable = true;
@@ -95,6 +110,18 @@ in
     # no need to redefine it in your config for now)
     #media-session.enable = true;
   };
+
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+    settings = {
+      Policy = {
+        AutoEnable = "false";
+      };
+    };
+  };
+
+  services.blueman.enable = true;
 
   # Basic system packages
   environment.systemPackages = with pkgs; [
