@@ -30,7 +30,7 @@ in
   ];
 
   home.packages = with pkgs; [
-    # Browser
+    # Browser, etc.
     google-chrome
     spotify
     qbittorrent

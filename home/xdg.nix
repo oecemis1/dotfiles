@@ -21,6 +21,7 @@
         "mimeapps.list"
         "GNOME-xdg-terminals.list"
         "xdg-terminals.list"
+        "tofi"
       ];
 
       immutable_data = [
@@ -102,6 +103,11 @@
       source = "${inputs.self}/.local/docker-scripts";
       recursive = true;
       executable = true;
+    };
+    ".config/wallpapers" = {
+      source = "${inputs.self}/assets";
+      recursive = true;
+      executable = false;
     };
   };
 }
