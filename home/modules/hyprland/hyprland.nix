@@ -148,6 +148,10 @@
         "workspace 1,class:(google-chrome)"
         "workspace 2,class:(kitty)"
         "float, class:^(org.gnome.Nautilus)"
+        "float, title:^(my_todo)$"
+        "size 80% 80%, title:^(my_todo)$"
+        "center, title:^(my_todo)$"
+        "workspace special:todo, title:^(my_todo)$"
       ];
 
       layerrule = [
@@ -182,12 +186,6 @@
         "$mainMod, l, movefocus, r"
         "$mainMod, j, movefocus, u"
         "$mainMod, k, movefocus, d"
-
-        # Window Resizing - Regular (SUPER + ALT + hjkl)
-        # "$mainMod CTRL, h, exec, hyprctl --batch \"keyword misc:animate_manual_resizes true; dispatch resizeactive -80 0; keyword misc:animate_manual_resizes false\""
-        # "$mainMod CTRL, j, exec, hyprctl --batch \"keyword misc:animate_manual_resizes true; dispatch resizeactive 0 80; keyword misc:animate_manual_resizes false\""
-        # "$mainMod CTRL, k, exec, hyprctl --batch \"keyword misc:animate_manual_resizes true; dispatch resizeactive 0 -80; keyword misc:animate_manual_resizes false\""
-        # "$mainMod CTRL, l, exec, hyprctl --batch \"keyword misc:animate_manual_resizes true; dispatch resizeactive 80 0; keyword misc:animate_manual_resizes false\""
 
         "$mainMod, E, togglefloating"
         "$mainMod, F, fullscreen"
@@ -228,6 +226,7 @@
         "$mainMod, mouse_up, workspace, e-1"
 
         "CTRL ALT, T, exec, $terminal"
+        "ALT, N, exec, todo_my"
 
         "$mainMod SHIFT, S, exec, pgrep hyprshot || hyprshot -m region -o $HOME/Pictures/Screenshots"
         "CTRL ALT, U, exec, grim -g \"$(slurp)\" - | swappy -f -"

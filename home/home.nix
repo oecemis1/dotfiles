@@ -59,6 +59,7 @@ in
     bandwhich
     cpufrequtils
     mutagen
+    (pkgs.callPackage ../pkgs/todotxttui.nix { })
 
     cmake
 

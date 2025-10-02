@@ -1,0 +1,28 @@
+diff --git a/src/ui/components.py b/src/ui/components.py
+index ad88120..e1cc639 100644
+--- a/src/ui/components.py
++++ b/src/ui/components.py
+@@ -402,11 +402,19 @@ class Search(urwid.Edit):
+ 
+             # Set focus on topmost task if search results !empty
+             if len(self.tasklist_instance.body) > 0:
+-                self.tasklist_instance.set_focus(1)
++                self.tasklist_instance.set_focus(0)
+             else:
+                 # Reset search if no results
+                 self.set_edit_text('')
+-                self.tasklist_instance.set_focus(1)
++                self.tasklist_instance.refresh_displayed_tasks()
++                # Only set focus if there are tasks after refresh
++                if len(self.tasklist_instance.body) > 0:
++                    self.tasklist_instance.set_focus(0)
++            return
++        elif key == 'esc':
++            self.tasklist_instance.main_frame.focus_position = 'body'
++            if len(self.tasklist_instance.body) > 0:
++                self.tasklist_instance.set_focus(0)
+             return
+ 
+-        super().keypress(size, key)
+\ No newline at end of file
++        super().keypress(size, key)
