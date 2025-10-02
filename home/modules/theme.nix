@@ -28,7 +28,7 @@
     cursorTheme = {
       package = pkgs.dracula-theme;
       name = "Dracula-cursors";
-      size = 10;
+      size = 25;
     };
     gtk4.extraConfig = {
       gtk-application-prefer-dark-theme = true;

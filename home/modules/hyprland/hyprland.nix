@@ -8,6 +8,9 @@
 {
   wayland.windowManager.hyprland = {
     enable = true;
+    extraConfig = ''
+      source = ~/.config/hypr/monitors.conf
+    '';
     settings = {
       "$terminal" = "kitty";
       "$browser" = "google-chrome-stable";
@@ -17,14 +20,14 @@
       "$mainMod" = "SUPER";
 
       # Monitor configuration
-      monitor = ",preferred,auto,auto";
+      # monitor = ",preferred,auto,auto";
 
       # General settings
       general = {
         border_size = 1;
         no_border_on_floating = true;
-        gaps_in = 5;
-        gaps_out = 10;
+        gaps_in = 2;
+        gaps_out = 3;
         "col.active_border" = "rgba(44475aff)";
         "col.inactive_border" = "rgba(1e1f2900)";
         layout = "dwindle";

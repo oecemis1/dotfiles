@@ -15,21 +15,22 @@
         spacing = 4;
         margin-top = 5;
         margin-bottom = 0;
-        margin-left = 10;
-        margin-right = 10;
+        margin-left = 3;
+        margin-right = 3;
 
         modules-left = [
           "hyprland/workspaces"
           # "custom/window"
         ];
-        modules-center = [ ];
-        modules-right = [
+        modules-center = [
           "custom/notifications"
           "clock"
           "custom/time"
+        ];
+        modules-right = [
           "custom/cpu"
-          "memory"
-          "custom/network"
+          # "memory"
+          # "custom/network"
           "wireplumber"
           "bluetooth"
           "tray"
@@ -168,7 +169,7 @@
     };
 
     style = ''
-      @define-color base       #282a36;
+      @define-color base       #15161d;
       @define-color baselight  #44475a;
       @define-color text       #f8f8f2;
       @define-color yellow     #f1fa8c;
@@ -179,7 +180,7 @@
       * {
         padding: 0;
         font-family: "MonaspiceNe Nerd Font Mono";
-        font-size: 18px;
+        font-size: 14px;
       }
 
       window#waybar {

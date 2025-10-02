@@ -22,7 +22,9 @@
       accel_profile = "flat";
 
       touchpad = {
-        natural_scroll = false;
+        natural_scroll = true;
+        tap-to-click = true;
+        scroll_factor = 0.1;
       };
     };
   };

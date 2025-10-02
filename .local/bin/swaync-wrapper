@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Unset GTK_THEME if it's set, as per your original request.
+# This ensures swaync doesn't inherit any GTK theme settings that might interfere.
+unset GTK_THEME
+
+# Set XDG_CONFIG_HOME for swaync specifically
+export XDG_CONFIG_HOME="$HOME/.dummy"
+
+# Execute swaync with the specified config and style files,
+# passing through any additional arguments.
+exec swaync -c "$HOME/.config/swaync/config.json" -s "$HOME/.config/swaync/style.css" "$@"

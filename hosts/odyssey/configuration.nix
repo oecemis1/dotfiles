@@ -62,7 +62,8 @@ in
     ../common/settings.nix
     ../common/bootloader-grub-efi.nix
 
-    ../common/services/gdm-gnome.nix
+    # ../common/services/gdm-gnome.nix
+    ../common/services/sddm-hyprland.nix
     ../common/services/warp.nix
 
     ./hardware-configuration.nix

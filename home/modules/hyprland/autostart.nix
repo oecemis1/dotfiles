@@ -10,7 +10,7 @@
     "hypridle &"
     "hyprpaper"
     "waybar"
-    "swaync"
+    "swaync-wrapper"
     "swww-daemon"
     "swayosd-server"
     "update-wallpaper.sh"
