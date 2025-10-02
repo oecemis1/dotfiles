@@ -36,6 +36,7 @@
 
     networkmanagerapplet
     brightnessctl
+    yad
     pamix
     # moc
     pavucontrol

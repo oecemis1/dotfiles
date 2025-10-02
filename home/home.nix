@@ -95,6 +95,7 @@ in
     zip
 
     kdePackages.xwaylandvideobridge
+    gnome-power-manager
     xorg.xhost
     xorg.xauth
   ];

@@ -50,7 +50,7 @@
           enabled = true;
           new_optimizations = true;
           ignore_opacity = false;
-          noise = 0.1;
+          noise = 0.05;
           size = 2;
           passes = 3;
         };
@@ -155,6 +155,11 @@
         "size 80% 80%, title:^(my_todo)$"
         "center, title:^(my_todo)$"
         "workspace special:todo, title:^(my_todo)$"
+        "float, title:^(Brightness Control)$"
+        "size 400 100, title:^(Brightness Control)$"
+        "move 100%-410 120, title:^(Brightness Control)$"
+        "noinitialfocus, title:^(Brightness Control)$"
+        "noblur, title:^(Brightness Control)$"
       ];
 
       layerrule = [

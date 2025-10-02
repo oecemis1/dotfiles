@@ -14,7 +14,7 @@
         position = "top";
         spacing = 4;
         margin-top = 5;
-        margin-bottom = 0;
+        margin-bottom = 2;
         margin-left = 3;
         margin-right = 3;
 
@@ -31,9 +31,9 @@
           "custom/cpu"
           # "memory"
           # "custom/network"
-          "wireplumber"
-          "bluetooth"
           "tray"
+          "wireplumber"
+          # "bluetooth"
           "backlight"
           "custom/battery"
         ];
@@ -41,6 +41,7 @@
         backlight = {
           format = "󰖙 {percent}%";
           tooltip = false;
+          on-click = "waybar_brightness_slider.sh";
         };
 
         bluetooth = {
@@ -79,7 +80,7 @@
           exec = "waybar_battery.sh";
           interval = 30;
           format = "{}";
-          on-click = "gnome-power-statistics";
+          # on-click = "gnome-power-statistics";
           tooltip = false;
         };
 
@@ -161,7 +162,7 @@
         };
 
         wireplumber = {
-          format = "󰝚 {volume}%";
+          format = "󰕾 {volume}%";
           tooltip = false;
           on-click = "pavucontrol";
         };
@@ -180,7 +181,7 @@
       * {
         padding: 0;
         font-family: "MonaspiceNe Nerd Font Mono";
-        font-size: 14px;
+        font-size: 17px;
       }
 
       window#waybar {
@@ -223,7 +224,7 @@
       #wireplumber,
       #workspaces {
         color: @purple;
-        padding: 3px 10px;
+        padding: 1px 8px;
         margin: 0 2px;
         border-radius: 3px;
         border: 1px solid @baselight;
