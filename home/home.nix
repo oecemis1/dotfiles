@@ -27,6 +27,7 @@ in
     ./modules/gnome.nix
     ./modules/env.nix
     ./modules/hyprland
+    ./modules/theme.nix
   ];
 
   home.packages = with pkgs; [

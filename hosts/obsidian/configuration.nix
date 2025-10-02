@@ -26,7 +26,7 @@ let
     userExtraGroups = [ ];
     useHomeManager = true;
     homeManagerImports = [
-      ../../home/home-hypr.nix
+      ../../home/home.nix
     ];
     homeManagerArgs = { };
 
@@ -78,22 +78,6 @@ in
   networking = {
     hostName = finalArgs.hostName;
     networkmanager.enable = true;
-  };
-
-  security = {
-    pam = {
-      services.hyprlock = { };
-      loginLimits = [
-        {
-          domain = "*";
-          type = "hard";
-          item = "nofile";
-          value = "1048576";
-        }
-      ];
-    };
-
-    rtkit.enable = lib.mkDefault false;
   };
 
   # Enable sound with pipewire.

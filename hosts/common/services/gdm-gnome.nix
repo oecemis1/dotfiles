@@ -28,6 +28,7 @@ in
   security.pam.services.gdm.enableGnomeKeyring = true;
   environment.variables.XDG_RUNTIME_DIR = "/run/user/$UID";
   services.dbus.packages = [ pkgs.gnome-keyring ];
+  security.rtkit.enable = true;
   # security.pam.services.gdm-autologin.enableGnomeKeyring = true;
 
   # Additional GNOME related packages

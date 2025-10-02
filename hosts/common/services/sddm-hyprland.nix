@@ -13,7 +13,7 @@
   services.displayManager.sddm = {
     enable = true;
     package = pkgs.kdePackages.sddm;
-    # theme = "sddm-astronaut-theme";
+    theme = "sddm-astronaut-theme";
 
     wayland.enable = true;
 
@@ -27,9 +27,9 @@
       General = {
         DefaultSession = "hyprland.desktop";
       };
-      # Wayland = {
-      #   CompositorCommand = "${lib.getExe pkgs.weston} --backend=drm-backend.so --shell=kiosk-shell.so";
-      # };
+      Wayland = {
+        CompositorCommand = "${lib.getExe pkgs.weston} --backend=drm-backend.so --shell=kiosk-shell.so";
+      };
     };
   };
 
@@ -41,6 +41,23 @@
   };
   programs.gnome-disks.enable = true;
 
+  security = {
+    pam = {
+      services.hyprlock = { };
+      loginLimits = [
+        {
+          domain = "*";
+          type = "hard";
+          item = "nofile";
+          value = "1048576";
+        }
+      ];
+    };
+
+    rtkit.enable = lib.mkDefault false;
+  };
+
+  imports = [ ../polkit-agent.nix ];
   environment.systemPackages = with pkgs; [
     gnome-terminal
     gnome-calculator
@@ -48,12 +65,8 @@
     yaru-theme
     libsecret
     baobab
+    (pkgs.callPackage ../../../pkgs/sddm-astronaut.nix {
+      # theme = "pixel_sakura";
+    })
   ];
-
-  # imports = [ ../system/polkit-agent.nix ];
-  # environment.systemPackages = [
-  #   (pkgs.callPackage ../../../pkgs/sddm-astronaut.nix {
-  #     # theme = "pixel_sakura";
-  #   })
-  # ];
 }

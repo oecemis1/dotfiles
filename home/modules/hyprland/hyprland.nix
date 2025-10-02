@@ -147,6 +147,7 @@
         "float, class:^(org.gnome.Calculator)"
         "workspace 1,class:(google-chrome)"
         "workspace 2,class:(kitty)"
+        "float, class:^(org.gnome.Nautilus)"
       ];
 
       layerrule = [

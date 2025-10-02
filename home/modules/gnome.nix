@@ -143,11 +143,7 @@ in
     # GNOME appearance settings
     "org/gnome/desktop/interface" = {
       "accent-color" = "purple";
-      "icon-theme" = "Yaru";
-      "gtk-theme" = "Yaru-magenta-dark";
-      "color-scheme" = "prefer-dark";
       "monospace-font-name" = "MonaspiceNe NFM Medium 11";
-      # "monospace-font-name" = "JetBrains Mono 11";
       "font-name" = "SF Pro Display Regular 11";
       "text-scaling-factor" = 1.2;
       enable-hot-corners = false;
