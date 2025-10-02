@@ -156,10 +156,9 @@
         "center, title:^(my_todo)$"
         "workspace special:todo, title:^(my_todo)$"
         "float, title:^(Brightness Control)$"
-        "size 400 100, title:^(Brightness Control)$"
-        "move 100%-410 120, title:^(Brightness Control)$"
         "noinitialfocus, title:^(Brightness Control)$"
         "noblur, title:^(Brightness Control)$"
+        "float, class:^(org.pulseaudio.pavucontrol)$"
       ];
 
       layerrule = [

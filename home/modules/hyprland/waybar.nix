@@ -41,7 +41,7 @@
         backlight = {
           format = "󰖙 {percent}%";
           tooltip = false;
-          on-click = "waybar_brightness_slider.sh";
+          on-click = "sh -c 'sleep 0.05; waybar_brightness_slider.sh' &";
         };
 
         bluetooth = {
@@ -56,7 +56,7 @@
         };
 
         clock = {
-          format = "󰃃 {:%a %d %b}";
+          format = "{:%a %d %b}";
           tooltip-format = "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>";
           calendar = {
             mode = "year";
@@ -111,7 +111,7 @@
         "custom/time" = {
           exec = "date '+%H:%M'";
           interval = 1;
-          format = "󰅐 {}";
+          format = "{}";
           tooltip = false;
         };
 

@@ -16,9 +16,10 @@ cat > "$CSS_FILE" << 'EOF'
 /* GTK CSS for brightness slider matching Waybar/Dracula theme */
 
 window {
-    background-color: rgba(21, 22, 29, 0.85);
+    background-color: rgba(21, 22, 29, 0.95);
     border: 1px solid rgba(68, 71, 90, 0.6);
-    border-radius: 12px;
+    border-radius: 3px;
+    padding: 0px;
 }
 
 * {
@@ -27,36 +28,51 @@ window {
     font-size: 14px;
 }
 
-label {
-    color: #bd93f9;
-    font-size: 15px;
-    padding: 10px;
+box {
+    padding: 0px;
+    margin: 0px;
+    margin-left: -1px;
+    margin-right: -1px;
+    margin-top: -10px;
+    margin-bottom: -1px;
 }
 
 scale {
     min-width: 300px;
-    min-height: 30px;
+    min-height: 10px;
+    margin: 0px;
 }
 
 scale trough {
     background-color: #44475a;
-    border-radius: 8px;
-    min-height: 8px;
+    border-radius: 3px;
+    min-height: 5px;
+    max-height: 5px;
 }
 
 scale highlight {
     background-color: #bd93f9;
-    border-radius: 8px;
+    border-radius: 3px;
 }
 
 scale slider {
     background-color: #bd93f9;
     border: 2px solid #6272a4;
-    border-radius: 10px;
-    min-width: 20px;
-    min-height: 20px;
-    margin: -6px;
+    border-radius: 4px;
+    min-width: 12px;
+    min-height: 12px;
+    margin: -4px;
+    box-shadow: none;
+    background-image: none;
+    -gtk-icon-source: none;
 }
+
+scale value {
+    margin-bottom: 5px;
+    min-width: 30px;
+    color: transparent;
+}
+
 
 scale slider:hover {
     background-color: #8be9fd;
@@ -65,7 +81,8 @@ scale slider:hover {
 
 scale mark {
     color: #6272a4;
-    font-size: 11px;
+    font-size: 10px;
+    padding-top: 4px;
 }
 EOF
 
@@ -77,32 +94,39 @@ current_percentage=$((current_brightness * 100 / max_brightness))
 # Apply custom GTK theme
 export GTK_THEME="Adwaita:dark"
 
+WAYBAR_INFO=$(hyprctl layers -j | jq -r '.[].levels[][] | select(.namespace == "waybar")')
+WAYBAR_HEIGHT=$(echo "$WAYBAR_INFO" | jq -r '.h')
+if [ -z "$WAYBAR_HEIGHT" ] || [ "$WAYBAR_HEIGHT" == "null" ]; then
+    WAYBAR_HEIGHT=40
+fi
+Y_POSITION=$((WAYBAR_HEIGHT + 7))
+
+WAYBAR_X=$(echo "$WAYBAR_INFO" | jq -r '.w')
+X_POSITION=$((WAYBAR_X - 340 + 3))
+
+hyprctl keyword windowrulev2 "move ${X_POSITION} ${Y_POSITION}, title:^(Brightness Control)$"
+
 # Launch yad slider - Hyprland window rules will handle positioning
 yad --scale \
     --title="Brightness Control" \
-    --text="󰃠  Adjust Screen Brightness" \
     --value="$current_percentage" \
-    --min-value=0 \
+    --min-value=1 \
     --max-value=100 \
     --step=1 \
-    --width=400 \
-    --height=100 \
+    --width=340 \
+    --height=15 \
     --undecorated \
     --skip-taskbar \
+    --no-grab \
     --on-top \
     --no-buttons \
     --close-on-unfocus \
-    --borders=20 \
     --print-partial \
-    --mark="󰃞 :0" \
-    --mark="󰃟 :25" \
-    --mark="󰃠 :50" \
-    --mark=" :75" \
-    --mark=" :100" \
     --gtkrc="$CSS_FILE" 2>/dev/null | while read -r value; do
-        # Update brightness in real-time
         [ -n "$value" ] && brightnessctl set "${value}%"
-    done
+    done &
+
+wait
 
 # Cleanup
 rm -f "$CSS_FILE"
