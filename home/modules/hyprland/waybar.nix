@@ -41,7 +41,7 @@
         backlight = {
           format = "󰖙 {percent}%";
           tooltip = false;
-          on-click = "sh -c 'sleep 0.05; waybar_brightness_slider.sh' &";
+          on-click = "hyprctl dispatch focuswindow address:; waybar_brightness_slider.sh &";
         };
 
         bluetooth = {

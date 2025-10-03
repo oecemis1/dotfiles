@@ -14,13 +14,12 @@
     ./waybar.nix
     ./swaync.nix
     ./hyprlock.nix
-    ./hyprlock.nix
+    ./hypridle.nix
   ];
 
   home.packages = with pkgs; [
     hyprlock
     hyprpaper
-    hypridle
     hyprshot
     waybar
     swaynotificationcenter
