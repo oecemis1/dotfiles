@@ -5,6 +5,16 @@
   ...
 }:
 {
+  systemd.user.services.swaync = {
+    Service = {
+      ExecStart = lib.mkForce "${pkgs.swaynotificationcenter}/bin/swaync -c ${config.xdg.configHome}/swaync/config.json -s ${config.xdg.configHome}/swaync/style.css";
+      Environment = [
+        "XDG_CONFIG_HOME=%h/.dummy"
+      ];
+      UnsetEnvironment = "GTK_THEME";
+    };
+  };
+
   services.swaync = {
     enable = true;
 
