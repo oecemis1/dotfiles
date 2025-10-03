@@ -54,7 +54,7 @@
       ];
     };
 
-    rtkit.enable = lib.mkDefault false;
+    rtkit.enable = lib.mkDefault true;
   };
 
   imports = [ ../polkit-agent.nix ];
