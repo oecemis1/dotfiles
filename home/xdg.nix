@@ -18,6 +18,7 @@
         "kitty"
         "tmux"
         "yazi"
+        "qalculate"
         "mimeapps.list"
         "GNOME-xdg-terminals.list"
         "xdg-terminals.list"

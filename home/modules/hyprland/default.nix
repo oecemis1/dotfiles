@@ -44,5 +44,8 @@
 
     swww
     tofi
+
+    adwaita-qt
+    adwaita-qt6
   ];
 }

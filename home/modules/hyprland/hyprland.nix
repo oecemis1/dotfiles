@@ -22,6 +22,11 @@
       # Monitor configuration
       # monitor = ",preferred,auto,auto";
 
+      xwayland = {
+        enabled = true;
+        force_zero_scaling = true;
+      };
+
       # General settings
       general = {
         border_size = 1;
@@ -159,6 +164,12 @@
         "noinitialfocus, title:^(Brightness Control)$"
         "noblur, title:^(Brightness Control)$"
         "float, class:^(org.pulseaudio.pavucontrol)$"
+        "float, class:^(.blueman-manager-wrapped)$"
+        #qalculate
+        "float,class:(qalculate-qt)"
+        "float,class:(io.github.Qalculate.qalculate-qt)"
+        "workspace special:calculator,class:(qalculate-qt)"
+        "workspace special:calculator,class:(io.github.Qalculate.qalculate-qt)"
       ];
 
       layerrule = [

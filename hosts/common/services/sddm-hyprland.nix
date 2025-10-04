@@ -60,7 +60,6 @@
   imports = [ ../polkit-agent.nix ];
   environment.systemPackages = with pkgs; [
     gnome-terminal
-    gnome-calculator
     nautilus
     yaru-theme
     libsecret

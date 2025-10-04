@@ -43,6 +43,8 @@ in
     # (pkgs.callPackage ../pkgs/helix.nix { })
     neovim
     direnv
+    qalculate-qt
+    libqalculate
 
     # Terminal tools
     kitty
