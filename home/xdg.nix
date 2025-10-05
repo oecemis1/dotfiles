@@ -16,13 +16,14 @@
         "gdb"
         "helix"
         "kitty"
-        "tmux"
-        "yazi"
         "qalculate"
+        "tmux"
+        "tofi"
+        "udiskie"
+        "yazi"
         "mimeapps.list"
         "GNOME-xdg-terminals.list"
         "xdg-terminals.list"
-        "tofi"
       ];
 
       immutable_data = [
