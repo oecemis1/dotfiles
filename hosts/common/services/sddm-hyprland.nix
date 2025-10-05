@@ -43,6 +43,12 @@
   };
   programs.gnome-disks.enable = true;
 
+  services.logind = {
+    lidSwitch = "ignore";
+    lidSwitchExternalPower = "ignore";
+    lidSwitchDocked = "ignore";
+  };
+
   security = {
     pam = {
       services.hyprlock = { };

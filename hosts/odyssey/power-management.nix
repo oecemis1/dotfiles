@@ -25,7 +25,7 @@ _: {
       CPU_MIN_PERF_ON_AC = 0;
       CPU_MAX_PERF_ON_AC = 100;
       CPU_MIN_PERF_ON_BAT = 1;
-      CPU_MAX_PERF_ON_BAT = 10;
+      CPU_MAX_PERF_ON_BAT = 15;
 
       CPU_BOOST_ON_BAT = 0;
       CPU_BOOST_ON_AC = 1;

@@ -8,6 +8,9 @@
 {
   wayland.windowManager.hyprland = {
     enable = true;
+    plugins = with pkgs.hyprlandPlugins; [
+      hyprexpo
+    ];
     extraConfig = ''
       source = ~/.config/hypr/monitors.conf
     '';
@@ -25,6 +28,12 @@
       xwayland = {
         enabled = true;
         force_zero_scaling = true;
+      };
+
+      plugins.hyprexpo = {
+        columns = 2;
+        gap_size = 20;
+        workspace_method = "first 1";
       };
 
       # General settings
@@ -192,6 +201,8 @@
         "$mainMod, Escape, exec, hyprlock"
         "$mainMod, B, exec, pkill waybar || waybar"
         "$mainMod, Tab, focuscurrentorlast"
+        # "$mainMod, T, ${pkgs.hyprlandPlugins.hyprexpo}:expo, toggle"
+        # "$mainMod, T, hyprexpo:expo, toggle"
 
         "ALT, Tab, focuscurrentorlast"
         "ALT, M, workspace, 1"
@@ -286,6 +297,8 @@
         ", XF86AudioPause, exec, playerctl play-pause"
         ", XF86AudioPlay, exec, playerctl play-pause"
         ", XF86AudioPrev, exec, playerctl previous"
+        ", switch:on:Lid Switch, exec, hyprctl dispatch dpms off"
+        ", switch:off:Lid Switch, exec, hyprctl dispatch dpms on"
       ];
 
       # Mouse bindings

@@ -17,13 +17,13 @@
 
       listener = [
         {
-          timeout = 60;
-          on-timeout = "hyprctl dispatch dpms off";
-          on-resume = "hyprctl dispatch dpms on";
-        }
-        {
           timeout = 120;
           on-timeout = "pidof hyprlock || hyprlock";
+        }
+        {
+          timeout = 121;
+          on-timeout = "hyprctl dispatch dpms off";
+          on-resume = "hyprctl dispatch dpms on";
         }
         # Uncomment if you want suspend after 9 minutes
         # {
