@@ -100,6 +100,7 @@ in
     gnome-power-manager
     xorg.xhost
     xorg.xauth
+    eww
   ];
 
   programs.vscode = {

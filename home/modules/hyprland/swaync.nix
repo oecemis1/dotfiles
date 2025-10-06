@@ -21,7 +21,7 @@
     settings = {
       "$schema" = "/etc/xdg/swaync/configSchema.json";
       positionX = "center";
-      positionY = "bottom";
+      positionY = "top";
       layer = "overlay";
       control-center-layer = "top";
       layer-shell = true;
@@ -34,10 +34,11 @@
       timeout = 5;
       timeout-low = 3;
       timeout-critical = 0;
-      fit-to-screen = true;
+      # fit-to-screen = true;
+      fit-to-screen = false;
       relative-timestamps = true;
       control-center-width = 450;
-      control-center-height = 700;
+      # control-center-height = 700;
       notification-window-width = 350;
       keyboard-shortcuts = true;
       image-visibility = "never";
@@ -165,6 +166,8 @@
         color: #f8f8f2;
         padding: 14px;
         opacity: 0.8;
+        max-height: calc(100vh - 60px);
+        overflow-y: auto;
       }
 
       .control-center .widget-title {

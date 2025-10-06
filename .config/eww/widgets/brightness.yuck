@@ -1,0 +1,30 @@
+(defpoll brightness_percent
+  :interval "1s"
+  :initial "50"
+  `~/.local/bin/eww-brightness get`)
+
+(defwindow brightness_slider [x_pos y_pos]
+  :monitor 0
+  :geometry (geometry
+    :x {x_pos}
+    :y {y_pos}
+    :width "340px"
+    :height "30px"
+    :anchor "top left")
+  :stacking "overlay"
+  :focusable false
+  :namespace "brightness_slider"
+  (brightness_widget))
+
+(defwidget brightness_widget []
+  (box
+    :class "brightness-container"
+    :orientation "h"
+    :space-evenly false
+    (scale
+      :class "brightness-scale"
+      :value brightness_percent
+      :min 1
+      :max 100
+      :orientation "h"
+      :onchange "~/.local/bin/eww-brightness set {}")))

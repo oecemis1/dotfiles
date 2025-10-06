@@ -12,6 +12,7 @@
 
       immutable_configs = [
         "btop"
+        "eww"
         "fonts"
         "gdb"
         "helix"

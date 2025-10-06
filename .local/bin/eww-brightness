@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+case "$1" in
+  get)
+    current=$(brightnessctl get)
+    max=$(brightnessctl max)
+    echo $((current * 100 / max))
+    ;;
+  set)
+    brightnessctl set "${2}%"
+    ;;
+  *)
+    echo "Usage: $0 {get|set <value>}"
+    exit 1
+    ;;
+esac

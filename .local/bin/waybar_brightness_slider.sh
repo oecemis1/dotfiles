@@ -16,7 +16,7 @@ cat > "$CSS_FILE" << 'EOF'
 /* GTK CSS for brightness slider matching Waybar/Dracula theme */
 
 window {
-    background-color: rgba(21, 22, 29, 0.95);
+    background-color: rgba(21, 22, 29, 0.80);
     border: 1px solid rgba(68, 71, 90, 0.6);
     border-radius: 3px;
     padding: 0px;
