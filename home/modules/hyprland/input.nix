@@ -7,10 +7,10 @@
 {
   wayland.windowManager.hyprland.settings = {
     input = {
-      kb_layout = "us";
+      kb_layout = "us,tr";
       kb_variant = "";
       kb_model = "";
-      kb_options = "";
+      kb_options = "grp:win_space_toggle";
       kb_rules = "";
       follow_mouse = 1;
       sensitivity = 0;

@@ -179,6 +179,8 @@
         "float,class:(io.github.Qalculate.qalculate-qt)"
         "workspace special:calculator,class:(qalculate-qt)"
         "workspace special:calculator,class:(io.github.Qalculate.qalculate-qt)"
+        # matplotlib
+        "float, class:(Matplotlib)"
       ];
 
       layerrule = [

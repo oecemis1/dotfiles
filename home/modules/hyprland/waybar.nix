@@ -28,6 +28,7 @@
           "custom/time"
         ];
         modules-right = [
+          "custom/keyboard"
           "custom/cpu"
           # "memory"
           # "custom/network"
@@ -122,6 +123,12 @@
 
         "custom/window" = {
           exec = "waybar_window.sh";
+          interval = 1;
+          format = "{}";
+        };
+
+        "custom/keyboard" = {
+          exec = "waybar_keyboard.sh";
           interval = 1;
           format = "{}";
         };
@@ -223,6 +230,7 @@
       #custom-power,
       #custom-time,
       #custom-window,
+      #custom-keyboard,
       #memory,
       #network,
       #tray,
