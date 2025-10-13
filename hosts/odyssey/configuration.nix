@@ -71,7 +71,8 @@ in
     ./virtualisation.nix
     # ./wifi.nix
     ./power-management.nix
-  ] ++ finalArgs.extraImports;
+  ]
+  ++ finalArgs.extraImports;
 
   systemd.services.NetworkManager-wait-online.enable = false;
   systemd.network.wait-online.enable = false;
@@ -120,58 +121,7 @@ in
   services.asusd = {
     enable = true;
     enableUserService = true;
-
-    fanCurvesConfig = {
-      text = ''
-        (
-          profiles: (
-                quiet: [
-                    (
-                        fan: CPU,
-                        pwm: (0, 0, 50, 127, 153, 182, 190, 215),
-                        temp: (30, 50, 53, 60, 67, 77, 86, 100),
-                        enabled: true,
-                    ),
-                    (
-                        fan: GPU,
-                        pwm: (0, 0, 50, 127, 153, 182, 190, 215),
-                        temp: (30, 50, 53, 60, 67, 77, 86, 100),
-                        enabled: true,
-                    ),
-                ],
-                balanced: [
-                    (
-                        fan: CPU,
-                        pwm: (13, 26, 51, 77, 115, 153, 191, 217),
-                        temp: (30, 40, 50, 60, 70, 80, 90, 100),
-                        enabled: true,
-                    ),
-                    (
-                        fan: GPU,
-                        pwm: (13, 26, 51, 77, 115, 153, 191, 217),
-                        temp: (30, 40, 50, 60, 70, 80, 90, 100),
-                        enabled: true,
-                    ),
-                ],
-                performance: [
-                    (
-                        fan: CPU,
-                        pwm: (0, 0, 0, 80, 150, 220, 250, 250),
-                        temp: (30, 40, 50, 65, 70, 80, 90, 100),
-                        enabled: true,
-                    ),
-                    (
-                        fan: GPU,
-                        pwm: (0, 0, 0, 80, 150, 220, 250, 250),
-                        temp: (30, 40, 50, 60, 70, 80, 90, 100),
-                        enabled: true,
-                    ),
-                ],
-                custom: [],
-            ),
-        )
-      '';
-    };
+    fanCurvesConfig.source = ../../.config/fan_curves.ron;
   };
 
   systemd.services.asusd = {
