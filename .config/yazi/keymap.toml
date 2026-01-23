@@ -157,8 +157,8 @@ keymap = [
 
 
 	# Sorting
-	{ on = [ ",", "m" ], run = "sort modified --dir-first",               desc = "Sort by modified time" },
-	{ on = [ ",", "M" ], run = "sort modified --reverse --dir-first",     desc = "Sort by modified time (reverse)" },
+	{ on = [ ",", "m" ], run = "sort mtime --dir-first",               desc = "Sort by mtime" },
+	{ on = [ ",", "M" ], run = "sort mtime --reverse --dir-first",     desc = "Sort by mtime (reverse)" },
 	{ on = [ ",", "c" ], run = "sort created --dir-first",                desc = "Sort by created time" },
 	{ on = [ ",", "C" ], run = "sort created --reverse --dir-first",      desc = "Sort by created time (reverse)" },
 	{ on = [ ",", "e" ], run = "sort extension --dir-first",         	   desc = "Sort by extension" },
