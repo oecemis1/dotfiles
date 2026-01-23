@@ -8,9 +8,6 @@
 {
   wayland.windowManager.hyprland = {
     enable = true;
-    plugins = with pkgs.hyprlandPlugins; [
-      hyprexpo
-    ];
     extraConfig = ''
       source = ~/.config/hypr/monitors.conf
     '';
@@ -30,16 +27,9 @@
         force_zero_scaling = true;
       };
 
-      plugins.hyprexpo = {
-        columns = 2;
-        gap_size = 20;
-        workspace_method = "first 1";
-      };
-
       # General settings
       general = {
         border_size = 1;
-        no_border_on_floating = true;
         gaps_in = 2;
         gaps_out = 3;
         "col.active_border" = "rgba(44475aff)";
@@ -122,7 +112,6 @@
         new_on_top = false;
         # no_gaps_when_only = false;
         orientation = "left";
-        inherit_fullscreen = true;
       };
 
       # Misc settings
@@ -148,11 +137,12 @@
 
       # Window rules
       windowrule = [
-        "suppressevent maximize, class:.*"
-        "nofocus,class:^$,title:^$,xwayland:1,floating:1,fullscreen:0,pinned:0"
+        # "suppressevent maximize, class:.*"
+        # "nofocus,class:^$,title:^$,xwayland:1,floating:1,fullscreen:0,pinned:0"
       ];
 
       windowrulev2 = [
+        "noborder, floating:1"
         #VideoBridge
         "workspace 1, class:^(xwaylandvideobridge)$"
         "opacity 0.0 override, class:^(xwaylandvideobridge)$"
@@ -188,16 +178,16 @@
       ];
 
       layerrule = [
-        "blur,waybar"
-        "ignorealpha 0.3,waybar"
-        "blur,swaync-control-center"
-        "blur,swaync-notification-window"
-        "ignorealpha 0.3,swaync-control-center"
-        "ignorealpha 0.3,swaync-notification-window"
-        "noanim,selection"
-        "noanim,slurp"
-        "blur,tofi"
-        "ignorealpha 0.3,tofi"
+        "blur on,match:namespace waybar"
+        # "popups_ignorealpha 0.3,waybar"
+        "blur on,match:namespace swaync-control-center"
+        "blur on,match:namespace swaync-notification-window"
+        # "popups_ignorealpha 0.3,swaync-control-center"
+        # "popups_ignorealpha 0.3,swaync-notification-window"
+        # "noanim,selection"
+        # "noanim,slurp"
+        "blur on,match:namespace tofi"
+        # "popups_ignorealpha 0.3,tofi"
       ];
 
       bind = [
