@@ -42,8 +42,8 @@
         {
           monitor = "";
           text = ''cmd[update:1000] echo "<b><big> $(date +"%H:%M:%S") </big></b>"'';
-          font_size = 64;
-          font_family = "JetBrains Mono Nerd Font 10";
+          font_size = 94;
+          font_family = "SF Pro Display 10";
           position = "0, 0";
           halign = "center";
           valign = "center";
@@ -53,9 +53,10 @@
         # User label
         {
           monitor = "";
-          text = ''Hey <span text_transform="capitalize" size="larger">$USER</span>'';
+          # text = ''Hey <span text_transform="capitalize" size="larger">$USER</span>'';
+          text = "";
           font_size = 20;
-          font_family = "JetBrains Mono Nerd Font 10";
+          font_family = "SF Pro Display 10";
           position = "0, -80";
           halign = "center";
           valign = "center";
@@ -65,9 +66,9 @@
         # Type to unlock
         {
           monitor = "";
-          text = "Type to unlock!";
-          font_size = 16;
-          font_family = "JetBrains Mono Nerd Font 10";
+          text = "Type to unlock";
+          font_size = 20;
+          font_family = "SF Pro Display 10";
           position = "0, 30";
           halign = "center";
           valign = "bottom";
