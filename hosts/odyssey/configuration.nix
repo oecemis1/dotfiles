@@ -133,6 +133,7 @@ in
     hostName = finalArgs.hostName;
     networkmanager.enable = true;
   };
+  services.mullvad-vpn.enable = true;
 
   # Enable automatic login for the user.
   # services.displayManager.autoLogin.enable = true;
