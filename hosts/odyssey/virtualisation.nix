@@ -13,7 +13,10 @@
       remember_owner = 0
     '';
   };
-  environment.systemPackages = with pkgs; [ virtiofsd ];
+  environment.systemPackages = with pkgs; [
+    virtiofsd
+    docker-compose
+  ];
 
   virtualisation.docker.enable = true;
 
