@@ -23,7 +23,8 @@
           inherit system;
           specialArgs = {
             inherit inputs system;
-          } // argOverrides;
+          }
+          // argOverrides;
           modules = [
             baseConfigPath
             hardwareConfigPath

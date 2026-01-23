@@ -23,6 +23,7 @@ in
       inherit pkgs inputs config;
       dotfilesDir = "/home/${username}/Documents/dotfiles";
     })
+    (import ../pkgs/firefox.nix { inherit username; })
     ../pkgs/low_battery_notify.nix
     ./modules/shell.nix
     ./modules/gnome.nix
@@ -61,7 +62,7 @@ in
     xremap
     bandwhich
     cpufrequtils
-    mutagen
+    # mutagen
     (pkgs.callPackage ../pkgs/todotxttui.nix { })
 
     cmake
