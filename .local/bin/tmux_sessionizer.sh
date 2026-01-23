@@ -1,78 +1,57 @@
 #!/usr/bin/env bash
 
-if [[ -z "$TMUX" ]]; then
-  # NOT in tmux: Force a selection.
-  while true; do
-    raw_input=$(
-      {
-        echo "$HOME"
-        find -L "$HOME/Documents" "$HOME/Downloads" -mindepth 1 -maxdepth 1 -type d ! -name ".*"
-      } |
-      sed "s|^${HOME}|~|" |
-      fzf --prompt="Select project: "
-    )
-    [[ $? -eq 0 ]] && break
-  done
-else
-  raw_input=$(
+tmux list-sessions -F "#{session_name}|#{=15:session_name}: #{s|$HOME|~|:session_path}" \
+  | awk '
+    BEGIN { FS="|"; OFS="|" }
     {
-      echo "$HOME"
-      find -L "$HOME/Documents" "$HOME/Downloads" -mindepth 1 -maxdepth 1 -type d ! -name ".*"
-    } |
-    sed "s|^${HOME}|~|" |
-    fzf --prompt="Select project: "
-  )
-fi
+        lines[NR] = $0
+        split($2, meta, ": ")
+        path = meta[2]
+        n = split(path, dirs, "/")
+        basename = dirs[n]
+        counts[basename]++
+    }
+    END {
+        c_green = "\033[1;32m"
+        c_reset = "\033[0m"
 
-if [[ -z "$raw_input" ]]; then
-  echo "No directory selected."
-  exit 0
-fi
+        for (i=1; i<=NR; i++) {
+            split(lines[i], parts, "|")
+            split(parts[2], meta, ": ")
+            path_str = meta[2]
 
-path_to_resolve="$raw_input"
+            n = split(path_str, path_arr, "/")
+            current_base = path_arr[n]
 
-if [[ "$path_to_resolve" == "~"* ]]; then
-    if [[ -z "$HOME" ]]; then
-        echo "Error: HOME environment variable is not set." >&2
-        exit 1
-    fi
-    path_to_resolve="${path_to_resolve/#\~/$HOME}"
-fi
+            if (counts[current_base] > 1 && n > 1) {
+                target = n - 1
+            } else {
+                target = n
+            }
 
-selected=$(realpath -e "$path_to_resolve" 2>/dev/null)
+            label_text = path_arr[target]
 
-if [[ $? -ne 0 || ! -d "$selected" ]]; then
-  echo "Error: Resolved path '$path_to_resolve' is not a valid directory." >&2
-  echo "(Attempted resolution: '$selected')" >&2
-  exit 1
-fi
+            if (length(label_text) > 15) {
+                label_text = substr(label_text, 1, 15)
+            }
+            padding = ""
+            if (length(label_text) < 15) {
+                padding = sprintf("%*s", 15 - length(label_text), "")
+            }
+            label_col = c_green label_text c_reset padding
 
-# Adopt the exact same naming convention as txh.sh
-selected_base_name=$(basename "$selected" | tr --complement --squeeze '[:alnum:]' '_')
-selected_base_name=${selected_base_name#_}
-selected_base_name=${selected_base_name%_}
-selected_path_hash=$(echo -n "$selected" | md5sum | awk '{ print $1 }')
-session_name="${selected_base_name}_${selected_path_hash}"
+            session_col = sprintf("%-15s", meta[1])
+            path_arr[target] = c_green path_arr[target] c_reset
+            new_path = path_arr[1]
+            for (j=2; j<=n; j++) {
+                new_path = new_path "/" path_arr[j]
+            }
 
-if ! tmux info &>/dev/null; then
-  echo "No tmux server found. Starting new session '$session_name'..."
-  exec tmux new-session -s "$session_name" -c "$selected"
-else
-  echo "Tmux server found."
-  if ! tmux has-session -t="$session_name" 2>/dev/null; then
-    echo "Session '$session_name' not found. Creating detached session..."
-    tmux new-session -ds "$session_name" -c "$selected"
-    if [[ $? -ne 0 ]]; then
-      echo "Error: Failed to create tmux session '$session_name'." >&2
-      exit 1
-    fi
-  fi
-
-  if [[ -n "$TMUX" ]]; then
-    echo "Already inside tmux. Switching client to session '$session_name'..."
-    tmux switch-client -t "$session_name"
-  else
-    echo "Outside tmux. Attaching to session '$session_name'..."
-    exec tmux attach-session -t "$session_name"
-  fi
-fi
+            print parts[1] "|" label_col " " session_col ": " new_path
+        }
+    }
+' \
+  | fzf --ansi -d '|' \
+    --with-nth 2 \
+    --preview 'tmux capture-pane -ep -t {1}' \
+    --bind 'enter:execute(tmux switch-client -t {1})+accept'

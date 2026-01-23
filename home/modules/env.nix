@@ -3,7 +3,6 @@ _: rec {
   home.sessionVariables = {
     EDITOR = "hx";
     TERMINAL = "kitty";
-    TERM = "kitty";
     OPENER = "xdg-open";
 
     XDG_DATA_HOME = "$HOME/.local/share";
