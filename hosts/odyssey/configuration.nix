@@ -79,12 +79,6 @@ in
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
   # boot.kernelPackages = pkgs.linuxPackages_testing;
-  boot.kernelPatches = [
-    {
-      name = "iwlwifi_patch";
-      patch = ../../pkgs/iwlwifi-no-disable-all-chans.patch;
-    }
-  ];
 
   boot.kernelParams = [
     "intel_pstate"

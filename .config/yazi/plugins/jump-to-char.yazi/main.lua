@@ -1,14 +1,11 @@
---- @since 25.2.26
-
-local AVAILABLE_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789."
+local AVAILABLE_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+local CASE_SENSITIVE = false
 
 local changed = ya.sync(function(st, new)
 	local b = st.last ~= new
 	st.last = new
-	return b or not cx.active.finder
+	return b
 end)
-
-local escape = function(s) return s == "." and "\\." or s end
 
 return {
 	entry = function()
@@ -22,9 +19,24 @@ return {
 			return
 		end
 
-		local kw = escape(cands[idx].on)
-		if changed(kw) then
-			ya.mgr_emit("find_do", { "^" .. kw })
+		local selected_char = cands[idx].on
+		local search_pattern
+
+		if CASE_SENSITIVE then
+			search_pattern = "^" .. selected_char
+		else
+			local lower = selected_char:lower()
+			local upper = selected_char:upper()
+
+			if lower ~= upper then
+				search_pattern = "^[" .. lower .. upper .. "]"
+			else
+				search_pattern = "^" .. selected_char
+			end
+		end
+
+		if changed(selected_char) then
+			ya.mgr_emit("find_do", { search_pattern })
 		else
 			ya.mgr_emit("find_arrow", {})
 		end

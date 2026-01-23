@@ -54,7 +54,7 @@ in
     ueberzugpp
     wl-clipboard
     wl-clip-persist
-    xdragon
+    dragon-drop
     ripgrep
     yek
     xsel
@@ -76,7 +76,7 @@ in
     verilator
     clang-tools
     lldb
-    nixfmt-rfc-style
+    nixfmt
     ruff
     pyright
     nodePackages_latest.vscode-json-languageserver
@@ -91,13 +91,12 @@ in
     difftastic
     imhex
 
-    glxinfo
+    mesa-demos
     pciutils
     trash-cli
     unar
     zip
 
-    kdePackages.xwaylandvideobridge
     gnome-power-manager
     xorg.xhost
     xorg.xauth

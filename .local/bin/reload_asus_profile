@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-asusctl profile -n > /dev/null 2>&1
+asusctl profile next > /dev/null 2>&1
 sleep .2
-asusctl profile -n > /dev/null 2>&1
+asusctl profile next > /dev/null 2>&1
 sleep .2
-asusctl profile -n > /dev/null 2>&1
+asusctl profile next > /dev/null 2>&1
 sleep .2
-asusctl profile -p
+asusctl profile get

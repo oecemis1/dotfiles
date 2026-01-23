@@ -25,8 +25,6 @@ local function entry(_, args)
       -o -name 'flake-inputs' \
       -o -name '.ICAClient' \
       -o -name '.cache' \
-      -o -name '.local' \
-      -o -name '.config' \
       -o -name '.mill' \
       -o -name '.metals' \
       -o -name '.android' \
@@ -41,7 +39,6 @@ local function entry(_, args)
       -o -name '.steel' \
       -o -name '.smt_solvers' \
       -o -name '.tor project' \
-      -o -name 'Downloads' \
       -o -name 'nixpkgs' \
       -o -name 'nixpkgs_mine' \
       -o -name '.nix-defexpr' \
@@ -55,13 +52,12 @@ local function entry(_, args)
       -o -name '.venv' \
       -o -name '.tldrc' \
       -o -name 'node_modules' \
-      -o -path './.local' \
       -o -name '.direnv' \) \
       -prune -o -type d -print |
       fzf ]]
 
 	local child, err =
-		Command(shell_value):args({"-c", cmd_args}):cwd(cwd):stdin(Command.INHERIT):stdout(Command.PIPED):stderr(Command.INHERIT):spawn()
+		Command(shell_value):arg({"-c", cmd_args}):cwd(cwd):stdin(Command.INHERIT):stdout(Command.PIPED):stderr(Command.INHERIT):spawn()
 
 	if not child then
 		return fail("Spawn `rfzf` failed with error code %s. Do you have it installed?", err)
@@ -79,7 +75,7 @@ local function entry(_, args)
     local file_url = splitAndGetFirst(target,":")
 
 	if file_url ~= "" then
-		ya.manager_emit(file_url:match("[/\\]$") and "cd" or "reveal", { file_url })
+		ya.mgr_emit(file_url:match("[/\\]$") and "cd" or "reveal", { file_url })
 	end
 end
 
