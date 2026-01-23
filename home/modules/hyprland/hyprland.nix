@@ -136,45 +136,45 @@
       };
 
       # Window rules
+      # windowrule = [
+      # "suppressevent maximize, class:.*"
+      # "nofocus,class:^$,title:^$,xwayland:1,floating:1,fullscreen:0,pinned:0"
+      # ];
+
       windowrule = [
-        # "suppressevent maximize, class:.*"
-        # "nofocus,class:^$,title:^$,xwayland:1,floating:1,fullscreen:0,pinned:0"
-      ];
-
-      windowrulev2 = [
-        "noborder, floating:1"
+        "border_size 0, match:float yes"
         #VideoBridge
-        "workspace 1, class:^(xwaylandvideobridge)$"
-        "opacity 0.0 override, class:^(xwaylandvideobridge)$"
-        "noanim, class:^(xwaylandvideobridge)$"
-        "noinitialfocus, class:^(xwaylandvideobridge)$"
-        "maxsize 1 1, class:^(xwaylandvideobridge)$"
-        "noblur, class:^(xwaylandvideobridge)$"
-        "nofocus, class:^(xwaylandvideobridge)$"
+        "workspace 1, match:class ^(xwaylandvideobridge)$"
+        "opacity 0.0 override, match:class ^(xwaylandvideobridge)$"
+        "no_anim on, match:class ^(xwaylandvideobridge)$"
+        "no_initial_focus on, match:class ^(xwaylandvideobridge)$"
+        "max_size 1 1, match:class ^(xwaylandvideobridge)$"
+        "no_blur on, match:class ^(xwaylandvideobridge)$"
+        "no_focus on, match:class ^(xwaylandvideobridge)$"
         #Browser
-        "workspace 1,class:(google-chrome)"
-        "workspace 1,class:(firefox)"
+        "workspace 1, match:class (google-chrome)"
+        "workspace 1, match:class (firefox)"
 
-        "float, class:^(org.gnome.Calculator)"
-        "workspace 2,class:(kitty)"
-        "float, class:^(org.gnome.Nautilus)"
-        "float, title:^(my_todo)$"
-        "size 80% 80%, title:^(my_todo)$"
-        "center, title:^(my_todo)$"
-        "workspace special:todo, title:^(my_todo)$"
-        "float, title:^(Brightness Control)$"
-        "noinitialfocus, title:^(Brightness Control)$"
-        "noblur, title:^(Brightness Control)$"
-        "float, class:^(org.pulseaudio.pavucontrol)$"
-        "float, class:^(.blueman-manager-wrapped)$"
-        "float, class:^(termfilechooser)$"
+        "float on, match:class ^(org.gnome.Calculator)"
+        "workspace 2, match:class (kitty)"
+        "float on, match:class ^(org.gnome.Nautilus)"
+        "float on, match:title ^(my_todo)$"
+        "size 1380 1011, match:title ^(my_todo)$"
+        "center on, match:title ^(my_todo)$"
+        "workspace special:todo, match:title ^(my_todo)$"
+        "float on, match:title ^(Brightness Control)$"
+        "no_initial_focus on, match:title ^(Brightness Control)$"
+        "no_blur on, match:title ^(Brightness Control)$"
+        "float on, match:class ^(org.pulseaudio.pavucontrol)$"
+        "float on, match:class ^(.blueman-manager-wrapped)$"
+        "float on, match:class ^(termfilechooser)$"
         #qalculate
-        "float,class:(qalculate-qt)"
-        "float,class:(io.github.Qalculate.qalculate-qt)"
-        "workspace special:calculator,class:(qalculate-qt)"
-        "workspace special:calculator,class:(io.github.Qalculate.qalculate-qt)"
+        "float on, match:class (qalculate-qt)"
+        "float on, match:class (io.github.Qalculate.qalculate-qt)"
+        "workspace special:calculator,match:class (qalculate-qt)"
+        "workspace special:calculator,match:class (io.github.Qalculate.qalculate-qt)"
         # matplotlib
-        "float, class:(Matplotlib)"
+        "float on, match:class (Matplotlib)"
       ];
 
       layerrule = [
