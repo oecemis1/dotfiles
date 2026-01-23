@@ -178,16 +178,16 @@
       ];
 
       layerrule = [
-        "blur on,match:namespace waybar"
-        # "popups_ignorealpha 0.3,waybar"
+        "blur on, match:namespace waybar"
+        "ignore_alpha 0.3, match:namespace waybar"
         "blur on,match:namespace swaync-control-center"
         "blur on,match:namespace swaync-notification-window"
-        # "popups_ignorealpha 0.3,swaync-control-center"
-        # "popups_ignorealpha 0.3,swaync-notification-window"
+        "ignore_alpha 0.3, match:namespace swaync-control-center"
+        "ignore_alpha 0.3, match:namespace swaync-notification-window"
         # "noanim,selection"
         # "noanim,slurp"
         "blur on,match:namespace tofi"
-        # "popups_ignorealpha 0.3,tofi"
+        "ignore_alpha 0.3, match:namespace tofi"
       ];
 
       bind = [
