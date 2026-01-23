@@ -161,8 +161,11 @@
         "maxsize 1 1, class:^(xwaylandvideobridge)$"
         "noblur, class:^(xwaylandvideobridge)$"
         "nofocus, class:^(xwaylandvideobridge)$"
-        "float, class:^(org.gnome.Calculator)"
+        #Browser
         "workspace 1,class:(google-chrome)"
+        "workspace 1,class:(firefox)"
+
+        "float, class:^(org.gnome.Calculator)"
         "workspace 2,class:(kitty)"
         "float, class:^(org.gnome.Nautilus)"
         "float, title:^(my_todo)$"
@@ -174,6 +177,7 @@
         "noblur, title:^(Brightness Control)$"
         "float, class:^(org.pulseaudio.pavucontrol)$"
         "float, class:^(.blueman-manager-wrapped)$"
+        "float, class:^(termfilechooser)$"
         #qalculate
         "float,class:(qalculate-qt)"
         "float,class:(io.github.Qalculate.qalculate-qt)"
@@ -260,8 +264,8 @@
         "ALT, N, exec, todo_my"
 
         "$mainMod SHIFT, S, exec, pgrep hyprshot || hyprshot -m region -o $HOME/Pictures/Screenshots"
-        "CTRL ALT, U, exec, grim -g \"$(slurp)\" - | swappy -f -"
-        "CTRL ALT, I, exec, grim -g \"$(hyprctl clients -j | jq -r '.[] | \"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1]) \\(.title)\"' | slurp -r)\" - | swappy -f -"
+        # "CTRL ALT, U, exec, grim -g \"$(slurp)\" - | swappy -f -"
+        # "CTRL ALT, I, exec, grim -g \"$(hyprctl clients -j | jq -r '.[] | \"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1]) \\(.title)\"' | slurp -r)\" - | swappy -f -"
       ];
 
       binde = [
