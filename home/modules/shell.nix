@@ -66,6 +66,15 @@
     nix-direnv.enable = true;
   };
 
+  programs.ssh = {
+    enable = true;
+    enableDefaultConfig = false;
+    matchBlocks."*" = {
+      addKeysToAgent = "yes";
+      identityFile = "~/.ssh/id_orhun";
+    };
+  };
+
   # Ensure Yazi configuration directory exists
   # home.activation = {
   #   ensureYaziDirs = lib.hm.dag.entryAfter ["writeBoundary"] ''
