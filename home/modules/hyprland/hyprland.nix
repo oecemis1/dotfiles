@@ -156,7 +156,13 @@
         "workspace 1, match:class (firefox)"
 
         "float on, match:class ^(org.gnome.Calculator)"
-        "workspace 2, match:class (kitty)"
+
+        "float on, match:class ^(termfilechooser)$"
+        "float on, match:title ^(termfilechooser)$"
+        "size 80% 60%, match:title ^(termfilechooser)$"
+        "center on, match:title ^(termfilechooser)$"
+        "workspace 2, match:class ^(kitty)$, match:initial_title ^(kitty)$"
+
         "float on, match:class ^(org.gnome.Nautilus)"
         "float on, match:title ^(my_todo)$"
         "size 1380 1011, match:title ^(my_todo)$"
@@ -167,7 +173,7 @@
         "no_blur on, match:title ^(Brightness Control)$"
         "float on, match:class ^(org.pulseaudio.pavucontrol)$"
         "float on, match:class ^(.blueman-manager-wrapped)$"
-        "float on, match:class ^(termfilechooser)$"
+
         #qalculate
         "float on, match:class (qalculate-qt)"
         "float on, match:class (io.github.Qalculate.qalculate-qt)"
