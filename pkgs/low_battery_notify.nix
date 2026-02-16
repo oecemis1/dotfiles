@@ -1,6 +1,6 @@
 { pkgs, ... }:
 let
-  low_level = "25";
+  low_level = "15";
   critical_level = "5";
 
   low_battery_notify = pkgs.writers.writeBash "lowBatteryNotifier" ''
