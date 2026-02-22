@@ -14,5 +14,6 @@
     "swayosd-server"
     "update-wallpaper.sh"
     "xremap"
+    "blueman-applet"
   ];
 }
