@@ -23,7 +23,7 @@ let
 
     username = "orhun";
     uid = 1000;
-    userExtraGroups = [ ];
+    userExtraGroups = [ "wireshark" ];
     useHomeManager = true;
     homeManagerImports = [
       ../../home/home.nix
@@ -38,7 +38,7 @@ let
     extraTrustedPublicKeys = [ ];
 
     extraImports = [ ];
-    extraGroups = [ ];
+    extraGroups = [ "wireshark" ];
 
     allowUnfree = true;
 
@@ -76,6 +76,26 @@ in
 
   systemd.services.NetworkManager-wait-online.enable = false;
   systemd.network.wait-online.enable = false;
+
+  systemd.services.pre-hibernate-disable-input-wake = {
+    description = "Unbind pin controller before hibernate to prevent wake";
+    before = [ "systemd-hibernate.service" ];
+    wantedBy = [ "systemd-hibernate.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash -c 'echo INTC105E:00 > /sys/bus/platform/drivers/meteorlake-pinctrl/unbind'";
+    };
+  };
+
+  systemd.services.post-hibernate-restore-input = {
+    description = "Rebind pin controller after hibernate";
+    after = [ "systemd-hibernate.service" ];
+    wantedBy = [ "systemd-hibernate.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash -c 'echo INTC105E:00 > /sys/bus/platform/drivers/meteorlake-pinctrl/bind && ${pkgs.kmod}/bin/rmmod i2c_hid_acpi && ${pkgs.kmod}/bin/modprobe i2c_hid_acpi'";
+    };
+  };
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
   # boot.kernelPackages = pkgs.linuxPackages_testing;
@@ -123,11 +143,21 @@ in
   };
   programs.rog-control-center.enable = true;
 
+  systemd.user.services.tmux = {
+    serviceConfig = {
+      TimeoutStopSec = "5s";
+    };
+  };
+
   networking = {
     hostName = finalArgs.hostName;
     networkmanager.enable = true;
   };
   services.mullvad-vpn.enable = true;
+  programs.wireshark = {
+    enable = true;
+    package = pkgs.wireshark;
+  };
 
   # Enable automatic login for the user.
   # services.displayManager.autoLogin.enable = true;
