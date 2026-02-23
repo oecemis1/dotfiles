@@ -31,7 +31,10 @@
   fileSystems."/" = {
     device = "/dev/disk/by-uuid/83e50462-b687-4d46-9557-e1a192581bcc";
     fsType = "btrfs";
-    options = [ "subvol=@" ];
+    options = [
+      "subvol=@"
+      "nodiscard"
+    ];
   };
 
   fileSystems."/boot" = {

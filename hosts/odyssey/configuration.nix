@@ -102,12 +102,19 @@ in
 
   boot.kernelParams = [
     "intel_pstate"
+    "intel_idle.max_cstate=99"
+    "processor.max_cstate=99"
+    "ahci.mobile_lpm_policy=3"
+    "pcie_aspm=force"
+    "pcie_aspm.policy=powersupersave"
     # "intel_pstate=no_hwp"
     "resume_offset=13757716"
     "i915.enable_dpcd_backlight=1"
     "nvidia.NVreg_EnableBacklightHandler=0"
     "nvidia.NVreg_RegistryDwords=EnableBrightnessControl=0"
   ];
+
+  services.fstrim.enable = true;
 
   services.supergfxd.enable = true;
   specialisation = {
@@ -139,7 +146,7 @@ in
   };
 
   systemd.services.asusd = {
-    restartTriggers = [ config.services.asusd.fanCurvesConfig.text ];
+    restartTriggers = [ config.services.asusd.fanCurvesConfig.source ];
   };
   programs.rog-control-center.enable = true;
 
