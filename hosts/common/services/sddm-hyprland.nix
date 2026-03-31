@@ -74,6 +74,11 @@
     libsecret
     baobab
     (pkgs.callPackage ../../../pkgs/sddm-astronaut.nix {
+      themeConfig = {
+        General = {
+          Background = "${../../../assets/wallpaper.jpg}";
+        };
+      };
       # theme = "pixel_sakura";
     })
   ];
