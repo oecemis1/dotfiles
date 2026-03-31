@@ -70,8 +70,8 @@
     enable = true;
     enableDefaultConfig = false;
     matchBlocks."*" = {
-      addKeysToAgent = "yes";
       identityFile = "~/.ssh/id_orhun";
+      addKeysToAgent = "yes";
     };
   };
 
