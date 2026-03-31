@@ -17,11 +17,11 @@
 
       listener = [
         {
-          timeout = 120;
+          timeout = 300;
           on-timeout = "pidof hyprlock || hyprlock";
         }
         {
-          timeout = 121;
+          timeout = 301;
           on-timeout = "hyprctl dispatch dpms off";
           on-resume = "hyprctl dispatch dpms on";
         }

@@ -44,7 +44,7 @@
           tooltip = false;
           # on-click = "hyprctl dispatch focuswindow address:; waybar_brightness_slider.sh &";
           # on-click = "eww-brightness-toggle";
-          on-click = ''sleep 0.1; eww-brightness-toggle'';
+          on-click = "sleep 0.1; eww-brightness-toggle";
           on-click-right = "eww close brightness_slider";
           return-type = "";
           signal = 8;
@@ -138,7 +138,7 @@
           on-click = "activate";
           sort-by-number = true;
           format-icons = {
-            active = "●";
+            active = "∙";
             urgent = "!";
             "1" = "1";
             "2" = "2";
@@ -192,8 +192,8 @@
 
       * {
         padding: 0;
-        font-family: "MonaspiceNe Nerd Font Mono";
-        font-size: 17px;
+        font-family: "SF Pro Text", "MonaspiceNe Nerd Font Mono";
+        font-size: 18px;
       }
 
       window#waybar {

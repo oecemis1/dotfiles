@@ -86,7 +86,7 @@
       * {
         all: unset;
         font-size: 14px;
-        font-family: "Noto Sans";
+        font-family: "SF Pro Display";
         transition: 200ms;
       }
 

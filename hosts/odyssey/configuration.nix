@@ -142,7 +142,8 @@ in
   services.asusd = {
     enable = true;
     enableUserService = true;
-    fanCurvesConfig.source = ../../.config/fan_curves.ron;
+    fanCurvesConfig.source = ./fan_curves.ron;
+    asusdConfig.source = ./asusd.ron;
   };
 
   systemd.services.asusd = {
@@ -237,6 +238,14 @@ in
       (pkgs.stdenv.mkDerivation {
         name = "sf-pro-fonts";
         src = ../../.config/fonts/sf-pro;
+        installPhase = ''
+          mkdir -p $out/share/fonts/opentype
+          cp -r ./*.otf $out/share/fonts/opentype/
+        '';
+      })
+      (pkgs.stdenv.mkDerivation {
+        name = "sf-mono-fonts";
+        src = ../../.config/fonts/sf-mono;
         installPhase = ''
           mkdir -p $out/share/fonts/opentype
           cp -r ./*.otf $out/share/fonts/opentype/
