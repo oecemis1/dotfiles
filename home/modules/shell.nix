@@ -73,6 +73,9 @@
       identityFile = "~/.ssh/id_orhun";
       addKeysToAgent = "yes";
     };
+    extraConfig = ''
+      Include ~/.ssh/config.local
+    '';
   };
 
   # Ensure Yazi configuration directory exists
