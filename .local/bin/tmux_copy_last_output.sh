@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-read -r -d '' pane_contents
+read -r -d '' pane_contents || true
 
 output=$(printf "%s" "$pane_contents" | awk '
   /❯/ { i++; idx[i] = NR }
@@ -20,4 +21,4 @@ if [ -z "$output" ]; then
   exit 0
 fi
 
-printf "%s" "$output" | gclip
+printf "%s" "$output" | tmux load-buffer -w -

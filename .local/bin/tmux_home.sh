@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 TARGET_DIR="$HOME"
 USERNAME="$(whoami)"
 
 SESSION_NAME="${USERNAME}_$(echo -n "$TARGET_DIR" | md5sum | cut -d' ' -f1)"
 
-if [ -n "$TMUX" ]; then
+if [ -n "${TMUX:-}" ]; then
   if ! tmux has-session -t="$SESSION_NAME" 2> /dev/null; then
     tmux new-session -ds "$SESSION_NAME" -c "$TARGET_DIR"
   fi
