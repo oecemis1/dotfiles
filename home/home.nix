@@ -53,6 +53,7 @@ in
     yazi
     ouch
     ffmpegthumbnailer
+    bat
     ueberzugpp
     wl-clipboard
     wl-clip-persist
