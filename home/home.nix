@@ -51,6 +51,8 @@ in
     kitty
     btop
     yazi
+    ouch
+    ffmpegthumbnailer
     ueberzugpp
     wl-clipboard
     wl-clip-persist

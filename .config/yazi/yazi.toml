@@ -32,8 +32,8 @@ reveal = [
 	{ run = '''exiftool "$1"; echo "Press enter to exit"; read''', block = true, desc = "Show EXIF", for = "unix" },
 ]
 extract = [
-	{ run = 'unar "$1"', desc = "Extract here", for = "unix" },
-	{ run = 'unar "%1"', desc = "Extract here", for = "windows" },
+  { run = 'ouch d -y "%*"', desc = "Extract here with ouch", for = "windows" },
+  { run = 'ouch d -y "$@"', desc = "Extract here with ouch", for = "unix" },
 ]
 play = [
 	{ run = 'mpv "$@"', orphan = true, for = "unix" },
@@ -43,7 +43,7 @@ play = [
 
 [open]
 rules = [
-	{ name = "*/", use = [ "edit", "open", "reveal" ] },
+	{ url = "*/", use = [ "edit", "open", "reveal" ] },
 
 	{ mime = "text/*",  use = [ "edit", "reveal" ] },
 	{ mime = "image/*", use = [ "open", "reveal" ] },
@@ -78,7 +78,18 @@ image_bound = [ 0, 0 ]
 preload = []
 
 [plugin]
-prepend_previewers = [{ name = "*.opus", run = "video" }]
+prepend_previewers = [{ url = "*.opus", run = "opus-preview" }]
+prepend_preloaders = [{ url = "*.opus", run = "opus-preview" }]
+
+[[plugin.prepend_fetchers]]
+id  = "git"
+url = "*"
+run = "git"
+
+[[plugin.prepend_fetchers]]
+id  = "git"
+url = "*/"
+run = "git"
 
 [input]
 # cd
