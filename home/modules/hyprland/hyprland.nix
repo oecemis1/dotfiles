@@ -22,6 +22,10 @@
       # Monitor configuration
       # monitor = ",preferred,auto,auto";
 
+      ecosystem = {
+        no_update_news = true;
+      };
+
       xwayland = {
         enabled = true;
         force_zero_scaling = true;
