@@ -43,7 +43,7 @@
     dotool
     jq
 
-    swww
+    awww
     tofi
 
     adwaita-qt

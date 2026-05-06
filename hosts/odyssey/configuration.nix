@@ -141,7 +141,7 @@ in
 
   services.asusd = {
     enable = true;
-    enableUserService = true;
+    # enableUserService = true;
     fanCurvesConfig.source = ./fan_curves.ron;
     asusdConfig.source = ./asusd.ron;
   };

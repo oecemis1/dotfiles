@@ -71,8 +71,8 @@ in
     cmake
 
     # Helix language servers
-    nodePackages.bash-language-server
-    nodePackages.diagnostic-languageserver
+    bash-language-server
+    diagnostic-languageserver
     pyright
     nixd
     verible
@@ -82,10 +82,10 @@ in
     nixfmt
     ruff
     pyright
-    nodePackages_latest.vscode-json-languageserver
-    nodePackages_latest.bash-language-server
+    vscode-json-languageserver
+    bash-language-server
     shfmt
-    nodePackages_latest.prettier
+    prettier
     cmake-language-server
     marksman
     gnumake
@@ -101,8 +101,8 @@ in
     zip
 
     gnome-power-manager
-    xorg.xhost
-    xorg.xauth
+    xhost
+    xauth
     eww
   ];
 
@@ -136,5 +136,5 @@ in
   fonts.fontconfig.enable = true;
 
   # Version that this configuration is compatible with
-  home.stateVersion = "25.05";
+  home.stateVersion = "26.05";
 }
