@@ -7,7 +7,6 @@
 {
   wayland.windowManager.hyprland.settings.exec-once = [
     "nm-applet &"
-    "hyprpaper"
     "waybar"
     "swaync-wrapper"
     "swww-daemon"
