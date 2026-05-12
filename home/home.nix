@@ -67,6 +67,7 @@ in
     cpufrequtils
     # mutagen
     (pkgs.callPackage ../pkgs/todotxttui.nix { })
+    (pkgs.callPackage ../pkgs/slang-server.nix { })
 
     cmake
 

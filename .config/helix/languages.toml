@@ -10,9 +10,9 @@ auto-format = true
 [[language]]
 name = "verilog"
 auto-format = true
-formatter = { command = 'verible-verilog-format', args = ["--wrap_spaces","3","--indentation_spaces","3","-"] }
-language-servers = ["veridian"]
-indent = { tab-width = 3, unit = "   " }
+formatter = { command = 'verible-verilog-format', args = ["--wrap_spaces","2","--indentation_spaces","2","-"] }
+language-servers = ["slang-server"]
+indent = { tab-width = 2, unit = "  " }
 
 [[language]]
 name = "nix"
@@ -133,8 +133,8 @@ forwardSearchAfter = true
 [language-server.texlab.config.texlab.chktex]
 onEdit = true
 
-[language-server.veridian]
-command = "veridian"
+[language-server.slang-server]
+command = "slang-server"
 
 [language-server.ruff]
 command = "ruff"
