@@ -9,7 +9,7 @@
     "nm-applet &"
     "waybar"
     "swaync-wrapper"
-    "swww-daemon"
+    "awww-daemon"
     "swayosd-server"
     "update-wallpaper.sh"
     "xremap"

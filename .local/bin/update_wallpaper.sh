@@ -13,11 +13,11 @@ fi
 index=$(( $(date +%j) % ${#files[@]} ))
 selected="${files[$index]}"
 
-# Wait for swww-daemon to be ready before setting the image
-while ! swww query >/dev/null 2>&1; do sleep 0.1; done
+# Wait for awww-daemon to be ready before setting the image
+while ! awww query >/dev/null 2>&1; do sleep 0.1; done
 
 # Set the wallpaper
-swww img "$selected"
+awww img "$selected"
 
 # Update tmp wallpaper
 # cp "$selected" "/tmp/wp.webp"
