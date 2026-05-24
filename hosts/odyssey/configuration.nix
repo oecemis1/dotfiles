@@ -7,7 +7,7 @@
 let
   defaultArgs = {
     hostName = "odyssey";
-    timeZone = "Europe/Istanbul";
+    timeZone = "Europe/Zurich";
     defaultLocale = "en_US.UTF-8";
     extraLocaleSettings = {
       LC_ADDRESS = "tr_TR.UTF-8";
