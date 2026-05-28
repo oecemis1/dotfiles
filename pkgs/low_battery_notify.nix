@@ -7,7 +7,7 @@ let
     BAT_PCT=`${pkgs.acpi}/bin/acpi -b | ${pkgs.gnugrep}/bin/grep -P -o '[0-9]+(?=%)'`
     BAT_STA=`${pkgs.acpi}/bin/acpi -b | ${pkgs.gnugrep}/bin/grep -P -o '\w+(?=,)'`
 
-    if test $BAT_PCT -le ${low_level} && test $BAT_PCT -gt ${critical_level} && test $BAT_STA = "Discharging"; then
+    if test $BAT_PCT -eq ${low_level} && test $BAT_PCT -gt ${critical_level} && test $BAT_STA = "Discharging"; then
         DISPLAY=:0.0 ${pkgs.dunst}/bin/dunstify \
             -a battery \
             -h string:x-dunst-stack-tag:battery \
@@ -16,7 +16,7 @@ let
             "Low battery."
     fi
 
-    if test $BAT_PCT -le ${critical_level} && test $BAT_STA = "Discharging"; then
+    if test $BAT_PCT -eq ${critical_level} && test $BAT_STA = "Discharging"; then
         DISPLAY=:0.0 ${pkgs.dunst}/bin/dunstify \
             -a battery \
             -h string:x-dunst-stack-tag:battery \
