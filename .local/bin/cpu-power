@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Manual power-limit control for ASUS odyssey (Core Ultra 9 285H, Arrow Lake-H).
+# TLP handles governor / EPP / HWP max_perf / charge thresholds.
+# asusd handles fans + platform_profile.
+# This script writes the three sysfs paths that actually clamp the SoC PCU on
+# Arrow Lake-H ASUS hardware:
+#   1. intel-rapl:0          (MSR-backed RAPL "view")
+#   2. intel-rapl-mmio:0     (MMIO-backed RAPL — the PCU honors this)
+#   3. asus-nb-wmi/ppt_*     (ASUS WMI PPT — also binds PCU; survives some events)
+# Verified live: intel-rapl:0 writes stick; intel-rapl-mmio:0 writes stick;
+# ppt_pl1_spl writes stick. Without ppt_* writes, BIOS leaves MMIO at 55W/60W.
+set -u
+set -o pipefail
+
+RAPL=/sys/class/powercap/intel-rapl:0
+MMIO=/sys/class/powercap/intel-rapl-mmio:0
+ASUS=/sys/devices/platform/asus-nb-wmi
+
+ORIG_ARGS=("$@")
+
+need_root() {
+  [ "$(id -u)" -eq 0 ] || exec sudo -E "$0" "${ORIG_ARGS[@]}"
+}
+
+write_to() {
+  local path=$1 val=$2 actual
+  [ -e "$path" ] || { echo "  skip $path"; return 0; }
+  if printf '%s\n' "$val" >"$path" 2>/dev/null; then
+    actual=$(cat "$path" 2>/dev/null)
+    [ "$actual" = "$val" ] && echo "  ok   $path = $val" || echo "  FAIL $path: wrote '$val' reads '$actual'"
+  else
+    echo "  FAIL $path: write rejected"
+  fi
+}
+
+set_rapl() {
+  local pl1=$(($1 * 1000000)) pl2=$(($2 * 1000000))
+  echo "RAPL PL1=${1}W PL2=${2}W:"
+  write_to "$RAPL/constraint_0_power_limit_uw" "$pl1"
+  write_to "$RAPL/constraint_1_power_limit_uw" "$pl2"
+  write_to "$MMIO/constraint_0_power_limit_uw" "$pl1"
+  write_to "$MMIO/constraint_1_power_limit_uw" "$pl2"
+}
+
+# ASUS PPT knobs take watts directly (no microwatt conversion).
+# fppt = fast/burst, sppt = slow/PL2, spl = sustained/PL1.
+set_ppt() {
+  local spl=$1 sppt=$2 fppt=$3
+  echo "ASUS PPT spl=${spl}W sppt=${sppt}W fppt=${fppt}W:"
+  write_to "$ASUS/ppt_pl1_spl"  "$spl"
+  write_to "$ASUS/ppt_pl2_sppt" "$sppt"
+  write_to "$ASUS/ppt_fppt"     "$fppt"
+}
+
+read_w() { awk '{printf "%d", $1/1000000}' "$1" 2>/dev/null || echo "?"; }
+
+cmd_status() {
+  local ac pp
+  ac=$(cat /sys/class/power_supply/AC*/online 2>/dev/null | head -1); : "${ac:=?}"
+  pp=$(cat /sys/firmware/acpi/platform_profile 2>/dev/null) || pp="(unavailable)"
+  echo "AC online            : $ac"
+  echo "RAPL  PL1 / PL2 (W)  : $(read_w $RAPL/constraint_0_power_limit_uw) / $(read_w $RAPL/constraint_1_power_limit_uw)"
+  if [ -d "$MMIO" ]; then
+    echo "MMIO  PL1 / PL2 (W)  : $(read_w $MMIO/constraint_0_power_limit_uw) / $(read_w $MMIO/constraint_1_power_limit_uw)"
+  fi
+  if [ -d "$ASUS" ]; then
+    echo "PPT   spl/sppt/fppt  : $(cat $ASUS/ppt_pl1_spl 2>/dev/null) / $(cat $ASUS/ppt_pl2_sppt 2>/dev/null) / $(cat $ASUS/ppt_fppt 2>/dev/null) W"
+    echo "throttle_thermal_pol : $(cat $ASUS/throttle_thermal_policy 2>/dev/null) (0=bal 1=perf 2=silent)"
+  fi
+  echo "Governor (cpu0)      : $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null)"
+  echo "EPP (cpu0)           : $(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null)"
+  echo "Platform profile     : $pp"
+}
+
+apply() {
+  local mode=$1 pl1=$2 pl2=$3 fppt=$4
+  echo "==> $mode: PL1=${pl1}W PL2=${pl2}W fppt=${fppt}W"
+  set_rapl "$pl1" "$pl2"
+  set_ppt  "$pl1" "$pl2" "$fppt"
+  echo
+  cmd_status
+}
+
+# 285H base TDP 28W, PL2 ceiling ~115W.
+# fppt (burst) is set ~20% above PL2; the chip rarely hits it but it caps spikes.
+cmd_battery()  { need_root; apply battery  15 25 30; }
+cmd_balanced() { need_root; apply balanced 28 45 55; }
+cmd_load()     { need_root; apply load     20 35 42; }
+
+cmd_help() {
+  cat <<'EOF'
+usage: cpu-power {status|battery|balanced|load|help}
+
+Writes Intel RAPL (both MSR + MMIO) and ASUS PPT (spl/sppt/fppt) in one shot.
+Does NOT touch platform_profile, governor, EPP, or fans — those belong to
+asusd/TLP. Each invocation is one-shot; values reset on reboot/resume.
+
+  status              current limits + profile + governor
+  battery   [sudo]    PL1=15W  PL2=25W  fppt=30W
+  balanced  [sudo]    PL1=28W  PL2=45W  fppt=55W
+  load      [sudo]    PL1=20W  PL2=35W  fppt=42W
+  help                this
+
+To set platform_profile / EPP, use `asusctl profile` and TLP respectively.
+EOF
+}
+
+case "${1:-status}" in
+  status)                cmd_status ;;
+  battery|bat|b)         cmd_battery ;;
+  balanced|bal)          cmd_balanced ;;
+  load|l|thermal)        cmd_load ;;
+  help|-h|--help)        cmd_help ;;
+  *) echo "unknown subcommand: ${1:-}" >&2; cmd_help >&2; exit 2 ;;
+esac
