@@ -12,7 +12,7 @@
       source = ~/.config/hypr/monitors.conf
     '';
     settings = {
-      "$terminal" = "kitty";
+      "$terminal" = "kitty --single-instance";
       "$browser" = "google-chrome-stable";
       "$fileManager" = "yazi_cd";
       "$launcher" = "pkill tofi || tofi-drun | xargs hyprctl dispatch exec --";
