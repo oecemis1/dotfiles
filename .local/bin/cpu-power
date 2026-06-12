@@ -1,20 +1,32 @@
 #!/usr/bin/env bash
 # Manual power-limit control for ASUS odyssey (Core Ultra 9 285H, Arrow Lake-H).
-# TLP handles governor / EPP / HWP max_perf / charge thresholds.
-# asusd handles fans + platform_profile.
-# This script writes the three sysfs paths that actually clamp the SoC PCU on
+# TLP still owns the scaling governor and charge thresholds; asusd owns the fans.
+# This script writes the sysfs paths that actually clamp the SoC PCU on
 # Arrow Lake-H ASUS hardware:
 #   1. intel-rapl:0          (MSR-backed RAPL "view")
 #   2. intel-rapl-mmio:0     (MMIO-backed RAPL — the PCU honors this)
 #   3. asus-nb-wmi/ppt_*     (ASUS WMI PPT — also binds PCU; survives some events)
 # Verified live: intel-rapl:0 writes stick; intel-rapl-mmio:0 writes stick;
 # ppt_pl1_spl writes stick. Without ppt_* writes, BIOS leaves MMIO at 55W/60W.
+#
+# Each mode ALSO sets the intel_pstate HWP cap (max_perf_pct), the per-CPU
+# energy-performance preference (EPP), and the ASUS thermal policy, because on
+# battery TLP pins these to power-saving values (max_perf_pct=50, EPP=power) —
+# so raising the power limits alone does nothing. `full` is the max-power mode:
+# it lifts the HWP cap to 100%, sets EPP=performance so HWP actually clocks the
+# cores up, raises PL1/PL2 to the chassis cooling limit (~45W/85W, NOT the
+# silicon max — see below), and flips the thermal policy to performance so a
+# compile can sustain real load on battery. The package Tjmax (105C) hardware
+# throttle plus thermald are the hard safety net regardless. All writes are
+# one-shot and reset on reboot/resume or when TLP re-applies on an AC change;
+# run `battery` (or replug) to drop back to the throttled defaults.
 set -u
 set -o pipefail
 
 RAPL=/sys/class/powercap/intel-rapl:0
 MMIO=/sys/class/powercap/intel-rapl-mmio:0
 ASUS=/sys/devices/platform/asus-nb-wmi
+PSTATE=/sys/devices/system/cpu/intel_pstate
 
 ORIG_ARGS=("$@")
 
@@ -45,11 +57,47 @@ set_rapl() {
 # ASUS PPT knobs take watts directly (no microwatt conversion).
 # fppt = fast/burst, sppt = slow/PL2, spl = sustained/PL1.
 set_ppt() {
-  local spl=$1 sppt=$2 fppt=$3
-  echo "ASUS PPT spl=${spl}W sppt=${sppt}W fppt=${fppt}W:"
+  local spl=$1 sppt=$2 fppt=${3:-0}
+  echo "ASUS PPT spl=${spl}W sppt=${sppt}W:"
   write_to "$ASUS/ppt_pl1_spl"  "$spl"
   write_to "$ASUS/ppt_pl2_sppt" "$sppt"
-  write_to "$ASUS/ppt_fppt"     "$fppt"
+  # ppt_fppt rejects writes on this firmware (stays at 5); PL2/sppt governs the
+  # burst envelope, so only touch fppt if a caller explicitly passes one (>0).
+  [ "$fppt" -gt 0 ] 2>/dev/null && { echo "  fppt=${fppt}W"; write_to "$ASUS/ppt_fppt" "$fppt"; }
+}
+
+# intel_pstate HWP frequency cap. max_perf_pct is the real limiter on battery
+# (TLP pins it to 50); without lifting it, higher power limits never engage.
+# noturbo is optional — pass "" to leave turbo as-is, "0" to force it enabled.
+set_hwp() {
+  local maxpct=$1 noturbo=$2
+  echo "HWP max_perf_pct=${maxpct}%${noturbo:+ no_turbo=$noturbo}:"
+  write_to "$PSTATE/max_perf_pct" "$maxpct"
+  [ -n "$noturbo" ] && write_to "$PSTATE/no_turbo" "$noturbo"
+}
+
+# ASUS thermal/fan policy. Set first so a higher PPT ceiling is permitted.
+set_thermal() {
+  local pol=$1
+  echo "ASUS thermal policy=${pol} (0=bal 1=perf 2=silent):"
+  write_to "$ASUS/throttle_thermal_policy" "$pol"
+}
+
+# Per-CPU energy-performance preference. TLP pins this to "power" on battery,
+# which biases HWP toward efficiency even at max_perf_pct=100 — so full power
+# needs "performance" here too. Writes every CPU, then verifies via cpu0.
+# (EPP is read-only while the scaling governor is "performance"; we leave the
+# governor on powersave, so the writes take.)
+set_epp() {
+  local epp=$1 f actual n=0
+  echo "EPP=${epp}:"
+  for f in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/energy_performance_preference; do
+    [ -e "$f" ] || continue
+    printf '%s\n' "$epp" >"$f" 2>/dev/null && n=$((n + 1))
+  done
+  actual=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null)
+  [ "$actual" = "$epp" ] && echo "  ok   $n cpus = $epp" \
+    || echo "  FAIL cpu0 reads '$actual' (governor may pin EPP)"
 }
 
 read_w() { awk '{printf "%d", $1/1000000}' "$1" 2>/dev/null || echo "?"; }
@@ -69,39 +117,70 @@ cmd_status() {
   fi
   echo "Governor (cpu0)      : $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null)"
   echo "EPP (cpu0)           : $(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null)"
+  if [ -d "$PSTATE" ]; then
+    echo "max_perf_pct/no_turbo: $(cat $PSTATE/max_perf_pct 2>/dev/null)% / $(cat $PSTATE/no_turbo 2>/dev/null)"
+  fi
   echo "Platform profile     : $pp"
 }
 
 apply() {
-  local mode=$1 pl1=$2 pl2=$3 fppt=$4
-  echo "==> $mode: PL1=${pl1}W PL2=${pl2}W fppt=${fppt}W"
+  local mode=$1 pl1=$2 pl2=$3 fppt=$4 maxpct=$5 thermal=$6 epp=$7 noturbo=${8:-}
+  echo "==> $mode: PL1=${pl1}W PL2=${pl2}W maxperf=${maxpct}% epp=${epp} thermal=${thermal}"
+  set_thermal "$thermal"
   set_rapl "$pl1" "$pl2"
   set_ppt  "$pl1" "$pl2" "$fppt"
+  set_hwp  "$maxpct" "$noturbo"
+  set_epp  "$epp"
   echo
   cmd_status
 }
 
-# 285H base TDP 28W, PL2 ceiling ~115W.
-# fppt (burst) is set ~20% above PL2; the chip rarely hits it but it caps spikes.
-cmd_battery()  { need_root; apply battery  15 25 30; }
-cmd_balanced() { need_root; apply balanced 28 45 55; }
-cmd_load()     { need_root; apply load     20 35 42; }
+# 285H base TDP 28W, silicon PL2 ceiling ~115W — BUT this chassis can only
+# dissipate ~45W sustained before the package hits Tjmax (105C) and hardware-
+# throttles, so `full` is cooling-bound at PL1=45W (65W just pins the wall and
+# throttles, which is slower, not faster). ppt_fppt is left alone (firmware
+# rejects writes); PL2/sppt governs burst.
+# Args: PL1 PL2 fppt max_perf_pct thermal_policy epp [no_turbo]  (fppt 0 = skip)
+cmd_battery()  { need_root; apply battery  15 25 0   50 2 power; }
+cmd_balanced() { need_root; apply balanced 28 45 0  100 0 balance_performance; }
+cmd_load()     { need_root; apply load     20 35 0   80 0 balance_power; }
+
+# Max-power mode. Lifts the HWP cap to 100%, sets EPP=performance, forces the
+# performance thermal policy (max fans) + turbo on so a compile pulls full power
+# even on battery. PL1 is capped at the chassis cooling limit (~45W) so it runs
+# near Tjmax but does NOT pin the 105C wall the way a higher PL1 does; PL2=85W
+# still allows short bursts. Drains the battery fast and runs hot.
+cmd_full() {
+  need_root
+  echo "!! full: overriding TLP's battery cap — high power draw + heat (~Tjmax)."
+  echo "!! PL1 is cooling-bound at 45W; watch temps, run 'cpu-power battery' to stop."
+  echo
+  apply full 45 85 0 100 1 performance 0
+}
 
 cmd_help() {
   cat <<'EOF'
-usage: cpu-power {status|battery|balanced|load|help}
+usage: cpu-power {status|battery|balanced|load|full|help}
 
-Writes Intel RAPL (both MSR + MMIO) and ASUS PPT (spl/sppt/fppt) in one shot.
-Does NOT touch platform_profile, governor, EPP, or fans — those belong to
-asusd/TLP. Each invocation is one-shot; values reset on reboot/resume.
+Writes Intel RAPL (MSR + MMIO), ASUS PPT (spl/sppt/fppt), the intel_pstate HWP
+cap (max_perf_pct), the per-CPU EPP, and the ASUS thermal policy in one shot.
+The scaling governor and charge thresholds stay with TLP. Each invocation is
+one-shot; values reset on reboot/resume or when TLP re-applies on an AC change.
 
-  status              current limits + profile + governor
-  battery   [sudo]    PL1=15W  PL2=25W  fppt=30W
-  balanced  [sudo]    PL1=28W  PL2=45W  fppt=55W
-  load      [sudo]    PL1=20W  PL2=35W  fppt=42W
+                      PL1   PL2   maxperf  epp                  thermal
+  status              show current limits + profile + governor
+  battery   [sudo]    15W   25W     50%    power                silent
+  load      [sudo]    20W   35W     80%    balance_power        balanced
+  balanced  [sudo]    28W   45W    100%    balance_performance  balanced
+  full      [sudo]    45W   85W    100%    performance          performance
   help                this
 
-To set platform_profile / EPP, use `asusctl profile` and TLP respectively.
+`full` is the max-power compile mode: it overrides TLP's battery HWP cap and
+EPP, so it works on battery but draws heavily and runs hot. PL1 is capped at
+the chassis cooling limit (~45W) — the package still hardware-throttles at
+Tjmax 105C, so this can't damage the machine, but for a long sustained compile
+`balanced` often runs nearly as fast far cooler. Run `battery` (or replug) to
+drop back to throttled limits. For the scaling governor use TLP.
 EOF
 }
 
@@ -110,6 +189,7 @@ case "${1:-status}" in
   battery|bat|b)         cmd_battery ;;
   balanced|bal)          cmd_balanced ;;
   load|l|thermal)        cmd_load ;;
+  full|f|max)            cmd_full ;;
   help|-h|--help)        cmd_help ;;
   *) echo "unknown subcommand: ${1:-}" >&2; cmd_help >&2; exit 2 ;;
 esac
