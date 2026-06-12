@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set Vivado version
-VIVADO_VERSION="2024.2"
+VIVADO_VERSION="2020.2"
 
 echo "Setting up Vivado $VIVADO_VERSION environment..."
 
@@ -14,6 +14,8 @@ if ! grep -q "VIVADO_VERSION" "$HOME/.bashrc"; then
     echo "export VIVADO_HOME=\"\$HOME/tools/Xilinx/Vivado/\$VIVADO_VERSION/\"" >> "$HOME/.bashrc"
     echo "export PATH=\$PATH:\"\$HOME/tools/Xilinx/xic/\"" >> "$HOME/.bashrc"
     echo "export PATH=\$PATH:\"\$HOME/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin\"" >> "$HOME/.bashrc"
+    # Custom board files (au200 / Alveo U200, etc.) so Vivado can find them via get_board_parts
+    echo "export BOARD_PART_REPO_PATHS=\"\$HOME/tools/Xilinx/board_files\"" >> "$HOME/.bashrc"
     
     # Use the absolute path with specific directory for the vivado command
     echo "alias vivado='/home/ubuntu/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin/vivado -nolog -nojournal'" >> "$HOME/.bashrc"

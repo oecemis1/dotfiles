@@ -57,6 +57,12 @@ RUN apt-get update && apt-get -y upgrade && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Vivado 2020.2 needs libtinfo.so.5, which Ubuntu 24.04 no longer ships.
+# Pull it from the 22.04 (jammy) pool; fall back to an ABI-compatible symlink.
+RUN (wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb -O /tmp/libtinfo5.deb \
+      && dpkg -i /tmp/libtinfo5.deb && rm -f /tmp/libtinfo5.deb) \
+    || ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5
+
 # Set up locale
 RUN locale-gen en_US.UTF-8
 
