@@ -1,10 +1,14 @@
 FROM ubuntu:24.04
 
-# Set environment variables
+# Set environment variables.
+# _JAVA_AWT_WM_NONREPARENTING fixes Vivado's Java/Swing GUI painting a blank white
+# window under non-reparenting / tiling window managers (e.g. Hyprland, sway, i3):
+# it tells AWT the WM doesn't reparent windows, so the IDE actually renders.
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
-    LC_ALL=en_US.UTF-8
+    LC_ALL=en_US.UTF-8 \
+    _JAVA_AWT_WM_NONREPARENTING=1
 
 # Update and install minimal required packages
 RUN apt-get update && apt-get -y upgrade && apt-get install -y \

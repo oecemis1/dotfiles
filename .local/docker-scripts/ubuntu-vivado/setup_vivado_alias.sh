@@ -16,7 +16,13 @@ if ! grep -q "VIVADO_VERSION" "$HOME/.bashrc"; then
     echo "export PATH=\$PATH:\"\$HOME/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin\"" >> "$HOME/.bashrc"
     # Custom board files (au200 / Alveo U200, etc.) so Vivado can find them via get_board_parts
     echo "export BOARD_PART_REPO_PATHS=\"\$HOME/tools/Xilinx/board_files\"" >> "$HOME/.bashrc"
-    
+
+    # Vivado's Java/Swing GUI paints a blank white window under non-reparenting /
+    # tiling window managers (e.g. Hyprland, sway, i3). Tell AWT the WM is
+    # non-reparenting so the IDE renders. Exported here so it applies to any
+    # launch, including a direct "./vivado -mode gui ...".
+    echo "export _JAVA_AWT_WM_NONREPARENTING=1" >> "$HOME/.bashrc"
+
     # Use the absolute path with specific directory for the vivado command
     echo "alias vivado='/home/ubuntu/tools/Xilinx/Vivado/\$VIVADO_VERSION/bin/vivado -nolog -nojournal'" >> "$HOME/.bashrc"
     echo "alias vstart='cd \$HOME/Xilinx && vivado'" >> "$HOME/.bashrc"
