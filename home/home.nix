@@ -40,6 +40,7 @@ in
 
     # Development tools
     tmux
+    inputs.claude-code.packages.${pkgs.system}.default
     helix
     # (pkgs.callPackage ../pkgs/helix.nix { })
     neovim
