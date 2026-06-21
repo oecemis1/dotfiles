@@ -64,7 +64,7 @@ in
 
     # ../common/services/gdm-gnome.nix
     ../common/services/sddm-hyprland.nix
-    ../common/services/warp.nix
+    # ../common/services/warp.nix
 
     ./hardware-configuration.nix
     ./hardware-gpu.nix
