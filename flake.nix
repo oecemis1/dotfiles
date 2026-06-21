@@ -3,6 +3,10 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    import-tree.url = "github:vic/import-tree";
+
     claude-code = {
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -14,40 +18,6 @@
   };
 
   outputs =
-    { nixpkgs, ... }@inputs:
-    let
-      mkSystem =
-        {
-          baseConfigPath,
-          hardwareConfigPath,
-          system ? throw "You must specify system (e.g. x86_64-linux)",
-          argOverrides ? { },
-        }:
-        nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = {
-            inherit inputs system;
-          }
-          // argOverrides;
-          modules = [
-            baseConfigPath
-            hardwareConfigPath
-            inputs.home-manager.nixosModules.home-manager
-          ];
-        };
-    in
-    {
-      nixosConfigurations = {
-        odyssey = mkSystem {
-          baseConfigPath = ./hosts/odyssey/configuration.nix;
-          hardwareConfigPath = ./hosts/odyssey/hardware-configuration.nix;
-          system = "x86_64-linux";
-        };
-        obsidian = mkSystem {
-          baseConfigPath = ./hosts/obsidian/configuration.nix;
-          hardwareConfigPath = ./hosts/obsidian/hardware-configuration.nix;
-          system = "x86_64-linux";
-        };
-      };
-    };
+    inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
 }
