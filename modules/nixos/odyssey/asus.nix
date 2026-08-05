@@ -6,6 +6,10 @@
       services.supergfxd.enable = true;
       specialisation = {
         integrated-graphics.configuration = {
+          # dGPU resume-hang fix: the unbound NVIDIA dGPU (Integrated mode) can't return from
+          # D3cold, stalling boot ~65s. Keep the PCIe port out of runtime PM. Only here — in
+          # Hybrid mode this breaks the D3cold->D0 wake, leaving nvidia-smi with no devices.
+          boot.kernelParams = [ "pcie_port_pm=off" ];
           services.supergfxd = {
             enable = true;
             settings = {

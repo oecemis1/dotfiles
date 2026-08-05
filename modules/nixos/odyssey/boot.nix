@@ -31,9 +31,6 @@
         "pcie_aspm=force"
         "pcie_aspm.policy=powersupersave"
         # "intel_pstate=no_hwp"
-        # dGPU resume-hang fix: the unbound NVIDIA dGPU (Integrated mode) can't return from
-        # D3cold, stalling boot ~65s. Keep the PCIe port out of runtime PM.
-        "pcie_port_pm=off"
         "resume_offset=13757716"
         "i915.enable_dpcd_backlight=1"
         "nvidia.NVreg_EnableBacklightHandler=0"
