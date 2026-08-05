@@ -32,6 +32,14 @@
         nvidiaBusId = "PCI:1:0:0";
       };
 
+      # Stable, colon-free node for the iGPU card (card1/card2 numbering can
+      # shift between boots). AQ_DRM_DEVICES in the Hyprland env points here;
+      # it can't use /dev/dri/by-path because that name contains colons and
+      # AQ_DRM_DEVICES is a colon-separated list.
+      services.udev.extraRules = ''
+        SUBSYSTEM=="drm", KERNEL=="card*", KERNELS=="0000:00:02.0", SYMLINK+="dri/igpu-card"
+      '';
+
       services.pulseaudio.support32Bit = true;
       services.xserver.videoDrivers = [
         "nvidia"

@@ -50,6 +50,17 @@
         # Platform Backend Settings
         "GDK_BACKEND,wayland,x11"
         "PREFER_DARK_THEME,1"
+
+        # Pin the compositor (and thus its clients' dmabuf device) to the iGPU.
+        # Without this, aquamarine opens the NVIDIA card/render nodes too, which
+        # holds the dGPU awake forever (runtime PM never re-enters D3cold, ~5W).
+        # /dev/dri/igpu-card is a udev symlink (odyssey hardware.nix) - the
+        # by-path name can't be used because AQ_DRM_DEVICES is colon-separated
+        # and by-path names contain colons (Hyprland aborts: "Found no gpus").
+        # PRIME offload (nvidia-offload <cmd>) still works. Caveat: external
+        # outputs wired to the dGPU (its DP/HDMI connectors) won't light up
+        # while this is set - remove it if an external display stays black.
+        "AQ_DRM_DEVICES,/dev/dri/igpu-card"
       ];
     };
 }
