@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# Manual power/thermal control for the dGPU on ASUS odyssey (RTX 5070 Ti Mobile).
+# Companion to cpu-power, which owns the SoC/RAPL/PPT side; this owns the two
+# knobs that actually work on this machine:
+#   1. nvidia-smi -lgc <min>,<max>  (graphics clock lock; hw range 210..3090 MHz)
+#   2. asus-armoury nv_temp_target  (GPU throttle temperature, 75..87 C)
+# NOT used: `nvidia-smi -pl` prints "not supported" on this GPU and exits 0
+# (laptop TGP is firmware-controlled); nv_base_tgp exposes no min/max on this
+# firmware (read-only) and nv_dynamic_boost reads 0/0/0 (unsupported).
+#
+# One-shot like cpu-power, with one extra wrinkle: in Hybrid mode with
+# finegrained power management the GPU runtime-suspends to D3cold when idle
+# (persistence mode is off, deliberately - it would hold the GPU awake), and
+# the clock lock does NOT survive that power-down. So set a mode right
+# before/while a GPU workload runs; `status` (or any nvidia-smi call) wakes
+# the GPU briefly. nv_temp_target is firmware-backed and persists until reboot.
+set -u
+set -o pipefail
+
+ARMOURY=/sys/devices/virtual/firmware-attributes/asus-armoury/attributes
+SMI=nvidia-smi
+
+ORIG_ARGS=("$@")
+
+need_root() {
+  [ "$(id -u)" -eq 0 ] || exec sudo -E "$0" "${ORIG_ARGS[@]}"
+}
+
+write_to() {
+  local path=$1 val=$2 actual
+  [ -e "$path" ] || { echo "  skip $path"; return 0; }
+  if printf '%s\n' "$val" >"$path" 2>/dev/null; then
+    actual=$(cat "$path" 2>/dev/null)
+    [ "$actual" = "$val" ] && echo "  ok   $path = $val" || echo "  FAIL $path: wrote '$val' reads '$actual'"
+  else
+    echo "  FAIL $path: write rejected"
+  fi
+}
+
+# Graphics clock lock. nvidia-smi exits 0 even on unsupported operations
+# ("treating as warning"), so success is judged by its output, not exit code.
+set_clock_lock() {
+  local lo=$1 hi=$2 out
+  echo "GPU clock lock ${lo}..${hi} MHz:"
+  out=$($SMI -lgc "$lo,$hi" 2>&1)
+  case $out in
+    *"set to"*) echo "  ok   -lgc $lo,$hi (resets when the GPU runtime-suspends)" ;;
+    *)          echo "  FAIL -lgc: $out" ;;
+  esac
+}
+
+reset_clock_lock() {
+  local out
+  echo "GPU clock lock reset:"
+  out=$($SMI -rgc 2>&1)
+  case $out in
+    *"All done"*) echo "  ok   -rgc (full 210..3090 MHz boost range)" ;;
+    *)            echo "  FAIL -rgc: $out" ;;
+  esac
+}
+
+# GPU throttle temperature target (firmware, 75..87 C). Lower = throttles
+# earlier = cooler chassis; survives suspend, resets on reboot.
+set_temp_target() {
+  local t=$1
+  echo "GPU temp target ${t}C:"
+  write_to "$ARMOURY/nv_temp_target/current_value" "$t"
+}
+
+cmd_status() {
+  echo "== nvidia-smi (wakes the GPU briefly) =="
+  $SMI --query-gpu=name,power.draw,temperature.gpu,clocks.gr,clocks.max.gr,utilization.gpu \
+       --format=csv,noheader 2>/dev/null || echo "  GPU unavailable (driver not loaded / powered off)"
+  echo "== asus-armoury =="
+  echo "nv_temp_target : $(cat $ARMOURY/nv_temp_target/current_value 2>/dev/null)C (range 75..87)"
+  echo "nv_base_tgp    : $(cat $ARMOURY/nv_base_tgp/current_value 2>/dev/null)W (read-only on this firmware)"
+  echo "dGPU runtime PM: $(cat /sys/bus/pci/devices/0000:01:00.0/power/runtime_status 2>/dev/null || echo 'device absent')"
+}
+
+apply() {
+  local mode=$1 target=$2 lo=$3 hi=$4 clocks=unlocked
+  [ -n "$lo" ] && clocks="${lo}..${hi} MHz"
+  echo "==> $mode: temp target ${target}C, clocks $clocks"
+  set_temp_target "$target"
+  if [ -n "$lo" ]; then set_clock_lock "$lo" "$hi"; else reset_clock_lock; fi
+  echo
+  cmd_status
+}
+
+# The clock lock is the only software cap on this card's power draw (-pl is
+# unsupported), so the modes bound heat via clocks + throttle temperature.
+# `min` pins the core to its 210 MHz floor: anything on the dGPU will crawl -
+# it is a "keep it cold at all costs" mode, not a slow-but-usable eco mode.
+cmd_min()      { need_root; apply min      75  210  210; }
+cmd_eco()      { need_root; apply eco      75  210 1200; }
+cmd_balanced() { need_root; apply balanced 80  ""     ""; }
+cmd_full()     { need_root; apply full     87  ""     ""; }
+
+cmd_help() {
+  cat <<'EOF'
+usage: gpu-power {status|min|eco|balanced|full|help}
+
+Sets the ASUS firmware GPU throttle-temperature target (nv_temp_target) and a
+graphics clock lock (nvidia-smi -lgc) in one shot. The driver power limit
+(nvidia-smi -pl) is not supported on this GPU, so clocks are the power knob.
+
+                    temp target   clock lock
+  status            show draw/temp/clocks + armoury values
+  min      [sudo]       75C       210 MHz pinned - GPU workloads will crawl
+  eco      [sudo]       75C       210..1200 MHz  - cool + quiet, light GPU use
+  balanced [sudo]       80C       unlocked (full boost, earlier throttle)
+  full     [sudo]       87C       unlocked (firmware defaults)
+
+Caveats: the clock lock resets whenever the GPU runtime-suspends (Hybrid mode
+finegrained PM powers it down when idle), so apply a mode when a workload is
+about to run. nv_temp_target persists until reboot. For CPU-side heat use
+cpu-power; the ASUS thermal/fan policy set there also shapes the GPU's boost.
+EOF
+}
+
+case "${1:-status}" in
+  status)          cmd_status ;;
+  min|floor)       cmd_min ;;
+  eco|e)           cmd_eco ;;
+  balanced|bal|b)  cmd_balanced ;;
+  full|f|max)      cmd_full ;;
+  help|-h|--help)  cmd_help ;;
+  *) echo "unknown subcommand: ${1:-}" >&2; cmd_help >&2; exit 2 ;;
+esac
