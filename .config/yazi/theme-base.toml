@@ -23,9 +23,6 @@ marker_cut      = { fg = "lightred",    bg = "lightred" }
 border_symbol = "│"
 border_style  = { fg = "gray" }
 
-# Highlighting
-syntect_theme = ""
-
 # : }}}
 
 
