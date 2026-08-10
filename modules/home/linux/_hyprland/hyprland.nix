@@ -36,7 +36,7 @@
         border_size = 1;
         gaps_in = 2;
         gaps_out = 3;
-        "col.active_border" = "rgba(44475aff)";
+        "col.active_border" = "rgba(${lib.removePrefix "#" config.colorScheme.colors.surface1}ff)";
         "col.inactive_border" = "rgba(1e1f2900)";
         layout = "dwindle";
         extend_border_grab_area = true;
@@ -45,7 +45,8 @@
 
       # Decoration settings
       decoration = {
-        rounding = 5;
+        # Matches the waybar / popover border radius
+        rounding = 3;
 
         shadow = {
           enabled = true;
@@ -86,7 +87,7 @@
           "fade, 1, 3.03, quick"
           "layers, 1, 3.81, easeOutQuint"
           "layersIn, 1, 4, easeOutQuint, fade"
-          "layersOut, 1, 1.5, linear, fade"
+          "layersOut, 1, 3, easeOutQuint, fade"
           "fadeLayersIn, 1, 1.79, almostLinear"
           "fadeLayersOut, 1, 1.39, almostLinear"
           "workspaces, 1, 1.94, almostLinear, fade"
@@ -198,6 +199,10 @@
         # "noanim,slurp"
         "blur on,match:namespace tofi"
         "ignore_alpha 0.3, match:namespace tofi"
+        "blur on, match:namespace calendar"
+        "ignore_alpha 0.3, match:namespace calendar"
+        "blur on, match:namespace brightness_slider"
+        "ignore_alpha 0.3, match:namespace brightness_slider"
       ];
 
       bind = [

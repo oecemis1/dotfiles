@@ -1,0 +1,45 @@
+.calendar-container {
+  background-color: rgba($crust, 0.65);
+  border: 1px solid rgba($surface1, 0.6);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.cal {
+  font-family: "SF Pro Text";
+  font-size: 15px;
+  color: $text;
+}
+
+/* Month/year heading */
+calendar.header {
+  color: $accent;
+  font-weight: bold;
+}
+
+/* Month navigation arrows */
+calendar.button {
+  color: $overlay;
+  transition: color 120ms ease-out;
+}
+
+calendar.button:hover {
+  color: $text;
+}
+
+/* Day-name row */
+calendar.highlight {
+  color: $accent2;
+  font-weight: bold;
+}
+
+/* Today / selected day */
+calendar:selected {
+  color: $accent;
+  font-weight: bold;
+}
+
+/* Days that belong to the previous/next month */
+calendar:indeterminate {
+  color: $overlay;
+}

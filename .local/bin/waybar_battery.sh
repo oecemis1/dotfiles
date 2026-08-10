@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Battery monitor showing percentage and status
+# Battery monitor emitting waybar JSON with a state class for CSS styling.
 
 get_battery_info() {
     # Check if battery exists, exit silently if not
@@ -37,7 +37,16 @@ get_battery_info() {
             ;;
     esac
 
-    echo "$icon $capacity%"
+    local class=""
+    if [[ "$status" == "Charging" ]]; then
+        class="charging"
+    elif [[ $capacity -le 10 ]]; then
+        class="critical"
+    elif [[ $capacity -le 20 ]]; then
+        class="warning"
+    fi
+
+    printf '{"text": "%s %s%%", "class": "%s"}\n' "$icon" "$capacity" "$class"
 }
 
 get_battery_info

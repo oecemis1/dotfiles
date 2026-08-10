@@ -1,29 +1,20 @@
 #!/usr/bin/env bash
+# Toggle the eww brightness slider, anchored under the backlight module.
 
-if [ -f /tmp/brightness_lock ]; then
+SLIDER_WIDTH=340
+
+if eww active-windows | grep -q "^brightness_slider"; then
     eww close brightness_slider
-    rm -f /tmp/brightness_lock
     exit
 fi
 
-# Check if brightness slider is already open
-if eww list-windows | grep -q "\*brightness_slider"; then
-    eww close brightness_slider
-else
-    # Get Waybar position dynamically
-    WAYBAR_INFO=$(hyprctl layers -j | jq -r '.[].levels[][] | select(.namespace == "waybar")')
-    WAYBAR_HEIGHT=$(echo "$WAYBAR_INFO" | jq -r '.h')
-    if [ -z "$WAYBAR_HEIGHT" ] || [ "$WAYBAR_HEIGHT" == "null" ]; then
-        WAYBAR_HEIGHT=40
-    fi
-    # Y_POSITION=$((WAYBAR_HEIGHT - 30))
-    Y_POSITION=0
-	echo "$Y_POSITION"
-    
-    WAYBAR_X=$(echo "$WAYBAR_INFO" | jq -r '.w')
-    X_POSITION=$((WAYBAR_X - 340 + 3))
-    
-    # Open the slider with dynamic position
-    touch /tmp/brightness_lock
-	eww open brightness_slider --arg x_pos="${X_POSITION}px" --arg y_pos="${Y_POSITION}px"
+WAYBAR_INFO=$(hyprctl layers -j | jq -r '.[].levels[][] | select(.namespace == "waybar")')
+WAYBAR_WIDTH=$(echo "$WAYBAR_INFO" | jq -r '.w')
+if [ -z "$WAYBAR_WIDTH" ] || [ "$WAYBAR_WIDTH" == "null" ]; then
+    WAYBAR_WIDTH=$(hyprctl monitors -j | jq -r '.[0].width')
 fi
+
+# Right-aligned under the bar; offset by the bar's right margin.
+X_POSITION=$((WAYBAR_WIDTH - SLIDER_WIDTH + 3))
+
+eww open brightness_slider --arg x_pos="${X_POSITION}px" --arg y_pos="0px"

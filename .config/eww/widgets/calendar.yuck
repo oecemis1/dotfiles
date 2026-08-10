@@ -1,0 +1,20 @@
+(defwindow calendar [x_pos y_pos]
+  :monitor 0
+  :geometry (geometry
+    :x {x_pos}
+    :y {y_pos}
+    :width "300px"
+    :height "300px"
+    :anchor "top left")
+  :stacking "overlay"
+  :focusable false
+  :namespace "calendar"
+  (calendar_widget))
+
+(defwidget calendar_widget []
+  (box
+    :class "calendar-container"
+    :orientation "v"
+    (calendar
+      :class "cal"
+      :show-week-numbers false)))

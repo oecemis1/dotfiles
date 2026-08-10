@@ -5,8 +5,8 @@
 }
 
 .brightness-container {
-  background-color: rgba(21, 22, 29, 0.80);
-  border: 1px solid rgba(68, 71, 90, 0.6);
+  background-color: rgba($crust, 0.65);
+  border: 1px solid rgba($surface1, 0.6);
   border-radius: 3px;
   padding: 10px 15px;
 }
@@ -17,20 +17,20 @@
 }
 
 scale trough {
-  background-color: #44475a;
+  background-color: $surface0;
   border-radius: 3px;
   min-height: 5px;
   min-width: 300px;
 }
 
 scale highlight {
-  background-color: #bd93f9;
+  background-color: $accent;
   border-radius: 3px;
 }
 
 scale slider {
-  background-color: #bd93f9;
-  border: 2px solid #6272a4;
+  background-color: $accent;
+  border: 2px solid $overlay;
   border-radius: 4px;
   min-width: 12px;
   min-height: 12px;
@@ -40,8 +40,6 @@ scale slider {
 }
 
 scale slider:hover {
-  background-color: #8be9fd;
-  border-color: #bd93f9;
+  background-color: $accent2;
+  border-color: $accent;
 }
-
-

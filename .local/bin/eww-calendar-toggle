@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Toggle the eww calendar popover, anchored centered under the waybar clock.
+
+CAL_WIDTH=300
+
+if eww active-windows | grep -q "^calendar"; then
+    eww close calendar
+    exit
+fi
+
+WAYBAR_INFO=$(hyprctl layers -j | jq -r '.[].levels[][] | select(.namespace == "waybar")')
+WAYBAR_WIDTH=$(echo "$WAYBAR_INFO" | jq -r '.w')
+if [ -z "$WAYBAR_WIDTH" ] || [ "$WAYBAR_WIDTH" == "null" ]; then
+    WAYBAR_WIDTH=$(hyprctl monitors -j | jq -r '.[0].width')
+fi
+
+# Clock sits in the bar's center; offset by the bar's left margin.
+X_POSITION=$(((WAYBAR_WIDTH - CAL_WIDTH) / 2 + 3))
+
+eww open calendar --arg x_pos="${X_POSITION}px" --arg y_pos="0px"

@@ -4,6 +4,9 @@
   lib,
   ...
 }:
+let
+  colors = config.colorScheme.colors;
+in
 {
   programs.waybar = {
     enable = true;
@@ -25,7 +28,6 @@
         modules-center = [
           "custom/notifications"
           "clock"
-          "custom/time"
         ];
         modules-right = [
           "custom/keyboard"
@@ -42,10 +44,7 @@
         backlight = {
           format = "󰖙 {percent}%";
           tooltip = false;
-          # on-click = "hyprctl dispatch focuswindow address:; waybar_brightness_slider.sh &";
-          # on-click = "eww-brightness-toggle";
-          on-click = "sleep 0.1; eww-brightness-toggle";
-          on-click-right = "eww close brightness_slider";
+          on-click = "eww-brightness-toggle";
           return-type = "";
           signal = 8;
         };
@@ -62,31 +61,17 @@
         };
 
         clock = {
-          format = "{:%a %d %b}";
-          tooltip-format = "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>";
-          calendar = {
-            mode = "year";
-            mode-mon-col = 3;
-            on-scroll = 1;
-            format = {
-              months = "<span color='#bd93f9'><b>{}</b></span>";
-              days = "<span color='#f8f8f2'>{}</span>";
-              weekdays = "<span color='#8be9fd'><b>{}</b></span>";
-              today = "<span color='#ff79c6'><b><u>{}</u></b></span>";
-            };
-          };
-          actions = {
-            on-click-right = "mode";
-            on-scroll-up = "shift_up";
-            on-scroll-down = "shift_down";
-          };
+          format = "{:%a %d %b  %H:%M}";
+          interval = 60;
+          tooltip = false;
+          on-click = "eww-calendar-toggle";
         };
 
         "custom/battery" = {
           exec = "waybar_battery.sh";
           interval = 30;
           format = "{}";
-          # on-click = "gnome-power-statistics";
+          return-type = "json";
           tooltip = false;
         };
 
@@ -107,17 +92,10 @@
         };
 
         "custom/notifications" = {
-          exec = "waybar_notifications.sh";
-          interval = 5;
+          exec = "swaync-client -swb";
+          return-type = "json";
           format = "󰂜 {}";
           on-click = "swaync-client -t";
-          tooltip = false;
-        };
-
-        "custom/time" = {
-          exec = "date '+%H:%M'";
-          interval = 1;
-          format = "{}";
           tooltip = false;
         };
 
@@ -127,10 +105,13 @@
           format = "{}";
         };
 
+        # Event-driven layout indicator; the built-in hyprland/language
+        # module blanks out when switching between the us,tr layouts.
         "custom/keyboard" = {
           exec = "waybar_keyboard.sh";
-          interval = 1;
+          restart-interval = 1;
           format = "{}";
+          tooltip = false;
         };
 
         "hyprland/workspaces" = {
@@ -175,6 +156,7 @@
 
         wireplumber = {
           format = "󰕾 {volume}%";
+          format-muted = "󰝟 {volume}%";
           tooltip = false;
           on-click = "pavucontrol";
         };
@@ -182,32 +164,39 @@
     };
 
     style = ''
-      @define-color base       #15161d;
-      @define-color baselight  #44475a;
-      @define-color text       #f8f8f2;
-      @define-color yellow     #f1fa8c;
-      @define-color purple     #bd93f9;
-      @define-color surface2   #6272a4;
-      @define-color hyprborder #44475a;
+      @define-color base     ${colors.crust};
+      @define-color surface1 ${colors.surface1};
+      @define-color overlay  ${colors.overlay};
+      @define-color text     ${colors.text};
+      @define-color yellow   ${colors.yellow};
+      @define-color teal     ${colors.teal};
+      @define-color accent   ${colors.accent};
+      @define-color urgent   ${colors.urgent};
+      @define-color red      ${colors.red};
 
       * {
         padding: 0;
         font-family: "SF Pro Text", "MonaspiceNe Nerd Font Mono";
         font-size: 18px;
+        /* Tabular numerals: ticking clock/percentages keep a fixed width */
+        font-feature-settings: "tnum";
       }
 
       window#waybar {
         background: alpha(@base, 0.65);
         border-radius: 3px;
-        border: 1px solid alpha(@hyprborder, 0.4);
+        border: 1px solid alpha(@surface1, 0.4);
       }
 
       tooltip {
-        background: @base;
+        background: alpha(@base, 0.85);
+        border: 1px solid alpha(@surface1, 0.6);
+        border-radius: 6px;
       }
 
       tooltip label {
         color: @text;
+        padding: 4px 6px;
       }
 
       .modules-left,
@@ -216,40 +205,98 @@
         padding: 5px;
       }
 
+      /* Modules are typography on the bar's material: slightly heavier
+         weight for legibility over blur, color reserved for state. */
       #backlight,
-      #battery,
       #bluetooth,
       #clock,
-      #cpu,
       #custom-battery,
       #custom-cpu,
-      #custom-date,
-      #custom-icon,
+      #custom-keyboard,
       #custom-network,
       #custom-notifications,
-      #custom-power,
-      #custom-time,
       #custom-window,
-      #custom-keyboard,
       #memory,
       #network,
       #tray,
       #wireplumber,
       #workspaces {
-        color: @purple;
+        color: @text;
+        font-weight: 500;
         padding: 1px 8px;
         margin: 0 2px;
         border-radius: 3px;
-        border: 1px solid @baselight;
-        background: alpha(@purple, .035);
+      }
+
+      /* Clickable modules get press/hover feedback: a soft chip fades in
+         under the pointer; press responds instantly and reads stronger. */
+      #backlight,
+      #clock,
+      #custom-cpu,
+      #custom-notifications,
+      #wireplumber,
+      #workspaces button {
+        transition: background-color 120ms ease-out;
+      }
+
+      #backlight:hover,
+      #clock:hover,
+      #custom-cpu:hover,
+      #custom-notifications:hover,
+      #wireplumber:hover,
+      #workspaces button:hover {
+        background: alpha(@text, 0.08);
+      }
+
+      #backlight:active,
+      #clock:active,
+      #custom-cpu:active,
+      #custom-notifications:active,
+      #wireplumber:active,
+      #workspaces button:active {
+        background: alpha(@text, 0.14);
       }
 
       #workspaces button {
-        color: @purple;
+        color: @text;
+        font-weight: 500;
+        padding: 0 4px;
+        border-radius: 3px;
       }
 
       #workspaces button.empty {
-        color: @surface2;
+        color: @overlay;
+      }
+
+      #workspaces button.active {
+        color: @accent;
+      }
+
+      #workspaces button.urgent {
+        color: @urgent;
+      }
+
+      /* State feedback: steady colors, no pulsing. Charging is teal, not
+         green, so it never rides the red-green axis against .critical. */
+      #custom-battery.charging {
+        color: @teal;
+      }
+
+      #custom-battery.warning {
+        color: @yellow;
+      }
+
+      #custom-battery.critical {
+        color: @red;
+      }
+
+      #wireplumber.muted {
+        color: @overlay;
+      }
+
+      #custom-notifications.dnd-none,
+      #custom-notifications.dnd-notification {
+        color: @overlay;
       }
     '';
   };
