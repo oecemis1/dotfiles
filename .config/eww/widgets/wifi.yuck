@@ -1,0 +1,87 @@
+; WiFi section of the control center: status polls + the inline menu
+; content revealed under the WiFi tile. Quick actions only - new secured
+; networks hand off to nm-connection-editor (no password entry in a
+; non-focusable layer).
+
+; Tile fill/sublabel need status whenever the panel is open; the network
+; list only while the wifi menu is expanded. cc_open / cc_active_menu
+; live in control-center.yuck.
+(defpoll wifi_status
+  :interval "2s"
+  :run-while cc_open
+  :initial '{"enabled":false,"ssid":"","signal":0,"ip":""}'
+  `eww-wifi status`)
+
+(defpoll wifi_list
+  :interval "4s"
+  :run-while {cc_open && cc_active_menu == "wifi"}
+  :initial "[]"
+  `eww-wifi list`)
+
+(defwidget wifi_menu_content []
+  (box
+    :orientation "v"
+    :space-evenly false
+    :spacing 8
+    (box
+      :class "wf-card"
+      :orientation "v"
+      :space-evenly false
+      :spacing 6
+      :visible {wifi_status.ssid != ""}
+      (label :class "wf-title" :halign "start" :text "Connected")
+      (box
+        :space-evenly false
+        :spacing 10
+        (label :class "wf-icon" :text {wifi_status.signal >= 75 ? "󰤨" :
+                                       (wifi_status.signal >= 50 ? "󰤥" :
+                                       (wifi_status.signal >= 25 ? "󰤢" : "󰤟"))})
+        (box
+          :orientation "v"
+          :space-evenly false
+          :hexpand true
+          (label :halign "start" :limit-width 24 :text {wifi_status.ssid})
+          (label :class "wf-sub" :halign "start" :visible {wifi_status.ip != ""} :text {wifi_status.ip}))
+        (button
+          :class "wf-small-btn"
+          :valign "center"
+          :onclick "eww-wifi disconnect &"
+          (label :text "Disconnect"))))
+    (box
+      :class "wf-card"
+      :orientation "v"
+      :space-evenly false
+      :spacing 6
+      :visible {wifi_status.enabled}
+      (label :class "wf-title" :halign "start" :text "Networks")
+      (label
+        :class "wf-empty"
+        :halign "start"
+        :visible {arraylength(wifi_list) == 0}
+        :text "No networks found")
+      (box
+        :orientation "v"
+        :space-evenly false
+        :spacing 2
+        (for net in wifi_list
+          (button
+            :class "wf-row"
+            :onclick {net.known || !net.secured ?
+              "eww-wifi connect '${net.ssid}' &" :
+              "eww-control-center-toggle; nm-connection-editor &"}
+            (box
+              :space-evenly false
+              :spacing 10
+              (label :class "wf-icon" :text {net.signal >= 75 ? "󰤨" :
+                                             (net.signal >= 50 ? "󰤥" :
+                                             (net.signal >= 25 ? "󰤢" : "󰤟"))})
+              (label :halign "start" :hexpand true :limit-width 24 :text {net.ssid})
+              (label :class "wf-lock" :visible {net.secured} :text "󰌾"))))))
+    (button
+      :class "wf-footer"
+      :onclick "eww-control-center-toggle; nm-connection-editor &"
+      (box
+        :space-evenly false
+        :spacing 10
+        (label :class "wf-icon" :text "󰒓")
+        (label :halign "start" :text "Edit Connections...")))))

@@ -176,7 +176,15 @@
         "no_initial_focus on, match:title ^(Brightness Control)$"
         "no_blur on, match:title ^(Brightness Control)$"
         "float on, match:class ^(org.pulseaudio.pavucontrol)$"
-        "float on, match:class ^(.blueman-manager-wrapped)$"
+        # deep-config apps behind the wifi/bluetooth/usb bar widgets
+        "float on, match:class ^(nm-connection-editor)$"
+        "float on, match:class ^(io.github.kaii_lb.Overskride)$"
+        "float on, match:class ^(gnome-disks)$"
+        "float on, match:class ^(org.gnome.DiskUtility)$"
+        # yazi browsing a usb stick, spawned by the usb menu's folder button
+        "float on, match:initial_title ^(usb-browse)$"
+        "size 60% 60%, match:initial_title ^(usb-browse)$"
+        "center on, match:initial_title ^(usb-browse)$"
 
         #qalculate
         "float on, match:class (qalculate-qt)"

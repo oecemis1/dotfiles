@@ -1,4 +1,6 @@
+# tray is off: the waybar custom/usb widget + eww usb menu replace the
+# tray icon; udiskie stays for automount + notifications.
 program_options:
   automount: true
   notify: true
-  tray: true
+  tray: false

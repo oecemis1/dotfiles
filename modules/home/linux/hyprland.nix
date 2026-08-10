@@ -30,7 +30,8 @@
         nwg-displays
         wlr-randr
 
-        networkmanagerapplet
+        networkmanagerapplet # nm-connection-editor, opened by the wifi widget
+        overskride # bluetooth manager, opened by the bluetooth widget
         brightnessctl
         udiskie
         yad

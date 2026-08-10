@@ -24,6 +24,9 @@
           $text: ${colors.text};
           $accent: ${colors.accent};
           $accent2: ${colors.accent2};
+          $red: ${colors.red};
+          $teal: ${colors.teal};
+          $yellow: ${colors.yellow};
         '';
 
         # tofi's config does `include = .../current-theme`.

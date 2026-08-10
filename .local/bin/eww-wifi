@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# WiFi adapter for the control center's WiFi tile + inline menu.
+#
+#   status      JSON for the tile sublabel and current-connection card
+#   list        JSON array of visible networks (top 6 by signal)
+#   scan        fire-and-forget rescan (list itself never rescans)
+#   toggle      flip the wifi radio
+#   connect S   bring up known profile S, or join open network S
+#   disconnect  drop the active wifi connection
+
+# Actions push fresh state into the control center's poll var so the
+# WiFi tile updates instantly instead of waiting out the 2s poll.
+refresh_panel() {
+    eww update wifi_status="$("$0" status)" 2>/dev/null || true
+}
+
+wifi_enabled() {
+    nmcli -t -f WIFI general | grep -q "enabled"
+}
+
+# Signal strength of the in-use network (empty when not connected).
+current_signal() {
+    nmcli -t -m multiline -f IN-USE,SIGNAL dev wifi list --rescan no \
+        | awk -F: '$1=="IN-USE"{inuse=($2=="*")} $1=="SIGNAL" && inuse {print $2; exit}'
+}
+
+# Name of the active wifi connection profile (usually the SSID).
+current_name() {
+    nmcli -t -f NAME,TYPE connection show --active \
+        | awk -F: '$2=="802-11-wireless"{print $1; exit}'
+}
+
+case "$1" in
+status)
+    if ! wifi_enabled; then
+        echo '{"enabled":false,"ssid":"","signal":0,"ip":""}'
+        exit
+    fi
+    ssid=$(current_name)
+    signal=$(current_signal)
+    dev=$(nmcli -t -f DEVICE,TYPE,STATE device status \
+        | awk -F: '$2=="wifi" && $3=="connected"{print $1; exit}')
+    ip=""
+    if [ -n "$dev" ]; then
+        ip=$(nmcli -t -f IP4.ADDRESS device show "$dev" 2>/dev/null \
+            | head -n1 | cut -d: -f2- | cut -d/ -f1)
+    fi
+    jq -nc --arg ssid "$ssid" --arg signal "${signal:-0}" --arg ip "$ip" \
+        '{enabled: true, ssid: $ssid, signal: ($signal | tonumber? // 0), ip: $ip}'
+    ;;
+
+list)
+    # Multiline mode survives colons in SSIDs; awk flattens each record
+    # to TSV, jq shapes/dedups/sorts. Every key is always present: eww's
+    # `for` errors on missing keys.
+    known=$(nmcli -t -f NAME connection show \
+        | jq -Rsc 'split("\n") | map(select(length > 0))')
+    nmcli -t -m multiline -f IN-USE,SSID,SIGNAL,SECURITY dev wifi list --rescan no \
+        | awk -F: '
+            $1=="IN-USE"   { inuse = ($2=="*") }
+            $1=="SSID"     { ssid = substr($0, 6) }
+            $1=="SIGNAL"   { sig = $2 }
+            $1=="SECURITY" { printf "%d\t%s\t%s\t%s\n", inuse, ssid, sig, substr($0, 10) }' \
+        | jq -Rsc --argjson known "$known" '
+            split("\n")
+            | map(select(length > 0) | split("\t")
+                | {inuse: (.[0] == "1"),
+                   ssid: .[1],
+                   signal: (.[2] | tonumber? // 0),
+                   secured: (.[3] != "" and .[3] != "--")})
+            # the connected SSID lives in the Connected card, not the list
+            # (drop its other APs too, not just the in-use BSSID)
+            | (map(select(.inuse) | .ssid)) as $active
+            | map(select((.ssid != "") and (.ssid as $s | $active | index($s) | not)))
+            | group_by(.ssid) | map(max_by(.signal))
+            | map({ssid, signal, secured, known: (.ssid as $s | $known | index($s) != null)})
+            | sort_by(-.signal)
+            | .[0:6]'
+    ;;
+
+scan)
+    nmcli device wifi rescan 2>/dev/null || true
+    ;;
+
+toggle)
+    if wifi_enabled; then
+        nmcli radio wifi off
+    else
+        nmcli radio wifi on
+    fi
+    refresh_panel
+    ;;
+
+connect)
+    ssid="$2"
+    if nmcli -t -f NAME connection show | grep -Fxq "$ssid"; then
+        nmcli connection up id "$ssid"
+    else
+        # Open networks only; secured-unknown networks are routed to
+        # nm-connection-editor by the popover instead.
+        nmcli device wifi connect "$ssid"
+    fi
+    refresh_panel
+    ;;
+
+disconnect)
+    name=$(current_name)
+    [ -n "$name" ] && nmcli connection down id "$name"
+    refresh_panel
+    ;;
+
+*)
+    echo "usage: eww-wifi status|list|scan|toggle|connect <ssid>|disconnect" >&2
+    exit 1
+    ;;
+esac

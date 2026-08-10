@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Removable-media adapter for the control center's USB tile + inline
+# menu. Mount/unmount goes through udisks2 (same backend udiskie's
+# automount uses); deep management lives in GNOME Disks.
+#
+#   list           JSON array of removable partitions
+#   mount <dev>    mount a partition
+#   unmount <dev>  unmount a partition
+#   browse <dev>   open the mountpoint in yazi (floating kitty window)
+#   eject <dev>    sync, unmount everything on the drive, power it off
+
+# Actions push fresh state into the control center's poll var so the
+# USB tile and list update instantly instead of waiting out the 2s poll.
+refresh_panel() {
+    eww update usb_list="$("$0" list)" 2>/dev/null || true
+}
+
+list() {
+    lsblk -J -o NAME,PATH,LABEL,SIZE,MOUNTPOINT,FSAVAIL,RM,HOTPLUG,TYPE,TRAN \
+        | jq -c '[.blockdevices[]
+            | select(.type == "disk"
+                and ((.tran == "usb") or (.rm == true) or (.hotplug == true)))
+            | . as $disk
+            | (if (.children // [] | length) > 0 then .children[] else . end)
+            | {path: .path,
+               label: (.label // $disk.label // .name),
+               size: .size,
+               mounted: (.mountpoint != null),
+               mountpoint: (.mountpoint // ""),
+               free: (.fsavail // "")}]'
+}
+
+case "$1" in
+list)
+    list
+    ;;
+
+mount)
+    udisksctl mount -b "$2" --no-user-interaction
+    refresh_panel
+    ;;
+
+unmount)
+    udisksctl unmount -b "$2" --no-user-interaction
+    refresh_panel
+    ;;
+
+browse)
+    mp=$(lsblk -no MOUNTPOINT "$2" | head -n1)
+    [ -n "$mp" ] || exit 1
+    # parented to hyprland, not eww; the usb-browse title gets a floating
+    # windowrule in _hyprland/hyprland.nix
+    hyprctl dispatch exec "kitty --title usb-browse -e yazi '$mp'"
+    ;;
+
+eject)
+    # flush writes first, unmount every mounted partition of the parent
+    # drive, then cut power so the stick is safe to pull
+    parent=$(lsblk -no PKNAME "$2" | head -n1)
+    disk="/dev/${parent:-$(basename "$2")}"
+    sync
+    for part in $(lsblk -lno PATH,MOUNTPOINT "$disk" | awk '$2 != "" {print $1}'); do
+        udisksctl unmount -b "$part" --no-user-interaction
+    done
+    udisksctl power-off -b "$disk" --no-user-interaction
+    refresh_panel
+    ;;
+
+*)
+    echo "usage: eww-usb list|mount <dev>|unmount <dev>|browse <dev>|eject <dev>" >&2
+    exit 1
+    ;;
+esac

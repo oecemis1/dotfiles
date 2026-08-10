@@ -1,0 +1,76 @@
+; USB section of the control center: device-list poll + the inline menu
+; content revealed under the USB tile. udiskie still automounts and
+; notifies in the background; deep management lives in GNOME Disks.
+
+; The tile sublabel (device count) needs the list whenever the panel is
+; open. cc_open lives in control-center.yuck.
+(defpoll usb_list
+  :interval "2s"
+  :run-while cc_open
+  :initial "[]"
+  `eww-usb list`)
+
+(defwidget usb_menu_content []
+  (box
+    :orientation "v"
+    :space-evenly false
+    :spacing 8
+    (box
+      :class "usb-card"
+      :orientation "v"
+      :space-evenly false
+      :spacing 6
+      (label :class "usb-title" :halign "start" :text "Removable Media")
+      (label
+        :class "usb-empty"
+        :halign "start"
+        :visible {arraylength(usb_list) == 0}
+        :text "No devices connected")
+      (box
+        :orientation "v"
+        :space-evenly false
+        :spacing 2
+        (for d in usb_list
+          (box
+            :class "usb-row"
+            :space-evenly false
+            :spacing 10
+            (label
+              :class "usb-icon ${d.mounted ? "usb-icon-mounted" : ""}"
+              :text "󱊞")
+            (box
+              :orientation "v"
+              :space-evenly false
+              :hexpand true
+              (label :halign "start" :limit-width 18 :text {d.label})
+              (label
+                :class "usb-sub"
+                :halign "start"
+                :text {d.mounted && d.free != "" ? "${d.free} free of ${d.size}" : d.size}))
+            (button
+              :class "usb-small-btn"
+              :valign "center"
+              :visible {d.mounted}
+              :onclick "eww-control-center-toggle; eww-usb browse '${d.path}' &"
+              (label :text "󰉋"))
+            (button
+              :class "usb-small-btn"
+              :valign "center"
+              :onclick {d.mounted ?
+                "eww-usb unmount '${d.path}' &" :
+                "eww-usb mount '${d.path}' &"}
+              (label :text {d.mounted ? "Unmount" : "Mount"}))
+            (button
+              :class "usb-small-btn"
+              :valign "center"
+              :visible {d.mounted}
+              :onclick "eww-usb eject '${d.path}' &"
+              (label :text "󰇖"))))))
+    (button
+      :class "usb-footer"
+      :onclick "eww-control-center-toggle; gnome-disks &"
+      (box
+        :space-evenly false
+        :spacing 10
+        (label :class "usb-icon" :text "󰒓")
+        (label :halign "start" :text "Open Disks...")))))

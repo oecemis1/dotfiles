@@ -1,0 +1,67 @@
+/* NOTE: keep this file ASCII-only. Any non-ASCII char makes grass emit
+   @charset, which GTK's css parser rejects wholesale. */
+
+/* WiFi menu content, rendered inside the control center (.cc supplies
+   the panel material and base label fonts). */
+
+.cc label.wf-title {
+  font-size: 15px;
+  color: $overlay;
+  font-weight: 600;
+}
+
+.cc label.wf-icon {
+  font-size: 19px;
+}
+
+.cc label.wf-sub,
+.cc label.wf-empty,
+.cc label.wf-lock {
+  font-size: 14px;
+  color: $overlay;
+}
+
+.wf-card {
+  background-color: rgba($text, 0.05);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.wf-row {
+  border-radius: 4px;
+  padding: 4px 6px;
+  transition: background-color 120ms ease-out;
+}
+
+.wf-row:hover {
+  background-color: rgba($text, 0.08);
+}
+
+.wf-row:active {
+  background-color: rgba($text, 0.14);
+}
+
+.wf-small-btn {
+  background-color: rgba($text, 0.08);
+  border-radius: 4px;
+  padding: 2px 10px;
+  transition: background-color 120ms ease-out;
+}
+
+.wf-small-btn:hover {
+  background-color: rgba($text, 0.14);
+}
+
+.wf-small-btn label {
+  font-size: 14px;
+}
+
+.wf-footer {
+  border-radius: 4px;
+  padding: 6px 12px;
+  transition: background-color 120ms ease-out;
+}
+
+.wf-footer:hover {
+  background-color: rgba($text, 0.08);
+}

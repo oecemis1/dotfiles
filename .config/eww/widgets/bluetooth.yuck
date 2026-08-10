@@ -1,0 +1,73 @@
+; Bluetooth section of the control center: status polls + the inline
+; menu content revealed under the Bluetooth tile. Quick actions only -
+; pairing and discovery live in Overskride.
+
+; Tile fill/sublabel need status whenever the panel is open; the device
+; list only while the bluetooth menu is expanded. cc_open /
+; cc_active_menu live in control-center.yuck.
+(defpoll bt_status
+  :interval "2s"
+  :run-while cc_open
+  :initial '{"powered":false,"connected":0}'
+  `eww-bluetooth status`)
+
+(defpoll bt_devices
+  :interval "3s"
+  :run-while {cc_open && cc_active_menu == "bluetooth"}
+  :initial "[]"
+  `eww-bluetooth devices`)
+
+(defwidget bluetooth_menu_content []
+  (box
+    :orientation "v"
+    :space-evenly false
+    :spacing 8
+    (box
+      :class "bt-card"
+      :orientation "v"
+      :space-evenly false
+      :spacing 6
+      :visible {bt_status.powered}
+      (label :class "bt-title" :halign "start" :text "Devices")
+      (label
+        :class "bt-empty"
+        :halign "start"
+        :visible {arraylength(bt_devices) == 0}
+        :text "No paired devices")
+      (box
+        :orientation "v"
+        :space-evenly false
+        :spacing 2
+        (for dev in bt_devices
+          (box
+            :class "bt-row"
+            :space-evenly false
+            :spacing 10
+            (label
+              :class "bt-icon ${dev.connected ? "bt-icon-connected" : ""}"
+              :text {dev.connected ? "󰂱" : "󰂯"})
+            (box
+              :orientation "v"
+              :space-evenly false
+              :hexpand true
+              (label :halign "start" :limit-width 20 :text {dev.name})
+              (label
+                :class "bt-battery ${dev.battery != "null" && dev.battery < 20 ? "bt-battery-low" : ""}"
+                :halign "start"
+                :visible {dev.battery != "null"}
+                :text "${dev.battery}% battery"))
+            (button
+              :class "bt-small-btn"
+              :valign "center"
+              :onclick {dev.connected ?
+                "eww-bluetooth disconnect '${dev.mac}' &" :
+                "eww-bluetooth connect '${dev.mac}' &"}
+              (label :text {dev.connected ? "Disconnect" : "Connect"}))))))
+    (button
+      :class "bt-footer"
+      :onclick "eww-control-center-toggle; overskride &"
+      (box
+        :space-evenly false
+        :spacing 10
+        (label :class "bt-icon" :text "󰒓")
+        (label :halign "start" :text "Open Overskride...")))))

@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Bluetooth adapter for the control center's Bluetooth tile + inline
+# menu. Quick actions only - pairing/discovery lives in Overskride.
+#
+# Talks to bluez over D-Bus (busctl) instead of bluetoothctl: the
+# installed bluez's argv mode (`bluetoothctl show`) exits 0 with no
+# output, and stdin mode wraps everything in prompt/ANSI noise.
+#
+#   status            JSON: power + connected count
+#   devices           JSON array of paired devices
+#   toggle            flip controller power
+#   connect <mac>     connect a paired device
+#   disconnect <mac>  disconnect a device
+
+# Actions push fresh state into the control center's poll vars so the
+# Bluetooth tile and device list update instantly instead of waiting out
+# the 2-3s polls.
+refresh_panel() {
+    eww update bt_status="$("$0" status)" bt_devices="$("$0" devices)" 2>/dev/null || true
+}
+
+objects() {
+    busctl --json=short call org.bluez / \
+        org.freedesktop.DBus.ObjectManager GetManagedObjects 2>/dev/null
+}
+
+adapter_path() {
+    objects | jq -r '.data[0] | to_entries
+        | map(select(.value["org.bluez.Adapter1"])) | .[0].key // empty'
+}
+
+# device object path for a MAC: /org/bluez/hci0/dev_AA_BB_...
+device_path() {
+    echo "$(adapter_path)/dev_${1//:/_}"
+}
+
+case "$1" in
+status)
+    objects | jq -c '.data[0] | to_entries
+        | {powered: (map(select(.value["org.bluez.Adapter1"]))
+              | .[0].value["org.bluez.Adapter1"].Powered.data // false),
+           connected: (map(select(.value["org.bluez.Device1"].Connected.data == true))
+              | length)}'
+    ;;
+
+devices)
+    # every key is always present (battery: null) - eww's `for` errors
+    # on missing keys
+    objects | jq -c '.data[0] | to_entries
+        | map(select(.value["org.bluez.Device1"].Paired.data == true))
+        | map({mac: .value["org.bluez.Device1"].Address.data,
+               name: (.value["org.bluez.Device1"].Alias.data // ""),
+               connected: (.value["org.bluez.Device1"].Connected.data // false),
+               battery: (.value["org.bluez.Battery1"].Percentage.data // null)})
+        | sort_by(.connected | not)'
+    ;;
+
+toggle)
+    adapter=$(adapter_path)
+    [ -n "$adapter" ] || exit 1
+    powered=$(busctl --json=short get-property org.bluez "$adapter" \
+        org.bluez.Adapter1 Powered | jq -r '.data')
+    if [ "$powered" == "true" ]; then
+        busctl set-property org.bluez "$adapter" org.bluez.Adapter1 Powered b false
+    else
+        # the radio may be rfkill soft-blocked; powering on alone fails then
+        rfkill unblock bluetooth
+        busctl set-property org.bluez "$adapter" org.bluez.Adapter1 Powered b true
+    fi
+    refresh_panel
+    ;;
+
+connect)
+    # Connect blocks until the device answers; cap it for flaky devices
+    timeout 10 busctl call --timeout=10 org.bluez "$(device_path "$2")" \
+        org.bluez.Device1 Connect
+    refresh_panel
+    ;;
+
+disconnect)
+    timeout 10 busctl call --timeout=10 org.bluez "$(device_path "$2")" \
+        org.bluez.Device1 Disconnect
+    refresh_panel
+    ;;
+
+*)
+    echo "usage: eww-bluetooth status|devices|toggle|connect <mac>|disconnect <mac>" >&2
+    exit 1
+    ;;
+esac

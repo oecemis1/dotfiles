@@ -1,4 +1,7 @@
 (include "./widgets/brightness.yuck")
 (include "./widgets/calendar.yuck")
 (include "./widgets/power.yuck")
+(include "./widgets/wifi.yuck")
+(include "./widgets/bluetooth.yuck")
+(include "./widgets/usb.yuck")
 (include "./widgets/control-center.yuck")
