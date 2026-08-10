@@ -1,0 +1,168 @@
+/* NOTE: keep this file ASCII-only. Any non-ASCII char makes grass emit
+   @charset, which GTK's css parser rejects wholesale. */
+
+.cc {
+  background-color: rgba($crust, 0.65);
+  border: 1px solid rgba($surface1, 0.6);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+/* fonts go on the labels directly: the global * rule in brightness.scss
+   matches label nodes and beats anything they would inherit */
+.cc label {
+  font-family: "SF Pro Text", "MonaspiceNe Nerd Font Mono";
+  font-size: 17.5px;
+}
+
+.cc label.cc-icon {
+  font-size: 19px;
+}
+
+/* raised sub-cards for grouped controls */
+.cc-card {
+  background-color: rgba($text, 0.05);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+/* quick-setting tiles: split buttons - icon zone toggles, label zone
+   expands the tile's menu. Radio on = filled accent, unmistakable. */
+.cc-tile {
+  background-color: rgba($text, 0.05);
+  border-radius: 6px;
+  color: $text;
+}
+
+.cc-tile-toggle {
+  border-radius: 6px 0 0 6px;
+  padding: 11px 10px 11px 14px;
+  transition: background-color 120ms ease-out;
+}
+
+.cc-tile-expand {
+  border-radius: 0 6px 6px 0;
+  padding: 11px 12px 11px 8px;
+  transition: background-color 120ms ease-out;
+}
+
+.cc-tile-whole {
+  border-radius: 6px;
+  padding: 11px 12px 11px 14px;
+  transition: background-color 120ms ease-out;
+}
+
+.cc-tile-toggle:hover,
+.cc-tile-expand:hover,
+.cc-tile-whole:hover {
+  background-color: rgba($text, 0.1);
+}
+
+.cc-tile label.cc-tile-icon {
+  font-size: 24px;
+}
+
+.cc-tile label.cc-tile-name {
+  font-size: 16.5px;
+  font-weight: 600;
+}
+
+.cc-tile label.cc-tile-sub {
+  font-size: 14px;
+  color: $overlay;
+}
+
+.cc-tile label.cc-chevron {
+  font-size: 14px;
+  color: $overlay;
+}
+
+.cc-tile-active {
+  background-color: rgba($accent, 0.9);
+  color: $crust;
+}
+
+.cc-tile-active label.cc-tile-sub,
+.cc-tile-active label.cc-chevron {
+  color: rgba($crust, 0.7);
+}
+
+.cc-tile-active .cc-tile-toggle:hover,
+.cc-tile-active .cc-tile-expand:hover,
+.cc-tile-active.cc-tile-whole:hover {
+  background-color: $accent;
+}
+
+/* Full-card sliders: a tall trough that reads as the card itself, no
+   visible knob - the fill edge is the indicator. Scoped to override
+   the global scale rules from brightness.scss. */
+.cc-strip trough {
+  background-color: rgba($text, 0.05);
+  border-radius: 6px;
+  min-height: 52px;
+  min-width: 230px;
+}
+
+.cc-strip highlight {
+  background-color: rgba($accent, 0.9);
+  border-radius: 6px;
+}
+
+.cc-strip slider {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+/* overlay riders: icon left (over the fill), value right (over the
+   trough); *-out / *-in swap colors when the fill edge crosses them */
+.cc-strip-overlay {
+  padding: 0 16px;
+}
+
+.cc label.cc-strip-icon {
+  font-size: 22px;
+  color: $crust;
+}
+
+.cc label.cc-strip-icon-out {
+  color: $text;
+}
+
+.cc label.cc-strip-value {
+  font-size: 17px;
+  font-weight: 600;
+  color: $text;
+}
+
+.cc label.cc-strip-value-in {
+  color: $crust;
+}
+
+.cc-strip-mute {
+  border-radius: 4px;
+  padding: 0 4px;
+  transition: background-color 120ms ease-out;
+}
+
+.cc-strip-mute:hover {
+  background-color: rgba($text, 0.15);
+}
+
+.cc-power-header {
+  border-radius: 4px;
+  transition: background-color 120ms ease-out;
+}
+
+.cc-power-header:hover {
+  background-color: rgba($text, 0.08);
+}
+
+.cc-power-header label.cc-chevron {
+  font-size: 14px;
+  color: $overlay;
+}

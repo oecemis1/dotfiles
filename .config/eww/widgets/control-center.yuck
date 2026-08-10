@@ -1,0 +1,262 @@
+; Control center: a 2x2 grid of quick-setting tiles (WiFi,
+; Bluetooth, USB, DND) whose menus expand in place below the grid, then
+; display/sound sliders, and the power actions revealed with a slide
+; animation.
+
+(defvar cc_power_open false)
+
+; true while the panel is open (flipped by eww-control-center-toggle and
+; the closer); gates every control-center defpoll via :run-while
+(defvar cc_open false)
+
+; which tile menu is expanded: "" | "wifi" | "bluetooth" | "usb" -
+; only the most recently pressed tile's menu is visible
+(defvar cc_active_menu "")
+
+(defpoll cc_volume
+  :interval "1s"
+  :run-while cc_open
+  :initial "50"
+  `eww-volume get`)
+
+(defpoll cc_muted
+  :interval "1s"
+  :run-while cc_open
+  :initial "false"
+  `eww-volume muted`)
+
+; event-driven DND state straight from swaync
+(deflisten cc_dnd
+  :initial "false"
+  `swaync-client -s | jq --unbuffered -r '.dnd'`)
+
+; Invisible fullscreen layer under the panel: a click anywhere outside
+; dismisses it (and is swallowed, like a real menu).
+(defwindow control_center_closer []
+  :monitor 0
+  :geometry (geometry
+    :width "100%"
+    :height "100%")
+  :stacking "overlay"
+  :focusable false
+  :namespace "control_center_closer"
+  (eventbox
+    :onclick "eww close control_center; eww close control_center_closer; eww update cc_power_open=false cc_active_menu= cc_open=false"
+    :onmiddleclick "eww close control_center; eww close control_center_closer; eww update cc_power_open=false cc_active_menu= cc_open=false"
+    :onrightclick "eww close control_center; eww close control_center_closer; eww update cc_power_open=false cc_active_menu= cc_open=false"))
+
+; Fixed height (fits the widest expanded state: wifi menu + expanded
+; power section): a layer window that resizes mid-animation makes the
+; panel jump, so the window never resizes and the revealers animate
+; smoothly inside it. The area below the panel is transparent; the
+; fullscreen closer swallows outside clicks anyway.
+;
+; Anchored top RIGHT: 340px is only the minimum width, and content that
+; needs more room (long USB rows) must grow leftward into the screen,
+; not rightward off it. x_pos is the inset from the screen's right edge.
+(defwindow control_center [x_pos y_pos]
+  :monitor 0
+  :geometry (geometry
+    :x {x_pos}
+    :y {y_pos}
+    :width "400px"
+    :height "940px"
+    :anchor "top right")
+  :stacking "overlay"
+  :focusable false
+  :namespace "control_center"
+  (control_center_widget))
+
+; Split tile: the icon zone toggles the radio, the label/chevron zone
+; expands the tile's menu (eww has no long-press events, so the split
+; stands in for press-and-hold). Pressing the open tile again collapses.
+(defwidget cc_tile [icon name sub active menu toggle_cmd]
+  (box
+    :class "cc-tile ${active ? "cc-tile-active" : ""}"
+    :space-evenly false
+    (button
+      :class "cc-tile-toggle"
+      :onclick toggle_cmd
+      (label :class "cc-tile-icon" :text icon))
+    (button
+      :class "cc-tile-expand"
+      :hexpand true
+      :onclick {cc_active_menu == menu ?
+        "eww update cc_active_menu=" :
+        "eww update cc_active_menu=${menu}"}
+      (box
+        :space-evenly false
+        :spacing 6
+        (box
+          :orientation "v"
+          :space-evenly false
+          :hexpand true
+          (label :class "cc-tile-name" :halign "start" :text name)
+          (label :class "cc-tile-sub" :halign "start" :limit-width 14 :text sub))
+        (label
+          :class "cc-chevron"
+          :valign "center"
+          :text {cc_active_menu == menu ? "" : ""})))))
+
+; Whole-tile button for settings without a split (DND has no menu).
+(defwidget cc_tile_button [icon name sub active cmd]
+  (button
+    :class "cc-tile cc-tile-whole ${active ? "cc-tile-active" : ""}"
+    :onclick cmd
+    (box
+      :space-evenly false
+      :spacing 10
+      (label :class "cc-tile-icon" :text icon)
+      (box
+        :orientation "v"
+        :space-evenly false
+        :hexpand true
+        (label :class "cc-tile-name" :halign "start" :text name)
+        (label :class "cc-tile-sub" :halign "start" :limit-width 14 :text sub)))))
+
+(defwidget control_center_widget []
+  (box
+    :class "cc"
+    :orientation "v"
+    :valign "start"
+    :space-evenly false
+    :spacing 8
+    (box
+      :spacing 8
+      (cc_tile
+        :icon "󰤨"
+        :name "Wi-Fi"
+        :sub {wifi_status.enabled ? (wifi_status.ssid != "" ? wifi_status.ssid : "On") : "Off"}
+        :active {wifi_status.enabled}
+        :menu "wifi"
+        :toggle_cmd "eww-wifi toggle &")
+      (cc_tile
+        :icon "󰂯"
+        :name "Bluetooth"
+        :sub {bt_status.powered ? (bt_status.connected > 0 ? "${bt_status.connected} connected" : "On") : "Off"}
+        :active {bt_status.powered}
+        :menu "bluetooth"
+        :toggle_cmd "eww-bluetooth toggle &"))
+    (box
+      :spacing 8
+      (cc_tile
+        :icon "󱊞"
+        :name "USB"
+        :sub {arraylength(usb_list) == 0 ? "None" :
+          "${arraylength(usb_list)} device${arraylength(usb_list) == 1 ? "" : "s"}"}
+        :active {arraylength(usb_list) > 0}
+        :menu "usb"
+        :toggle_cmd {cc_active_menu == "usb" ?
+          "eww update cc_active_menu=" :
+          "eww update cc_active_menu=usb"})
+      (cc_tile_button
+        :icon "󰤄"
+        :name "DND"
+        :sub {cc_dnd == "true" ? "On" : "Off"}
+        :active {cc_dnd == "true"}
+        :cmd "swaync-client -d"))
+    (revealer
+      :transition "slidedown"
+      :duration "300ms"
+      :reveal {cc_active_menu == "wifi"}
+      (wifi_menu_content))
+    (revealer
+      :transition "slidedown"
+      :duration "300ms"
+      :reveal {cc_active_menu == "bluetooth"}
+      (bluetooth_menu_content))
+    (revealer
+      :transition "slidedown"
+      :duration "300ms"
+      :reveal {cc_active_menu == "usb"}
+      (usb_menu_content))
+    ; Full-card sliders: the strip IS the control. Icon and
+    ; level ride inside it via an overlay - labels are windowless in GTK,
+    ; so drags pass straight through to the scale. Their colors flip near
+    ; the extremes to stay legible on both the fill and the trough.
+    (overlay
+      (scale
+        :class "cc-strip"
+        :hexpand true
+        :value brightness_percent
+        :min 1
+        :max 100
+        :round-digits 0
+        ; update the var inline so the number tracks the drag instantly
+        ; instead of waiting out the 1s poll
+        :onchange "eww update brightness_percent={} & eww-brightness set {}")
+      (box
+        :class "cc-strip-overlay"
+        :space-evenly false
+        (label
+          :class "cc-strip-icon ${brightness_percent < 12 ? "cc-strip-icon-out" : ""}"
+          :halign "start"
+          :valign "center"
+          :text "󰖙")
+        (label
+          :class "cc-strip-value ${brightness_percent > 88 ? "cc-strip-value-in" : ""}"
+          :halign "end"
+          :valign "center"
+          :hexpand true
+          :text brightness_percent)))
+    (overlay
+      (scale
+        :class "cc-strip"
+        :hexpand true
+        :value cc_volume
+        :min 0
+        :max 100
+        :round-digits 0
+        ; update the var inline so the number tracks the drag instantly
+        ; instead of waiting out the 1s poll
+        :onchange "eww update cc_volume={} & eww-volume set {}")
+      (box
+        :class "cc-strip-overlay"
+        :space-evenly false
+        (button
+          :class "cc-strip-mute"
+          :halign "start"
+          :valign "center"
+          :onclick "eww-volume mute-toggle"
+          (label
+            :class "cc-strip-icon ${cc_volume < 12 ? "cc-strip-icon-out" : ""}"
+            :text {cc_muted == "true" ? "󰝟" : "󰕾"}))
+        (label
+          :class "cc-strip-value ${cc_volume > 88 ? "cc-strip-value-in" : ""}"
+          :halign "end"
+          :valign "center"
+          :hexpand true
+          :text cc_volume)))
+    (box
+      :class "cc-card"
+      :orientation "v"
+      :space-evenly false
+      (button
+        :class "cc-power-header"
+        :onclick "eww update cc_power_open=${!cc_power_open}"
+        (box
+          :space-evenly false
+          :spacing 10
+          (label :class "cc-icon" :text "󰐥")
+          (label :halign "start" :hexpand true :text "Power")
+          (label :class "cc-chevron" :text {cc_power_open ? "" : ""})))
+      (revealer
+        :transition "slidedown"
+        :duration "300ms"
+        :reveal cc_power_open
+        (box
+          :orientation "v"
+          :space-evenly false
+          :spacing 2
+          (button
+            :class "power-btn"
+            :onclick "eww-control-center-toggle; systemctl suspend"
+            (label :halign "start" :text "󰒲   Sleep"))
+          (button
+            :class "power-btn"
+            :onclick "eww-control-center-toggle; systemctl hibernate"
+            (label :halign "start" :text "󰋊   Hibernate"))
+          (button
+            :class "power-btn power-btn-shutdown"
+            :onclick "eww-control-center-toggle; systemctl poweroff"
+            (label :halign "start" :text "󰐥   Shut Down")))))))

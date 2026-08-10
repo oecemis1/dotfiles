@@ -25,46 +25,38 @@ in
           "hyprland/workspaces"
           # "custom/window"
         ];
-        modules-center = [
-          "custom/notifications"
-          "clock"
-        ];
+        modules-center = [ ];
         modules-right = [
+          "custom/battery"
           "custom/keyboard"
           "custom/cpu"
           # "memory"
-          # "custom/network"
           "tray"
-          "wireplumber"
-          # "bluetooth"
-          "backlight"
-          "custom/battery"
+          # merged into the control center (wifi/bluetooth/usb live there
+          # too, as quick-setting tiles)
+          # "wireplumber"
+          # "backlight"
+          # "custom/notifications"
+          "custom/control-center"
+          "clock"
         ];
 
         backlight = {
           format = "󰖙 {percent}%";
           tooltip = false;
-          on-click = "eww-brightness-toggle";
+          on-click = "eww-control-center-toggle";
           return-type = "";
           signal = 8;
         };
 
-        bluetooth = {
-          format = "󰂰 {status}";
-          format-connected = "󰂰 {device_alias}";
-          format-connected-battery = "󰂰 {device_alias} ({device_battery_percentage}%)";
-          tooltip-format = "{controller_alias}\t{controller_address}\n\n{num_connections} connected";
-          tooltip-format-connected = "{controller_alias}\t{controller_address}\n\n{num_connections} connected\n\n{device_enumerate}";
-          tooltip-format-enumerate-connected = "{device_alias}\t{device_address}";
-          tooltip-format-enumerate-connected-battery = "{device_alias}\t{device_address}\t{device_battery_percentage}%";
-          on-click = "blueman-manager";
-        };
-
+        # Clicking the clock opens the notification panel (which anchors to
+        # the right, under it). The eww calendar is retired but kept around:
+        # `eww-calendar-toggle` still works if bound somewhere again.
         clock = {
           format = "{:%a %d %b  %H:%M}";
           interval = 60;
           tooltip = false;
-          on-click = "eww-calendar-toggle";
+          on-click = "swaync-client -t";
         };
 
         "custom/battery" = {
@@ -83,19 +75,18 @@ in
           tooltip = false;
         };
 
-        "custom/network" = {
-          exec = "waybar_network.sh";
-          interval = 5;
-          format = "{}";
-          on-click = "nm-connection-editor";
-          tooltip = false;
-        };
-
         "custom/notifications" = {
           exec = "swaync-client -swb";
+          restart-interval = 1;
           return-type = "json";
           format = "󰂜 {}";
           on-click = "swaync-client -t";
+          tooltip = false;
+        };
+
+        "custom/control-center" = {
+          format = "";
+          on-click = "eww-control-center-toggle";
           tooltip = false;
         };
 
@@ -158,7 +149,8 @@ in
           format = "󰕾 {volume}%";
           format-muted = "󰝟 {volume}%";
           tooltip = false;
-          on-click = "pavucontrol";
+          on-click = "eww-control-center-toggle";
+          on-click-right = "pavucontrol";
         };
       };
     };
@@ -208,16 +200,14 @@ in
       /* Modules are typography on the bar's material: slightly heavier
          weight for legibility over blur, color reserved for state. */
       #backlight,
-      #bluetooth,
       #clock,
       #custom-battery,
       #custom-cpu,
       #custom-keyboard,
-      #custom-network,
       #custom-notifications,
+      #custom-control-center,
       #custom-window,
       #memory,
-      #network,
       #tray,
       #wireplumber,
       #workspaces {
@@ -234,6 +224,7 @@ in
       #clock,
       #custom-cpu,
       #custom-notifications,
+      #custom-control-center,
       #wireplumber,
       #workspaces button {
         transition: background-color 120ms ease-out;
@@ -243,6 +234,7 @@ in
       #clock:hover,
       #custom-cpu:hover,
       #custom-notifications:hover,
+      #custom-control-center:hover,
       #wireplumber:hover,
       #workspaces button:hover {
         background: alpha(@text, 0.08);
@@ -252,6 +244,7 @@ in
       #clock:active,
       #custom-cpu:active,
       #custom-notifications:active,
+      #custom-control-center:active,
       #wireplumber:active,
       #workspaces button:active {
         background: alpha(@text, 0.14);

@@ -1,0 +1,45 @@
+; Invisible fullscreen layer under the menu: a click anywhere outside
+; dismisses the menu (and is swallowed, like a real menu).
+(defwindow power_menu_closer []
+  :monitor 0
+  :geometry (geometry
+    :width "100%"
+    :height "100%")
+  :stacking "overlay"
+  :focusable false
+  :namespace "power_menu_closer"
+  (eventbox
+    :onclick "eww close power_menu; eww close power_menu_closer"
+    :onmiddleclick "eww close power_menu; eww close power_menu_closer"
+    :onrightclick "eww close power_menu; eww close power_menu_closer"))
+
+(defwindow power_menu [x_pos y_pos]
+  :monitor 0
+  :geometry (geometry
+    :x {x_pos}
+    :y {y_pos}
+    :width "230px"
+    :anchor "top left")
+  :stacking "overlay"
+  :focusable false
+  :namespace "power_menu"
+  (power_widget))
+
+(defwidget power_widget []
+  (box
+    :class "power-menu"
+    :orientation "v"
+    :space-evenly false
+    :spacing 2
+    (button
+      :class "power-btn"
+      :onclick "eww close power_menu; eww close power_menu_closer; systemctl suspend"
+      (label :halign "start" :text "󰒲   Sleep"))
+    (button
+      :class "power-btn"
+      :onclick "eww close power_menu; eww close power_menu_closer; systemctl hibernate"
+      (label :halign "start" :text "󰋊   Hibernate"))
+    (button
+      :class "power-btn power-btn-shutdown"
+      :onclick "eww close power_menu; eww close power_menu_closer; systemctl poweroff"
+      (label :halign "start" :text "󰐥   Shut Down"))))

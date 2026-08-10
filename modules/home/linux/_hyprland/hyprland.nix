@@ -202,6 +202,10 @@
         "ignore_alpha 0.3, match:namespace calendar"
         "blur on, match:namespace brightness_slider"
         "ignore_alpha 0.3, match:namespace brightness_slider"
+        "blur on, match:namespace power_menu"
+        "ignore_alpha 0.3, match:namespace power_menu"
+        "blur on, match:namespace control_center"
+        "ignore_alpha 0.3, match:namespace control_center"
       ];
 
       bind = [

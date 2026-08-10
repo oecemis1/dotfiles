@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Toggle the eww power menu, anchored under the power button at the bar's
+# right edge.
+
+MENU_WIDTH=230
+
+if eww active-windows | grep -q "^power_menu"; then
+    eww close power_menu
+    eww close power_menu_closer
+    exit
+fi
+
+WAYBAR_INFO=$(hyprctl layers -j | jq -r '.[].levels[][] | select(.namespace == "waybar")')
+WAYBAR_WIDTH=$(echo "$WAYBAR_INFO" | jq -r '.w')
+if [ -z "$WAYBAR_WIDTH" ] || [ "$WAYBAR_WIDTH" == "null" ]; then
+    WAYBAR_WIDTH=$(hyprctl monitors -j | jq -r '.[0].width')
+fi
+
+# Right-aligned under the bar; offset by the bar's right margin.
+X_POSITION=$((WAYBAR_WIDTH - MENU_WIDTH + 3))
+
+# closer first so it stacks below the menu; a click outside dismisses
+eww open power_menu_closer
+# 2px below the bar: aligns with the top edge of tiled windows
+eww open power_menu --arg x_pos="${X_POSITION}px" --arg y_pos="2px"
