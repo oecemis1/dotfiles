@@ -45,8 +45,7 @@
 
       # Decoration settings
       decoration = {
-        # Matches the waybar / popover border radius
-        rounding = 3;
+        rounding = 2;
 
         shadow = {
           enabled = true;
