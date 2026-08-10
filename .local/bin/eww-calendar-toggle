@@ -17,4 +17,5 @@ fi
 # Clock sits in the bar's center; offset by the bar's left margin.
 X_POSITION=$(((WAYBAR_WIDTH - CAL_WIDTH) / 2 + 3))
 
-eww open calendar --arg x_pos="${X_POSITION}px" --arg y_pos="0px"
+# 2px below the bar: aligns with the top edge of tiled windows (bar margin-bottom)
+eww open calendar --arg x_pos="${X_POSITION}px" --arg y_pos="2px"

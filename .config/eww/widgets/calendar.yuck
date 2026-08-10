@@ -4,7 +4,6 @@
     :x {x_pos}
     :y {y_pos}
     :width "300px"
-    :height "300px"
     :anchor "top left")
   :stacking "overlay"
   :focusable false

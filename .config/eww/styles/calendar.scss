@@ -7,7 +7,7 @@
 
 .cal {
   font-family: "SF Pro Text";
-  font-size: 15px;
+  font-size: 18.5px;
   color: $text;
 }
 
@@ -33,10 +33,13 @@ calendar.highlight {
   font-weight: bold;
 }
 
-/* Today / selected day */
+/* Today / selected day: explicit background so the GTK theme's
+   selection color never bleeds through */
 calendar:selected {
   color: $accent;
   font-weight: bold;
+  background-color: rgba($accent, 0.2);
+  border-radius: 3px;
 }
 
 /* Days that belong to the previous/next month */

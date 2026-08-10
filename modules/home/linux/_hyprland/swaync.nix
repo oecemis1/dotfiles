@@ -25,13 +25,16 @@ in
       "$schema" = "/etc/xdg/swaync/configSchema.json";
       positionX = "center";
       positionY = "top";
+      # anchor the control center under the bell in the right module group
+      # (toasts keep popping top-center via positionX above)
+      control-center-positionX = "right";
       layer = "overlay";
       control-center-layer = "top";
       layer-shell = true;
       cssPriority = "application";
-      control-center-margin-top = 10;
+      control-center-margin-top = 2;
       control-center-margin-bottom = 20;
-      control-center-margin-right = 10;
+      control-center-margin-right = 4;
       control-center-margin-left = 10;
       notification-2fa-action = true;
       timeout = 5;
@@ -58,10 +61,10 @@ in
         };
       };
 
+      # dnd lives in the eww control center now
       widgets = [
         "inhibitors"
         "title"
-        "dnd"
         "notifications"
       ];
 
@@ -76,9 +79,6 @@ in
           clear-all-button = true;
           button-text = "Clear All";
         };
-        dnd = {
-          text = "Do Not Disturb";
-        };
         notifications = {
           clear-all-button = true;
         };
@@ -90,192 +90,135 @@ in
         all: unset;
         font-size: 14px;
         font-family: "SF Pro Display";
-        transition: 200ms;
+        transition: background-color 120ms ease-out;
       }
 
+      /* Toasts: heavier material than the bar — they float over content */
       .floating-notifications.background .notification-row .notification-background {
-        border-radius: 12.6px;
-        margin: 18px;
-        background-color: ${colors.base};
-        color: ${colors.text};
+        background-color: alpha(${colors.base}, 0.8);
+        border: 1px solid alpha(${colors.surface1}, 0.6);
+        border-radius: 6px;
+        margin: 8px;
         padding: 0;
-        opacity: 0.8;
-      }
-
-      .floating-notifications.background .notification-row .notification-background .notification {
-        padding: 7px;
-        border-radius: 12.6px;
-      }
-
-      .floating-notifications.background .notification-row .notification-background .notification .notification-content {
-        margin: 7px;
-      }
-
-      .floating-notifications.background .notification-row .notification-background .notification .notification-content .summary {
         color: ${colors.text};
       }
 
-      .floating-notifications.background .notification-row .notification-background .notification .notification-content .time {
-        color: ${colors.accent2};
-      }
-
-      .floating-notifications.background .notification-row .notification-background .notification .notification-content .body {
-        color: ${colors.text};
-      }
-
-      .floating-notifications.background .notification-row .notification-background .notification > *:last-child > * {
-        min-height: 3.4em;
-      }
-
-      .floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action {
-        border-radius: 7px;
-        color: ${colors.text};
-        background-color: ${colors.surface0};
-        margin: 7px;
-      }
-
-      .floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action:hover {
-        background-color: ${colors.overlay};
-        color: ${colors.text};
-      }
-
-      .floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action:active {
-        background-color: ${colors.accent};
-        color: ${colors.text};
-      }
-
-      .floating-notifications.background .notification-row .notification-background .close-button {
-        margin: 7px;
-        padding: 2px;
-        border-radius: 6.3px;
-        color: ${colors.base};
-        background-color: ${colors.red};
-      }
-
-      .floating-notifications.background .notification-row .notification-background .close-button:hover {
-        background-color: ${colors.text};
-        color: ${colors.base};
-      }
-
-      .floating-notifications.background .notification-row .notification-background .close-button:active {
-        background-color: ${colors.red};
-        color: ${colors.base};
-      }
-
+      /* Control center: the same blurred material as the bar */
       .control-center {
-        border-radius: 12.6px;
-        margin: 18px;
-        background-color: ${colors.base};
+        background-color: alpha(${colors.base}, 0.65);
+        border: 1px solid alpha(${colors.surface1}, 0.6);
+        border-radius: 6px;
+        margin: 4px;
+        padding: 12px;
         color: ${colors.text};
-        padding: 14px;
-        opacity: 0.8;
-        max-height: calc(100vh - 60px);
-        overflow-y: auto;
       }
 
+      /* Header hierarchy borrows the calendar's two-tone warmth:
+         accent title, accent2 secondary label */
       .control-center .widget-title {
-        color: ${colors.text};
-        font-size: 1.3em;
+        color: ${colors.accent};
+        font-weight: 600;
+        font-size: 1.1em;
+        margin-bottom: 8px;
       }
 
+      /* Clear All: accent-tinted chip */
       .control-center .widget-title button {
-        border-radius: 7px;
-        color: ${colors.text};
-        background-color: ${colors.surface0};
-        padding: 8px;
+        background-color: alpha(${colors.accent}, 0.12);
+        border-radius: 4px;
+        color: ${colors.accent};
+        padding: 6px 10px;
       }
 
       .control-center .widget-title button:hover {
-        background-color: ${colors.green};
-        color: ${colors.base};
+        background-color: alpha(${colors.accent}, 0.2);
       }
 
       .control-center .widget-title button:active {
         background-color: ${colors.accent};
-        color: ${colors.base};
+        color: ${colors.crust};
       }
 
-      .control-center .notification-row .notification-background {
-        border-radius: 7px;
+      /* Action buttons: quiet chips, feedback on hover/press (like the bar) */
+      .notification-background .notification .notification-action {
+        background-color: alpha(${colors.text}, 0.06);
+        border-radius: 4px;
         color: ${colors.text};
-        background-color: ${colors.surface0};
-        margin-top: 14px;
+        padding: 6px 10px;
       }
 
-      .control-center .notification-row .notification-background .notification {
+      .notification-background .notification .notification-action:hover {
+        background-color: alpha(${colors.text}, 0.12);
+      }
+
+      .notification-background .notification .notification-action:active {
+        background-color: alpha(${colors.text}, 0.16);
+      }
+
+      /* Notification cards */
+      .notification-background .notification {
         padding: 7px;
-        border-radius: 7px;
+        border-radius: 6px;
       }
 
-      .control-center .notification-row .notification-background .notification .notification-content {
+      .notification-background .notification .notification-content {
         margin: 7px;
       }
 
-      .control-center .notification-row .notification-background .notification .notification-content .summary {
-        color: ${colors.text};
-      }
-
-      .control-center .notification-row .notification-background .notification .notification-content .time {
+      .notification-background .notification .notification-content .summary {
         color: ${colors.accent2};
+        font-weight: 600;
       }
 
-      .control-center .notification-row .notification-background .notification .notification-content .body {
+      .notification-background .notification .notification-content .time {
+        color: ${colors.overlay};
+      }
+
+      .notification-background .notification .notification-content .body {
         color: ${colors.text};
       }
 
-      .control-center .notification-row .notification-background .notification > *:last-child > * {
+      .notification-background .notification > *:last-child > * {
         min-height: 3.4em;
       }
 
-      .control-center .notification-row .notification-background .notification > *:last-child > * .notification-action {
-        border-radius: 7px;
-        color: ${colors.text};
-        background-color: ${colors.overlay};
-        margin: 7px;
-      }
-
-      .control-center .notification-row .notification-background .notification > *:last-child > * .notification-action:hover {
+      /* Cards inside the control center: a raised surface. Must be OPAQUE:
+         same-app notifications collapse into an offset stack, and the front
+         card masks the ones behind it only if its background is solid. */
+      .control-center .notification-row .notification-background {
         background-color: ${colors.surface0};
+        border-radius: 6px;
+        margin-top: 10px;
         color: ${colors.text};
-      }
-
-      .control-center .notification-row .notification-background .notification > *:last-child > * .notification-action:active {
-        background-color: ${colors.accent};
-        color: ${colors.text};
-      }
-
-      .control-center .notification-row .notification-background .close-button {
-        margin: 7px;
-        padding: 2px;
-        border-radius: 6.3px;
-        color: ${colors.base};
-        background-color: ${colors.text};
-      }
-
-      .control-center .notification-row .notification-background .close-button:hover {
-        background-color: ${colors.red};
-        color: ${colors.base};
-      }
-
-      .control-center .notification-row .notification-background .close-button:active {
-        background-color: ${colors.red};
-        color: ${colors.base};
       }
 
       .control-center .notification-row .notification-background:hover {
-        background-color: ${colors.overlay};
-        color: ${colors.text};
+        background-color: ${colors.surface1};
       }
 
-      .control-center .notification-row .notification-background:active {
-        background-color: ${colors.accent};
+      /* Close: quiet until hovered — red is for the destructive moment */
+      .notification-background .close-button {
+        background-color: alpha(${colors.text}, 0.06);
         color: ${colors.text};
+        border-radius: 4px;
+        margin: 7px;
+        padding: 2px;
       }
 
+      .notification-background .close-button:hover {
+        background-color: ${colors.red};
+        color: ${colors.crust};
+      }
+
+      /* Progress */
       progressbar,
       progress,
       trough {
-        border-radius: 12.6px;
+        border-radius: 4px;
+      }
+
+      trough {
+        background-color: alpha(${colors.text}, 0.1);
       }
 
       .notification.critical progress {
@@ -287,51 +230,6 @@ in
         background-color: ${colors.accent};
       }
 
-      trough {
-        background-color: ${colors.surface0};
-      }
-
-      .control-center trough {
-        background-color: ${colors.overlay};
-      }
-
-      .control-center-dnd {
-        margin-top: 5px;
-        border-radius: 8px;
-        background: ${colors.surface0};
-        border: 1px solid ${colors.overlay};
-      }
-
-      .control-center-dnd:checked {
-        background: ${colors.surface0};
-      }
-
-      .control-center-dnd slider {
-        background: ${colors.overlay};
-        border-radius: 8px;
-      }
-
-      .widget-dnd {
-        margin: 0px;
-        font-size: 1.1rem;
-      }
-
-      .widget-dnd > switch {
-        font-size: initial;
-        border-radius: 8px;
-        background: ${colors.surface0};
-        border: 1px solid ${colors.overlay};
-      }
-
-      .widget-dnd > switch:checked {
-        background: ${colors.surface0};
-      }
-
-      .widget-dnd > switch slider {
-        background: ${colors.overlay};
-        border-radius: 8px;
-        border: 1px solid ${colors.orange};
-      }
     '';
   };
 }
