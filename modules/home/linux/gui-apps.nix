@@ -5,7 +5,15 @@
     {
       home.packages = with pkgs; [
         # Browser, media, torrents
-        google-chrome
+        # Native Wayland + VA-API hardware video decode
+        (google-chrome.override {
+          commandLineArgs = [
+            "--ozone-platform=wayland"
+            "--enable-features=VaapiVideoDecodeLinuxGL,VaapiVideoEncoder,AcceleratedVideoDecodeLinuxGL,WaylandWindowDecorations"
+            "--ignore-gpu-blocklist"
+            "--enable-zero-copy"
+          ];
+        })
         spotify
         qbittorrent
 
