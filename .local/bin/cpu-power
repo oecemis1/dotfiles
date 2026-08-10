@@ -141,6 +141,12 @@ apply() {
 # throttles, which is slower, not faster). ppt_fppt is left alone (firmware
 # rejects writes); PL2/sppt governs burst.
 # Args: PL1 PL2 fppt max_perf_pct thermal_policy epp [no_turbo]  (fppt 0 = skip)
+# Ultra-low-power mode, below `battery`: disables turbo entirely (no_turbo=1) and
+# hard-caps the HWP to 15%, so cores never clock past ~15% of the max non-turbo
+# ratio. Lowest PPT/RAPL limits + silent fans + EPP=power. For maximum battery
+# life / minimal heat when responsiveness does not matter. One-shot like the
+# rest: an AC change or TLP re-apply reverts it (run again to re-assert).
+cmd_ultralow() { need_root; apply ultralow  8 12 0  25 2 power 1; }
 cmd_battery()  { need_root; apply battery  15 25 0   50 2 power; }
 cmd_balanced() { need_root; apply balanced 28 45 0  100 0 balance_performance; }
 cmd_load()     { need_root; apply load     20 35 0   80 0 balance_power; }
@@ -160,7 +166,7 @@ cmd_full() {
 
 cmd_help() {
   cat <<'EOF'
-usage: cpu-power {status|battery|balanced|load|full|help}
+usage: cpu-power {status|ultralow|battery|load|balanced|full|help}
 
 Writes Intel RAPL (MSR + MMIO), ASUS PPT (spl/sppt/fppt), the intel_pstate HWP
 cap (max_perf_pct), the per-CPU EPP, and the ASUS thermal policy in one shot.
@@ -169,6 +175,7 @@ one-shot; values reset on reboot/resume or when TLP re-applies on an AC change.
 
                       PL1   PL2   maxperf  epp                  thermal
   status              show current limits + profile + governor
+  ultralow  [sudo]     8W   12W     15%    power                silent  (turbo off)
   battery   [sudo]    15W   25W     50%    power                silent
   load      [sudo]    20W   35W     80%    balance_power        balanced
   balanced  [sudo]    28W   45W    100%    balance_performance  balanced
@@ -181,11 +188,15 @@ the chassis cooling limit (~45W) — the package still hardware-throttles at
 Tjmax 105C, so this can't damage the machine, but for a long sustained compile
 `balanced` often runs nearly as fast far cooler. Run `battery` (or replug) to
 drop back to throttled limits. For the scaling governor use TLP.
+
+`ultralow` is the opposite extreme: turbo off plus a hard 15% HWP cap for the
+lowest power/heat and a near-silent machine, at the cost of responsiveness.
 EOF
 }
 
 case "${1:-status}" in
   status)                cmd_status ;;
+  ultralow|ull|eco|min)  cmd_ultralow ;;
   battery|bat|b)         cmd_battery ;;
   balanced|bal)          cmd_balanced ;;
   load|l|thermal)        cmd_load ;;
