@@ -65,7 +65,7 @@
               (label :text {dev.connected ? "Disconnect" : "Connect"}))))))
     (button
       :class "bt-footer"
-      :onclick "eww-control-center-toggle; overskride &"
+      :onclick "(eww-control-center-toggle; overskride) &"
       (box
         :space-evenly false
         :spacing 10

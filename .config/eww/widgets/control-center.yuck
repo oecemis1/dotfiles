@@ -266,13 +266,13 @@
           :spacing 2
           (button
             :class "power-btn"
-            :onclick "eww-control-center-toggle; systemctl suspend"
+            :onclick "(eww-control-center-toggle; systemctl suspend) &"
             (label :halign "start" :text "󰒲   Sleep"))
           (button
             :class "power-btn"
-            :onclick "eww-control-center-toggle; systemctl hibernate"
+            :onclick "(eww-control-center-toggle; systemctl hibernate) &"
             (label :halign "start" :text "󰋊   Hibernate"))
           (button
             :class "power-btn power-btn-shutdown"
-            :onclick "eww-control-center-toggle; systemctl poweroff"
+            :onclick "(eww-control-center-toggle; systemctl poweroff) &"
             (label :halign "start" :text "󰐥   Shut Down")))))))

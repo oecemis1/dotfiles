@@ -51,7 +51,7 @@
               :class "usb-small-btn"
               :valign "center"
               :visible {d.mounted}
-              :onclick "eww-control-center-toggle; eww-usb browse '${d.path}' &"
+              :onclick "(eww-control-center-toggle; eww-usb browse '${d.path}') &"
               (label :text "󰉋"))
             (button
               :class "usb-small-btn"
@@ -68,7 +68,7 @@
               (label :text "󰇖"))))))
     (button
       :class "usb-footer"
-      :onclick "eww-control-center-toggle; gnome-disks &"
+      :onclick "(eww-control-center-toggle; gnome-disks) &"
       (box
         :space-evenly false
         :spacing 10

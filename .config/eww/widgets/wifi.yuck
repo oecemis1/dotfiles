@@ -68,7 +68,7 @@
             :class "wf-row"
             :onclick {net.known || !net.secured ?
               "eww-wifi connect '${net.ssid}' &" :
-              "eww-control-center-toggle; nm-connection-editor &"}
+              "(eww-control-center-toggle; nm-connection-editor) &"}
             (box
               :space-evenly false
               :spacing 10
@@ -79,7 +79,7 @@
               (label :class "wf-lock" :visible {net.secured} :text "󰌾"))))))
     (button
       :class "wf-footer"
-      :onclick "eww-control-center-toggle; nm-connection-editor &"
+      :onclick "(eww-control-center-toggle; nm-connection-editor) &"
       (box
         :space-evenly false
         :spacing 10

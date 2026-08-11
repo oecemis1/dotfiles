@@ -9,12 +9,19 @@
 # collapsed, then reveals; close collapses first, then drops the window
 # once the 250ms slide has played.
 
+# Close must return immediately: eww kills button handlers after 200ms,
+# and panel buttons chain commands after this script ("...-toggle;
+# nm-connection-editor &"). The collapse plays out in a detached
+# subshell; it aborts if the panel was re-revealed in the meantime.
 if eww active-windows | grep -q "^control_center:"; then
     eww update cc_reveal=false
-    sleep 0.3
-    eww close control_center
-    eww close control_center_closer
-    eww update cc_power_open=false cc_active_menu= cc_open=false
+    (
+        sleep 0.3
+        [ "$(eww get cc_reveal)" = "false" ] || exit 0
+        eww close control_center
+        eww close control_center_closer
+        eww update cc_power_open=false cc_active_menu= cc_open=false
+    ) &
     exit
 fi
 
