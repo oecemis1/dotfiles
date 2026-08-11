@@ -9,7 +9,9 @@ let
   lua = lib.generators.mkLuaInline;
 
   terminal = "kitty --single-instance";
-  launcher = "pkill tofi || tofi-drun | xargs hyprctl dispatch exec --";
+  # tofi launches the entry itself: 0.56's `hyprctl dispatch` takes lua
+  # syntax, so the old `| xargs hyprctl dispatch exec --` pipe is dead
+  launcher = "pkill tofi || tofi-drun --drun-launch=true";
 
   # Dispatcher helpers rendering hl.dsp.* calls. Values are spliced into a
   # quoted Lua string, so commands must not contain `"` or `\`.
@@ -28,6 +30,14 @@ let
     resizeBy = x: y: lua "hl.dsp.window.resize({ x = ${toString x}, y = ${toString y}, relative = true })";
     drag = lua "hl.dsp.window.drag()";
     resize = lua "hl.dsp.window.resize()";
+    # deferred via hl.timer per the wiki: dpms straight from a bind is
+    # undefined behavior
+    dpms = action: lua ''
+      function()
+        hl.timer(function()
+          hl.dispatch(hl.dsp.dpms({ action = "${action}" }))
+        end, { timeout = 500, type = "oneshot" })
+      end'';
   };
   # numbered workspaces are integers; "e+1" / "special:x" stay strings
   wsArg = ws: if builtins.isInt ws then toString ws else ''"${ws}"'';
@@ -308,8 +318,8 @@ in
         (bindFlags "XF86AudioPause" (dsp.exec "playerctl play-pause") { locked = true; })
         (bindFlags "XF86AudioPlay" (dsp.exec "playerctl play-pause") { locked = true; })
         (bindFlags "XF86AudioPrev" (dsp.exec "playerctl previous") { locked = true; })
-        (bindFlags "switch:on:Lid Switch" (dsp.exec "hyprctl dispatch dpms off") { locked = true; })
-        (bindFlags "switch:off:Lid Switch" (dsp.exec "hyprctl dispatch dpms on") { locked = true; })
+        (bindFlags "switch:on:Lid Switch" (dsp.dpms "disable") { locked = true; })
+        (bindFlags "switch:off:Lid Switch" (dsp.dpms "enable") { locked = true; })
 
         # Mouse move/resize (was bindm)
         (bindFlags "SUPER + mouse:272" dsp.drag { mouse = true; })
