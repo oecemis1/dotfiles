@@ -5,331 +5,299 @@
   inputs,
   ...
 }:
+let
+  lua = lib.generators.mkLuaInline;
+
+  terminal = "kitty --single-instance";
+  launcher = "pkill tofi || tofi-drun | xargs hyprctl dispatch exec --";
+
+  # Dispatcher helpers rendering hl.dsp.* calls. Values are spliced into a
+  # quoted Lua string, so commands must not contain `"` or `\`.
+  dsp = {
+    exec = cmd: lua ''hl.dsp.exec_cmd("${cmd}")'';
+    close = lua "hl.dsp.window.close()";
+    exit = lua "hl.dsp.exit()";
+    floatToggle = lua ''hl.dsp.window.float({ action = "toggle" })'';
+    fullscreen = lua "hl.dsp.window.fullscreen()";
+    pseudo = lua "hl.dsp.window.pseudo()";
+    layoutMsg = msg: lua ''hl.dsp.layout("${msg}")'';
+    focusDir = dir: lua ''hl.dsp.focus({ direction = "${dir}" })'';
+    focusLast = lua "hl.dsp.focus({ last = true })";
+    focusWorkspace = ws: lua "hl.dsp.focus({ workspace = ${wsArg ws} })";
+    moveToWorkspace = ws: lua "hl.dsp.window.move({ workspace = ${wsArg ws} })";
+    resizeBy = x: y: lua "hl.dsp.window.resize({ x = ${toString x}, y = ${toString y}, relative = true })";
+    drag = lua "hl.dsp.window.drag()";
+    resize = lua "hl.dsp.window.resize()";
+  };
+  # numbered workspaces are integers; "e+1" / "special:x" stay strings
+  wsArg = ws: if builtins.isInt ws then toString ws else ''"${ws}"'';
+
+  bind = keys: dispatcher: { _args = [ keys dispatcher ]; };
+  bindFlags = keys: dispatcher: flags: { _args = [ keys dispatcher flags ]; };
+
+  # SUPER+1..0 focus / SUPER+SHIFT+1..0 move (workspace 10 on key 0)
+  workspaceBinds = lib.concatMap (
+    i:
+    let
+      key = toString (lib.mod i 10);
+    in
+    [
+      (bind "SUPER + ${key}" (dsp.focusWorkspace i))
+      (bind "SUPER + SHIFT + ${key}" (dsp.moveToWorkspace i))
+    ]
+  ) (lib.range 1 10);
+in
 {
   wayland.windowManager.hyprland = {
     enable = true;
-    # Explicit: home.stateVersion 26.05 would default this to "lua" — the
-    # lua migration is its own step, not a side effect of a flake update.
-    configType = "hyprlang";
+    configType = "lua";
+    # monitors.lua is written by nwg-displays; pcall so a missing file
+    # doesn't abort the rest of the config.
     extraConfig = ''
-      source = ~/.config/hypr/monitors.conf
+      pcall(require, "monitors")
     '';
     settings = {
-      "$terminal" = "kitty --single-instance";
-      "$browser" = "google-chrome-stable";
-      "$fileManager" = "yazi_cd";
-      "$launcher" = "pkill tofi || tofi-drun | xargs hyprctl dispatch exec --";
-      "$editor" = "hx";
-      "$mainMod" = "SUPER";
+      config = {
+        ecosystem.no_update_news = true;
 
-      # Monitor configuration
-      # monitor = ",preferred,auto,auto";
-
-      ecosystem = {
-        no_update_news = true;
-      };
-
-      xwayland = {
-        enabled = true;
-        force_zero_scaling = true;
-      };
-
-      # General settings
-      general = {
-        border_size = 1;
-        gaps_in = 2;
-        gaps_out = 3;
-        "col.active_border" = "rgba(${lib.removePrefix "#" config.colorScheme.colors.surface1}ff)";
-        "col.inactive_border" = "rgba(1e1f2900)";
-        layout = "dwindle";
-        extend_border_grab_area = true;
-        hover_icon_on_border = true;
-      };
-
-      # Decoration settings
-      decoration = {
-        rounding = 2;
-
-        shadow = {
+        xwayland = {
           enabled = true;
-          range = 4;
-          render_power = 3;
-          color = "rgba(1a1a1aee)";
+          force_zero_scaling = true;
         };
 
-        blur = {
-          enabled = true;
-          new_optimizations = true;
-          ignore_opacity = false;
-          noise = 0.05;
-          size = 2;
-          passes = 3;
+        general = {
+          border_size = 1;
+          gaps_in = 2;
+          gaps_out = 3;
+          col = {
+            active_border = "rgba(${lib.removePrefix "#" config.colorScheme.colors.surface1}ff)";
+            inactive_border = "rgba(1e1f2900)";
+          };
+          layout = "dwindle";
+          extend_border_grab_area = true;
+          hover_icon_on_border = true;
+        };
+
+        decoration = {
+          rounding = 2;
+
+          shadow = {
+            enabled = true;
+            range = 4;
+            render_power = 3;
+            color = "rgba(1a1a1aee)";
+          };
+
+          blur = {
+            enabled = true;
+            new_optimizations = true;
+            ignore_opacity = false;
+            noise = 0.05;
+            size = 2;
+            passes = 3;
+          };
+        };
+
+        animations.enabled = true;
+
+        dwindle = {
+          force_split = 0;
+          preserve_split = true;
+          smart_split = false;
+          special_scale_factor = 0.9;
+          split_width_multiplier = 1.0;
+          use_active_for_splits = true;
+          default_split_ratio = 1.0;
+        };
+
+        master = {
+          allow_small_split = false;
+          special_scale_factor = 0.9;
+          mfact = 0.55;
+          new_status = "master";
+          new_on_top = false;
+          orientation = "left";
+        };
+
+        misc = {
+          disable_hyprland_logo = true;
+          mouse_move_enables_dpms = false;
+          key_press_enables_dpms = true;
+          focus_on_activate = true;
         };
       };
 
-      animations = {
-        enabled = "yes, please :)";
-
-        bezier = [
-          "easeOutQuint,0.23,1,0.32,1"
-          "easeInOutCubic,0.65,0.05,0.36,1"
-          "linear,0,0,1,1"
-          "almostLinear,0.5,0.5,0.75,1.0"
-          "quick,0.15,0,0.1,1"
-        ];
-
-        animation = [
-          "global, 1, 10, default"
-          "border, 1, 5.39, easeOutQuint"
-          "windows, 1, 4.79, easeOutQuint"
-          "windowsIn, 1, 4.1, easeOutQuint, popin 87%"
-          "windowsOut, 1, 1.49, linear, popin 87%"
-          "fadeIn, 1, 1.73, almostLinear"
-          "fadeOut, 1, 1.46, almostLinear"
-          "fade, 1, 3.03, quick"
-          "layers, 1, 3.81, easeOutQuint"
-          "layersIn, 1, 4, easeOutQuint, fade"
-          "layersOut, 1, 3, easeOutQuint, fade"
-          "fadeLayersIn, 1, 1.79, almostLinear"
-          "fadeLayersOut, 1, 1.39, almostLinear"
-          "workspaces, 1, 1.94, almostLinear, fade"
-          "workspacesIn, 1, 1.21, almostLinear, fade"
-          "workspacesOut, 1, 1.94, almostLinear, fade"
-        ];
-      };
-
-      # Dwindle layout settings
-      dwindle = {
-        force_split = 0;
-        preserve_split = true;
-        smart_split = false;
-        special_scale_factor = 0.9;
-        split_width_multiplier = 1.0;
-        use_active_for_splits = true;
-        default_split_ratio = 1.0;
-      };
-
-      # Master layout settings
-      master = {
-        allow_small_split = false;
-        special_scale_factor = 0.9;
-        mfact = 0.55;
-        new_status = "master";
-        new_on_top = false;
-        # no_gaps_when_only = false;
-        orientation = "left";
-      };
-
-      # Misc settings
-      misc = {
-        # force_default_wallpaper = -1;
-        disable_hyprland_logo = true;
-        mouse_move_enables_dpms = false;
-        key_press_enables_dpms = true;
-        focus_on_activate = true;
-      };
-      # Workaround for #6038 / #6237
-      # initial_workspace_tracking = false;
-
-      # Gestures
-      # gestures = {
-      #   workspace_swipe = false;
-      # };
-
-      device = {
-        "name" = "epic-mouse-v1";
-        sensitivity = -0.5;
-      };
-
-      # Window rules
-      # windowrule = [
-      # "suppressevent maximize, class:.*"
-      # "nofocus,class:^$,title:^$,xwayland:1,floating:1,fullscreen:0,pinned:0"
-      # ];
-
-      windowrule = [
-        "border_size 0, match:float yes"
-        #VideoBridge
-        "workspace 1, match:class ^(xwaylandvideobridge)$"
-        "opacity 0.0 override, match:class ^(xwaylandvideobridge)$"
-        "no_anim on, match:class ^(xwaylandvideobridge)$"
-        "no_initial_focus on, match:class ^(xwaylandvideobridge)$"
-        "max_size 1 1, match:class ^(xwaylandvideobridge)$"
-        "no_blur on, match:class ^(xwaylandvideobridge)$"
-        "no_focus on, match:class ^(xwaylandvideobridge)$"
-        #Browser
-        "workspace 1, match:class (google-chrome)"
-        "workspace 1, match:class (firefox)"
-
-        "float on, match:class ^(org.gnome.Calculator)"
-
-        "float on, match:class ^(termfilechooser)$"
-        "float on, match:title ^(termfilechooser)$"
-        "size 80% 60%, match:title ^(termfilechooser)$"
-        "center on, match:title ^(termfilechooser)$"
-        "workspace 2, match:class ^(kitty)$, match:initial_title ^(kitty)$"
-
-        "float on, match:class ^(org.gnome.Nautilus)"
-        "float on, match:title ^(my_todo)$"
-        "size 1380 1011, match:title ^(my_todo)$"
-        "center on, match:title ^(my_todo)$"
-        "workspace special:todo, match:title ^(my_todo)$"
-        "float on, match:title ^(Brightness Control)$"
-        "no_initial_focus on, match:title ^(Brightness Control)$"
-        "no_blur on, match:title ^(Brightness Control)$"
-        "float on, match:class ^(org.pulseaudio.pavucontrol)$"
-        # deep-config apps behind the wifi/bluetooth/usb bar widgets
-        "float on, match:class ^(nm-connection-editor)$"
-        "float on, match:class ^(io.github.kaii_lb.Overskride)$"
-        "float on, match:class ^(gnome-disks)$"
-        "float on, match:class ^(org.gnome.DiskUtility)$"
-        # yazi browsing a usb stick, spawned by the usb menu's folder button
-        "float on, match:initial_title ^(usb-browse)$"
-        "size 60% 60%, match:initial_title ^(usb-browse)$"
-        "center on, match:initial_title ^(usb-browse)$"
-
-        #qalculate
-        "float on, match:class (qalculate-qt)"
-        "float on, match:class (io.github.Qalculate.qalculate-qt)"
-        "workspace special:calculator,match:class (qalculate-qt)"
-        "workspace special:calculator,match:class (io.github.Qalculate.qalculate-qt)"
-        # matplotlib
-        "float on, match:class (Matplotlib)"
+      curve = [
+        { _args = [ "easeOutQuint" { type = "bezier"; points = [ [ 0.23 1.0 ] [ 0.32 1.0 ] ]; } ]; }
+        { _args = [ "easeInOutCubic" { type = "bezier"; points = [ [ 0.65 0.05 ] [ 0.36 1.0 ] ]; } ]; }
+        { _args = [ "linear" { type = "bezier"; points = [ [ 0.0 0.0 ] [ 1.0 1.0 ] ]; } ]; }
+        { _args = [ "almostLinear" { type = "bezier"; points = [ [ 0.5 0.5 ] [ 0.75 1.0 ] ]; } ]; }
+        { _args = [ "quick" { type = "bezier"; points = [ [ 0.15 0.0 ] [ 0.1 1.0 ] ]; } ]; }
       ];
 
-      layerrule = [
-        "blur on, match:namespace waybar"
-        "ignore_alpha 0.3, match:namespace waybar"
-        "blur on,match:namespace swaync-control-center"
-        "blur on,match:namespace swaync-notification-window"
-        "ignore_alpha 0.3, match:namespace swaync-control-center"
-        "ignore_alpha 0.3, match:namespace swaync-notification-window"
-        # "noanim,selection"
-        # "noanim,slurp"
-        "blur on,match:namespace tofi"
-        "ignore_alpha 0.3, match:namespace tofi"
-        "blur on, match:namespace calendar"
-        "ignore_alpha 0.3, match:namespace calendar"
-        "blur on, match:namespace brightness_slider"
-        "ignore_alpha 0.3, match:namespace brightness_slider"
-        "blur on, match:namespace power_menu"
-        "ignore_alpha 0.3, match:namespace power_menu"
-        "blur on, match:namespace control_center"
-        "ignore_alpha 0.3, match:namespace control_center"
+      # values carried over 1:1 from the hyprlang config (retiming is a
+      # separate change)
+      animation = [
+        { leaf = "global"; enabled = true; speed = 10.0; bezier = "default"; }
+        { leaf = "border"; enabled = true; speed = 5.39; bezier = "easeOutQuint"; }
+        { leaf = "windows"; enabled = true; speed = 4.79; bezier = "easeOutQuint"; }
+        { leaf = "windowsIn"; enabled = true; speed = 4.1; bezier = "easeOutQuint"; style = "popin 87%"; }
+        { leaf = "windowsOut"; enabled = true; speed = 1.49; bezier = "linear"; style = "popin 87%"; }
+        { leaf = "fadeIn"; enabled = true; speed = 1.73; bezier = "almostLinear"; }
+        { leaf = "fadeOut"; enabled = true; speed = 1.46; bezier = "almostLinear"; }
+        { leaf = "fade"; enabled = true; speed = 3.03; bezier = "quick"; }
+        { leaf = "layers"; enabled = true; speed = 3.81; bezier = "easeOutQuint"; }
+        { leaf = "layersIn"; enabled = true; speed = 4.0; bezier = "easeOutQuint"; style = "fade"; }
+        { leaf = "layersOut"; enabled = true; speed = 3.0; bezier = "easeOutQuint"; style = "fade"; }
+        { leaf = "fadeLayersIn"; enabled = true; speed = 1.79; bezier = "almostLinear"; }
+        { leaf = "fadeLayersOut"; enabled = true; speed = 1.39; bezier = "almostLinear"; }
+        { leaf = "workspaces"; enabled = true; speed = 1.94; bezier = "almostLinear"; style = "fade"; }
+        { leaf = "workspacesIn"; enabled = true; speed = 1.21; bezier = "almostLinear"; style = "fade"; }
+        { leaf = "workspacesOut"; enabled = true; speed = 1.94; bezier = "almostLinear"; style = "fade"; }
+      ];
+
+      window_rule = [
+        { match = { float = true; }; border_size = 0; }
+
+        # VideoBridge
+        {
+          match = { class = "^(xwaylandvideobridge)$"; };
+          workspace = "1";
+          opacity = "0.0 override";
+          no_anim = true;
+          no_initial_focus = true;
+          max_size = [ 1 1 ];
+          no_blur = true;
+          no_focus = true;
+        }
+
+        # Browser
+        { match = { class = "(google-chrome)"; }; workspace = "1"; }
+        { match = { class = "(firefox)"; }; workspace = "1"; }
+
+        { match = { class = "^(org.gnome.Calculator)"; }; float = true; }
+
+        { match = { class = "^(termfilechooser)$"; }; float = true; }
+        {
+          match = { title = "^(termfilechooser)$"; };
+          float = true;
+          size = [ "80%" "60%" ];
+          center = true;
+        }
+        { match = { class = "^(kitty)$"; initial_title = "^(kitty)$"; }; workspace = "2"; }
+
+        { match = { class = "^(org.gnome.Nautilus)"; }; float = true; }
+        {
+          match = { title = "^(my_todo)$"; };
+          float = true;
+          size = [ 1380 1011 ];
+          center = true;
+          workspace = "special:todo";
+        }
+        {
+          match = { title = "^(Brightness Control)$"; };
+          float = true;
+          no_initial_focus = true;
+          no_blur = true;
+        }
+        { match = { class = "^(org.pulseaudio.pavucontrol)$"; }; float = true; }
+
+        # deep-config apps behind the wifi/bluetooth/usb bar widgets
+        { match = { class = "^(nm-connection-editor)$"; }; float = true; }
+        { match = { class = "^(io.github.kaii_lb.Overskride)$"; }; float = true; }
+        { match = { class = "^(gnome-disks)$"; }; float = true; }
+        { match = { class = "^(org.gnome.DiskUtility)$"; }; float = true; }
+
+        # yazi browsing a usb stick, spawned by the usb menu's folder button
+        {
+          match = { initial_title = "^(usb-browse)$"; };
+          float = true;
+          size = [ "60%" "60%" ];
+          center = true;
+        }
+
+        # qalculate
+        { match = { class = "(qalculate-qt)"; }; float = true; workspace = "special:calculator"; }
+        { match = { class = "(io.github.Qalculate.qalculate-qt)"; }; float = true; workspace = "special:calculator"; }
+
+        # matplotlib
+        { match = { class = "(Matplotlib)"; }; float = true; }
+      ];
+
+      layer_rule = map (namespace: { match = { inherit namespace; }; blur = true; ignore_alpha = 0.3; }) [
+        "waybar"
+        "swaync-control-center"
+        "swaync-notification-window"
+        "tofi"
+        "calendar"
+        "brightness_slider"
+        "power_menu"
+        "control_center"
       ];
 
       bind = [
-        "$mainMod, Q, killactive,"
-        # "$mainMod, Escape, exec, if hyprctl monitors -j | jq -e '.[] | select(.dpmsStatus == true)' > /dev/null; then hyprctl dispatch dpms off; else hyprctl dispatch dpms on; fi"
-        "CTRL ALT, Escape, exit,"
-        "$mainMod, Escape, exec, hyprlock"
-        "$mainMod, B, exec, pkill waybar || waybar"
-        "$mainMod, Tab, focuscurrentorlast"
-        # "$mainMod, T, ${pkgs.hyprlandPlugins.hyprexpo}:expo, toggle"
-        # "$mainMod, T, hyprexpo:expo, toggle"
+        (bind "SUPER + Q" dsp.close)
+        (bind "CTRL + ALT + Escape" dsp.exit)
+        (bind "SUPER + Escape" (dsp.exec "hyprlock"))
+        (bind "SUPER + B" (dsp.exec "pkill waybar || waybar"))
+        (bind "SUPER + Tab" dsp.focusLast)
 
-        "ALT, Tab, focuscurrentorlast"
-        "ALT, M, workspace, 1"
-        "ALT, COMMA, workspace, 2"
-        "ALT, PERIOD, workspace, 3"
-        "ALT, SLASH, workspace, 4"
+        (bind "ALT + Tab" dsp.focusLast)
+        (bind "ALT + M" (dsp.focusWorkspace 1))
+        (bind "ALT + COMMA" (dsp.focusWorkspace 2))
+        (bind "ALT + PERIOD" (dsp.focusWorkspace 3))
+        (bind "ALT + SLASH" (dsp.focusWorkspace 4))
 
         # Focus movement
-        "$mainMod, h, movefocus, l"
-        "$mainMod, l, movefocus, r"
-        "$mainMod, j, movefocus, u"
-        "$mainMod, k, movefocus, d"
+        (bind "SUPER + h" (dsp.focusDir "left"))
+        (bind "SUPER + l" (dsp.focusDir "right"))
+        (bind "SUPER + j" (dsp.focusDir "up"))
+        (bind "SUPER + k" (dsp.focusDir "down"))
 
-        "$mainMod, E, togglefloating"
-        "$mainMod, F, fullscreen"
-        "$mainMod, P, pseudo"
-        "$mainMod, O, togglesplit"
-        "$mainMod, S, swapsplit"
-
-        # Workspace switching
-        "$mainMod, 1, workspace, 1"
-        "$mainMod, 2, workspace, 2"
-        "$mainMod, 3, workspace, 3"
-        "$mainMod, 4, workspace, 4"
-        "$mainMod, 5, workspace, 5"
-        "$mainMod, 6, workspace, 6"
-        "$mainMod, 7, workspace, 7"
-        "$mainMod, 8, workspace, 8"
-        "$mainMod, 9, workspace, 9"
-        "$mainMod, 0, workspace, 10"
-
-        # Move window to workspace
-        "$mainMod SHIFT, 1, movetoworkspace, 1"
-        "$mainMod SHIFT, 2, movetoworkspace, 2"
-        "$mainMod SHIFT, 3, movetoworkspace, 3"
-        "$mainMod SHIFT, 4, movetoworkspace, 4"
-        "$mainMod SHIFT, 5, movetoworkspace, 5"
-        "$mainMod SHIFT, 6, movetoworkspace, 6"
-        "$mainMod SHIFT, 7, movetoworkspace, 7"
-        "$mainMod SHIFT, 8, movetoworkspace, 8"
-        "$mainMod SHIFT, 9, movetoworkspace, 9"
-        "$mainMod SHIFT, 0, movetoworkspace, 10"
-
-        # Special workspace
-        # "$mainMod, S, togglespecialworkspace, magic"
-        # "$mainMod SHIFT, S, movetoworkspace, special:magic"
+        (bind "SUPER + E" dsp.floatToggle)
+        (bind "SUPER + F" dsp.fullscreen)
+        (bind "SUPER + P" dsp.pseudo)
+        (bind "SUPER + O" (dsp.layoutMsg "togglesplit"))
+        (bind "SUPER + S" (dsp.layoutMsg "swapsplit"))
 
         # Scroll through workspaces
-        "$mainMod, mouse_down, workspace, e+1"
-        "$mainMod, mouse_up, workspace, e-1"
+        (bind "SUPER + mouse_down" (dsp.focusWorkspace "e+1"))
+        (bind "SUPER + mouse_up" (dsp.focusWorkspace "e-1"))
 
-        "CTRL ALT, T, exec, $terminal"
-        "ALT, N, exec, todo_my"
+        (bind "CTRL + ALT + T" (dsp.exec terminal))
+        (bind "ALT + N" (dsp.exec "todo_my"))
 
-        "$mainMod SHIFT, S, exec, pgrep hyprshot || hyprshot -m region -o $HOME/Pictures/Screenshots"
-        # "CTRL ALT, U, exec, grim -g \"$(slurp)\" - | swappy -f -"
-        # "CTRL ALT, I, exec, grim -g \"$(hyprctl clients -j | jq -r '.[] | \"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1]) \\(.title)\"' | slurp -r)\" - | swappy -f -"
-      ];
+        (bind "SUPER + SHIFT + S" (dsp.exec "pgrep hyprshot || hyprshot -m region -o $HOME/Pictures/Screenshots"))
 
-      binde = [
-        "$mainMod CTRL, H, resizeactive, -20 0"
-        "$mainMod CTRL, J, resizeactive, 0 20"
-        "$mainMod CTRL, K, resizeactive, 0 -20"
-        "$mainMod CTRL, L, resizeactive, 20 0"
-      ];
+        # Window resizing (was binde)
+        (bindFlags "SUPER + CTRL + H" (dsp.resizeBy (-20) 0) { repeating = true; })
+        (bindFlags "SUPER + CTRL + J" (dsp.resizeBy 0 20) { repeating = true; })
+        (bindFlags "SUPER + CTRL + K" (dsp.resizeBy 0 (-20)) { repeating = true; })
+        (bindFlags "SUPER + CTRL + L" (dsp.resizeBy 20 0) { repeating = true; })
 
-      # Bind on release
-      bindr = [
-        "SUPER, SUPER_L, exec, $launcher"
-        "SUPER, SUPER_R, exec, $launcher"
-      ];
+        # Launcher on bare Super tap (was bindr)
+        (bindFlags "SUPER + SUPER_L" (dsp.exec launcher) { release = true; })
+        (bindFlags "SUPER + SUPER_R" (dsp.exec launcher) { release = true; })
 
-      # Bind with repeat
-      bindel = [
-        ", XF86AudioRaiseVolume , exec, swayosd-client --output-volume +5"
-        ", XF86AudioLowerVolume , exec, swayosd-client --output-volume -5"
-        # ",XF86AudioRaiseVolume, exec, wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"
-        # ",XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
-        # ",XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-        # ",XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
-        # ",XF86MonBrightnessUp, exec, brightnessctl -e4 -n2 set 5%+"
-        # ",XF86MonBrightnessDown, exec, brightnessctl -e4 -n2 set 5%-"
-      ];
+        # Media/brightness keys, active on the lockscreen too (was bindel/bindl)
+        (bindFlags "XF86AudioRaiseVolume" (dsp.exec "swayosd-client --output-volume +5") { locked = true; repeating = true; })
+        (bindFlags "XF86AudioLowerVolume" (dsp.exec "swayosd-client --output-volume -5") { locked = true; repeating = true; })
+        (bindFlags "XF86AudioMute" (dsp.exec "swayosd-client --output-volume mute-toggle") { locked = true; })
+        (bindFlags "XF86AudioMicMute" (dsp.exec "swayosd-client --input-volume mute-toggle") { locked = true; })
+        (bindFlags "XF86MonBrightnessUp" (dsp.exec "swayosd-client --brightness +10") { locked = true; })
+        (bindFlags "XF86MonBrightnessDown" (dsp.exec "swayosd-client --brightness -10") { locked = true; })
+        (bindFlags "XF86AudioNext" (dsp.exec "playerctl next") { locked = true; })
+        (bindFlags "XF86AudioPause" (dsp.exec "playerctl play-pause") { locked = true; })
+        (bindFlags "XF86AudioPlay" (dsp.exec "playerctl play-pause") { locked = true; })
+        (bindFlags "XF86AudioPrev" (dsp.exec "playerctl previous") { locked = true; })
+        (bindFlags "switch:on:Lid Switch" (dsp.exec "hyprctl dispatch dpms off") { locked = true; })
+        (bindFlags "switch:off:Lid Switch" (dsp.exec "hyprctl dispatch dpms on") { locked = true; })
 
-      # Bind locked
-      bindl = [
-        ", XF86AudioMute        , exec, swayosd-client --output-volume mute-toggle"
-        ", XF86AudioMicMute     , exec, swayosd-client --input-volume  mute-toggle"
-        ", XF86MonBrightnessUp  , exec, swayosd-client --brightness +10"
-        ", XF86MonBrightnessDown, exec, swayosd-client --brightness -10"
-        ", XF86AudioNext, exec, playerctl next"
-        ", XF86AudioPause, exec, playerctl play-pause"
-        ", XF86AudioPlay, exec, playerctl play-pause"
-        ", XF86AudioPrev, exec, playerctl previous"
-        ", switch:on:Lid Switch, exec, hyprctl dispatch dpms off"
-        ", switch:off:Lid Switch, exec, hyprctl dispatch dpms on"
-      ];
-
-      # Mouse bindings
-      bindm = [
-        "$mainMod, mouse:272, movewindow"
-        "$mainMod, mouse:273, resizewindow"
-      ];
+        # Mouse move/resize (was bindm)
+        (bindFlags "SUPER + mouse:272" dsp.drag { mouse = true; })
+        (bindFlags "SUPER + mouse:273" dsp.resize { mouse = true; })
+      ]
+      ++ workspaceBinds;
     };
   };
 }

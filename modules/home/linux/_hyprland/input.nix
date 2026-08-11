@@ -5,7 +5,7 @@
   ...
 }:
 {
-  wayland.windowManager.hyprland.settings = {
+  wayland.windowManager.hyprland.settings.config = {
     input = {
       kb_layout = "us,tr";
       kb_variant = "";
@@ -13,7 +13,7 @@
       kb_options = "grp:win_space_toggle";
       kb_rules = "";
       follow_mouse = 1;
-      sensitivity = 0;
+      sensitivity = 0.0;
       numlock_by_default = true;
       repeat_rate = 30;
       repeat_delay = 200;
@@ -23,7 +23,7 @@
 
       touchpad = {
         natural_scroll = true;
-        tap-to-click = true;
+        tap_to_click = true;
         scroll_factor = 0.1;
       };
     };
