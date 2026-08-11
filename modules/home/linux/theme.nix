@@ -33,10 +33,12 @@
 
       qt = {
         enable = true;
-        platformTheme.name = "gtk";
+        # the modern native Qt GTK3 plugin ("gtk" meant legacy qtstyleplugins)
+        platformTheme.name = "gtk3";
       };
 
       home.pointerCursor = {
+        enable = true;
         gtk.enable = true;
         name = "Dracula-cursors";
         package = pkgs.dracula-theme;

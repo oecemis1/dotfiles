@@ -58,9 +58,10 @@
       programs.ssh = {
         enable = true;
         enableDefaultConfig = false;
-        matchBlocks."*" = {
-          identityFile = "~/.ssh/id_orhun";
-          addKeysToAgent = "yes";
+        # settings uses upstream OpenSSH directive names verbatim
+        settings."*" = {
+          IdentityFile = "~/.ssh/id_orhun";
+          AddKeysToAgent = "yes";
         };
         extraConfig = ''
           Include ~/.ssh/config.local

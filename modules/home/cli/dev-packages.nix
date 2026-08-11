@@ -6,7 +6,7 @@
       home.packages = with pkgs; [
         # Development tools
         tmux
-        inputs.claude-code.packages.${pkgs.system}.default
+        inputs.claude-code.packages.${pkgs.stdenv.hostPlatform.system}.default
         helix
         # (pkgs.callPackage ../../../pkgs/helix.nix { })
         neovim
