@@ -8,6 +8,9 @@
 {
   wayland.windowManager.hyprland = {
     enable = true;
+    # Explicit: home.stateVersion 26.05 would default this to "lua" — the
+    # lua migration is its own step, not a side effect of a flake update.
+    configType = "hyprlang";
     extraConfig = ''
       source = ~/.config/hypr/monitors.conf
     '';
@@ -97,7 +100,6 @@
 
       # Dwindle layout settings
       dwindle = {
-        pseudotile = false;
         force_split = 0;
         preserve_split = true;
         smart_split = false;
