@@ -73,10 +73,13 @@
   :namespace "control_center"
   ; whole-panel entrance: unfurls downward from under the bar button
   ; (clipped-height expansion, same mechanic as the tile menus) and
-  ; collapses back up the same way on close
+  ; collapses back up the same way on close. valign start is load-bearing:
+  ; stretched to the fixed-height window, the revealer is always at full
+  ; allocation and the slide never plays - request-sized, it animates.
   (revealer
     :transition "slidedown"
     :duration "250ms"
+    :valign "start"
     :reveal cc_reveal
     (control_center_widget)))
 

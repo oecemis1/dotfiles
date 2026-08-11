@@ -11,7 +11,7 @@
 
 if eww active-windows | grep -q "^control_center:"; then
     eww update cc_reveal=false
-    sleep 0.25
+    sleep 0.3
     eww close control_center
     eww close control_center_closer
     eww update cc_power_open=false cc_active_menu= cc_open=false
@@ -26,5 +26,6 @@ eww open control_center_closer
 # aligns with the top edge of tiled windows.
 eww open control_center --arg x_pos="3px" --arg y_pos="2px"
 # let the window map with the revealer collapsed, then play the slide
-sleep 0.05
+# (GTK skips transitions on unmapped widgets)
+sleep 0.1
 eww update cc_reveal=true

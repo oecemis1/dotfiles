@@ -255,12 +255,17 @@ in
         # Surfaces that own their motion (or shouldn't have any) skip the
         # compositor's layer fade: tofi is keyboard-summoned dozens of
         # times a day and must appear instantly; the eww control center
-        # animates via its revealer; swaync slides itself.
+        # animates via its revealer.
         ++ map (namespace: { match = { inherit namespace; }; no_anim = true; }) [
           "tofi"
           "control_center"
           "control_center_closer"
-          "swaync-control-center"
+        ]
+        # swaync has no panel animation of its own (verified: it snaps
+        # with no_anim) - the compositor slides it in from the top edge,
+        # matching the control center's drop-down.
+        ++ [
+          { match = { namespace = "swaync-control-center"; }; animation = "slide"; }
         ];
 
       bind = [
