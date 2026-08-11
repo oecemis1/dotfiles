@@ -56,7 +56,8 @@ in
           format = "{:%a %d %b  %H:%M}";
           interval = 60;
           tooltip = false;
-          on-click = "swaync-client -t";
+          # dismiss the control center first so the two panels never stack
+          on-click = "eww-control-center-toggle close; swaync-client -t";
         };
 
         "custom/battery" = {
@@ -86,7 +87,8 @@ in
 
         "custom/control-center" = {
           format = "";
-          on-click = "eww-control-center-toggle";
+          # dismiss the notification panel first so the two never stack
+          on-click = "swaync-client -cp; eww-control-center-toggle";
           tooltip = false;
         };
 

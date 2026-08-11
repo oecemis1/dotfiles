@@ -157,8 +157,12 @@ in
         # focus flips constantly; keep the border color change out of the way
         { leaf = "border"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; }
         { leaf = "windows"; enabled = true; speed = 3.0; spring = "standard"; }
-        { leaf = "windowsIn"; enabled = true; speed = 3.0; spring = "standard"; style = "popin 80%"; }
-        { leaf = "windowsOut"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; style = "popin 80%"; }
+        # windowsMove set explicitly: left to inherit it reported speed 0,
+        # so the sibling snapped to its new slot while the newcomer animated
+        { leaf = "windowsMove"; enabled = true; speed = 3.0; spring = "standard"; }
+        # slide = directional entrance from the nearest edge; exit mirrors it
+        { leaf = "windowsIn"; enabled = true; speed = 3.0; spring = "standard"; style = "slide"; }
+        { leaf = "windowsOut"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; style = "slide"; }
         { leaf = "fadeIn"; enabled = true; speed = 1.7; bezier = "almostLinear"; }
         { leaf = "fadeOut"; enabled = true; speed = 1.5; bezier = "almostLinear"; }
         { leaf = "fade"; enabled = true; speed = 2.5; bezier = "quick"; }
@@ -262,10 +266,11 @@ in
           "control_center_closer"
         ]
         # swaync has no panel animation of its own (verified: it snaps
-        # with no_anim) - the compositor slides it in from the top edge,
-        # matching the control center's drop-down.
+        # with no_anim) - the compositor slides it in, forced from the top
+        # edge to match the control center's drop-down (bare "slide"
+        # picked the bottom).
         ++ [
-          { match = { namespace = "swaync-control-center"; }; animation = "slide"; }
+          { match = { namespace = "swaync-control-center"; }; animation = "slide top"; }
         ];
 
       bind = [

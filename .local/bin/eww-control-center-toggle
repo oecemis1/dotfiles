@@ -18,6 +18,10 @@ if eww active-windows | grep -q "^control_center:"; then
     exit
 fi
 
+# "close" mode: only dismiss (used by the bar's other panel buttons so the
+# two panels never stack) - never open
+[ "$1" = "close" ] && exit 0
+
 # open collapsed (no tile menu, power section closed); cc_open gates the
 # panel's defpolls. Closer first so it stacks below the panel.
 eww update cc_power_open=false cc_active_menu= cc_open=true cc_reveal=false
