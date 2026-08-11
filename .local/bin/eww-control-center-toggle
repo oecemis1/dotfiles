@@ -3,8 +3,15 @@
 # The window itself is anchored to the screen's top-right (so it can
 # grow leftward when content needs more width); x is just the inset
 # matching the bar's right margin.
+#
+# The open/close animation is the whole-panel revealer driven by
+# cc_reveal (the layer is no_anim in hyprland): open maps the window
+# collapsed, then reveals; close collapses first, then drops the window
+# once the 250ms slide has played.
 
 if eww active-windows | grep -q "^control_center:"; then
+    eww update cc_reveal=false
+    sleep 0.25
     eww close control_center
     eww close control_center_closer
     eww update cc_power_open=false cc_active_menu= cc_open=false
@@ -13,8 +20,11 @@ fi
 
 # open collapsed (no tile menu, power section closed); cc_open gates the
 # panel's defpolls. Closer first so it stacks below the panel.
-eww update cc_power_open=false cc_active_menu= cc_open=true
+eww update cc_power_open=false cc_active_menu= cc_open=true cc_reveal=false
 eww open control_center_closer
 # x 3px = the bar's right margin; y 2px below the bar's exclusive zone
 # aligns with the top edge of tiled windows.
 eww open control_center --arg x_pos="3px" --arg y_pos="2px"
+# let the window map with the revealer collapsed, then play the slide
+sleep 0.05
+eww update cc_reveal=true

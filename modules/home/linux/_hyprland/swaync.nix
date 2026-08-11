@@ -48,7 +48,10 @@ in
       notification-window-width = 350;
       keyboard-shortcuts = true;
       image-visibility = "never";
-      transition-time = 200;
+      # panel reveal; matches the eww control center's 250ms slide. The
+      # compositor's layer fade is disabled for this namespace so the
+      # slide is the only motion.
+      transition-time = 250;
       hide-on-clear = true;
       hide-on-action = true;
       script-fail-notify = true;

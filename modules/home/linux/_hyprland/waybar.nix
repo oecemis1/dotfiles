@@ -227,7 +227,7 @@ in
       #custom-control-center,
       #wireplumber,
       #workspaces button {
-        transition: background-color 120ms ease-out;
+        transition: background-color 120ms ease-out, color 120ms ease-out;
       }
 
       #backlight:hover,
@@ -270,7 +270,12 @@ in
       }
 
       /* State feedback: steady colors, no pulsing. Charging is teal, not
-         green, so it never rides the red-green axis against .critical. */
+         green, so it never rides the red-green axis against .critical.
+         The color transition bridges the plug/unplug state snap. */
+      #custom-battery {
+        transition: color 200ms ease-out;
+      }
+
       #custom-battery.charging {
         color: @teal;
       }

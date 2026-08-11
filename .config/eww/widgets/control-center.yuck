@@ -9,6 +9,12 @@
 ; the closer); gates every control-center defpoll via :run-while
 (defvar cc_open false)
 
+; drives the whole-panel revealer: the toggle script flips it true one
+; beat after opening the window (so the slide plays) and false before
+; closing (so the collapse plays). The layer itself is no_anim in
+; hyprland - this revealer IS the open/close animation.
+(defvar cc_reveal false)
+
 ; which tile menu is expanded: "" | "wifi" | "bluetooth" | "usb" -
 ; only the most recently pressed tile's menu is visible
 (defvar cc_active_menu "")
@@ -41,9 +47,9 @@
   :focusable false
   :namespace "control_center_closer"
   (eventbox
-    :onclick "eww close control_center; eww close control_center_closer; eww update cc_power_open=false cc_active_menu= cc_open=false"
-    :onmiddleclick "eww close control_center; eww close control_center_closer; eww update cc_power_open=false cc_active_menu= cc_open=false"
-    :onrightclick "eww close control_center; eww close control_center_closer; eww update cc_power_open=false cc_active_menu= cc_open=false"))
+    :onclick "eww-control-center-toggle &"
+    :onmiddleclick "eww-control-center-toggle &"
+    :onrightclick "eww-control-center-toggle &"))
 
 ; Fixed height (fits the widest expanded state: wifi menu + expanded
 ; power section): a layer window that resizes mid-animation makes the
@@ -65,7 +71,14 @@
   :stacking "overlay"
   :focusable false
   :namespace "control_center"
-  (control_center_widget))
+  ; whole-panel entrance: unfurls downward from under the bar button
+  ; (clipped-height expansion, same mechanic as the tile menus) and
+  ; collapses back up the same way on close
+  (revealer
+    :transition "slidedown"
+    :duration "250ms"
+    :reveal cc_reveal
+    (control_center_widget)))
 
 ; Split tile: the icon zone toggles the radio, the label/chevron zone
 ; expands the tile's menu (eww has no long-press events, so the split

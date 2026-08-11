@@ -130,30 +130,37 @@ in
       curve = [
         { _args = [ "easeOutQuint" { type = "bezier"; points = [ [ 0.23 1.0 ] [ 0.32 1.0 ] ]; } ]; }
         { _args = [ "easeInOutCubic" { type = "bezier"; points = [ [ 0.65 0.05 ] [ 0.36 1.0 ] ]; } ]; }
-        { _args = [ "linear" { type = "bezier"; points = [ [ 0.0 0.0 ] [ 1.0 1.0 ] ]; } ]; }
         { _args = [ "almostLinear" { type = "bezier"; points = [ [ 0.5 0.5 ] [ 0.75 1.0 ] ]; } ]; }
         { _args = [ "quick" { type = "bezier"; points = [ [ 0.15 0.0 ] [ 0.1 1.0 ] ]; } ]; }
+        # Critically damped (2*sqrt(stiffness*mass)): settles with no
+        # overshoot - nothing here is momentum-driven, so no bounce.
+        { _args = [ "standard" { type = "spring"; mass = 1; stiffness = 300; dampening = 34.6; } ]; }
       ];
 
-      # values carried over 1:1 from the hyprlang config (retiming is a
-      # separate change)
+      # Geometry rides the spring; fades and color stay on beziers. Enter
+      # and exit share a path (popin both ways), exits run quicker than
+      # entrances, and windows/windowsIn share one clock so a dwindle
+      # split reads as a single motion: the sibling's edge retreats while
+      # the newcomer grows into the opening.
       animation = [
-        { leaf = "global"; enabled = true; speed = 10.0; bezier = "default"; }
-        { leaf = "border"; enabled = true; speed = 5.39; bezier = "easeOutQuint"; }
-        { leaf = "windows"; enabled = true; speed = 4.79; bezier = "easeOutQuint"; }
-        { leaf = "windowsIn"; enabled = true; speed = 4.1; bezier = "easeOutQuint"; style = "popin 87%"; }
-        { leaf = "windowsOut"; enabled = true; speed = 1.49; bezier = "linear"; style = "popin 87%"; }
-        { leaf = "fadeIn"; enabled = true; speed = 1.73; bezier = "almostLinear"; }
-        { leaf = "fadeOut"; enabled = true; speed = 1.46; bezier = "almostLinear"; }
-        { leaf = "fade"; enabled = true; speed = 3.03; bezier = "quick"; }
-        { leaf = "layers"; enabled = true; speed = 3.81; bezier = "easeOutQuint"; }
-        { leaf = "layersIn"; enabled = true; speed = 4.0; bezier = "easeOutQuint"; style = "fade"; }
-        { leaf = "layersOut"; enabled = true; speed = 3.0; bezier = "easeOutQuint"; style = "fade"; }
-        { leaf = "fadeLayersIn"; enabled = true; speed = 1.79; bezier = "almostLinear"; }
-        { leaf = "fadeLayersOut"; enabled = true; speed = 1.39; bezier = "almostLinear"; }
-        { leaf = "workspaces"; enabled = true; speed = 1.94; bezier = "almostLinear"; style = "fade"; }
-        { leaf = "workspacesIn"; enabled = true; speed = 1.21; bezier = "almostLinear"; style = "fade"; }
-        { leaf = "workspacesOut"; enabled = true; speed = 1.94; bezier = "almostLinear"; style = "fade"; }
+        { leaf = "global"; enabled = true; speed = 3.0; bezier = "easeOutQuint"; }
+        # focus flips constantly; keep the border color change out of the way
+        { leaf = "border"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; }
+        { leaf = "windows"; enabled = true; speed = 3.0; spring = "standard"; }
+        { leaf = "windowsIn"; enabled = true; speed = 3.0; spring = "standard"; style = "popin 80%"; }
+        { leaf = "windowsOut"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; style = "popin 80%"; }
+        { leaf = "fadeIn"; enabled = true; speed = 1.7; bezier = "almostLinear"; }
+        { leaf = "fadeOut"; enabled = true; speed = 1.5; bezier = "almostLinear"; }
+        { leaf = "fade"; enabled = true; speed = 2.5; bezier = "quick"; }
+        { leaf = "layers"; enabled = true; speed = 2.5; bezier = "easeOutQuint"; }
+        { leaf = "layersIn"; enabled = true; speed = 2.5; bezier = "easeOutQuint"; style = "fade"; }
+        { leaf = "layersOut"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; style = "fade"; }
+        { leaf = "fadeLayersIn"; enabled = true; speed = 1.8; bezier = "almostLinear"; }
+        { leaf = "fadeLayersOut"; enabled = true; speed = 1.4; bezier = "almostLinear"; }
+        # a 15% slide hints which way you moved; one clock for both sides
+        { leaf = "workspaces"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; style = "slidefade 15%"; }
+        # calculator/todo specials drop in from the top
+        { leaf = "specialWorkspace"; enabled = true; speed = 2.5; bezier = "easeOutQuint"; style = "slidefadevert 15%"; }
       ];
 
       window_rule = [
@@ -224,16 +231,27 @@ in
         { match = { class = "(Matplotlib)"; }; float = true; }
       ];
 
-      layer_rule = map (namespace: { match = { inherit namespace; }; blur = true; ignore_alpha = 0.3; }) [
-        "waybar"
-        "swaync-control-center"
-        "swaync-notification-window"
-        "tofi"
-        "calendar"
-        "brightness_slider"
-        "power_menu"
-        "control_center"
-      ];
+      layer_rule =
+        map (namespace: { match = { inherit namespace; }; blur = true; ignore_alpha = 0.3; }) [
+          "waybar"
+          "swaync-control-center"
+          "swaync-notification-window"
+          "tofi"
+          "calendar"
+          "brightness_slider"
+          "power_menu"
+          "control_center"
+        ]
+        # Surfaces that own their motion (or shouldn't have any) skip the
+        # compositor's layer fade: tofi is keyboard-summoned dozens of
+        # times a day and must appear instantly; the eww control center
+        # animates via its revealer; swaync slides itself.
+        ++ map (namespace: { match = { inherit namespace; }; no_anim = true; }) [
+          "tofi"
+          "control_center"
+          "control_center_closer"
+          "swaync-control-center"
+        ];
 
       bind = [
         (bind "SUPER + Q" dsp.close)
