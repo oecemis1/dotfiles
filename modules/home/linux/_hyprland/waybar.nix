@@ -110,6 +110,10 @@ in
         "hyprland/workspaces" = {
           format = "{icon}";
           on-click = "activate";
+          # Without a threshold every smooth-scroll event (dozens per touchpad
+          # swipe) switches a workspace. Accumulate ~a finger-width of travel
+          # per step instead; raise to need a longer swipe, lower for shorter.
+          smooth-scrolling-threshold = 0.5;
           sort-by-number = true;
           format-icons = {
             active = "∙";
