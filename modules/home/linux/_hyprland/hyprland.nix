@@ -8,7 +8,17 @@
 let
   lua = lib.generators.mkLuaInline;
 
-  terminal = "kitty --single-instance";
+  # single-instance kitty still opens a new OS window per launch, so the
+  # bind focuses the existing window instead of spawning another
+  terminal = pkgs.writeShellScript "terminal-single" ''
+    addr=$(hyprctl clients -j | ${lib.getExe pkgs.jq} -r \
+      '[.[] | select(.class == "kitty" and .workspace.id > 0)] | min_by(.focusHistoryID) | .address // empty')
+    if [ -n "$addr" ]; then
+      hyprctl dispatch "hl.dsp.focus({ window = \"address:$addr\" })"
+    else
+      exec kitty --single-instance
+    fi
+  '';
   # tofi launches the entry itself: 0.56's `hyprctl dispatch` takes lua
   # syntax, so the old `| xargs hyprctl dispatch exec --` pipe is dead
   launcher = "pkill tofi || tofi-drun --drun-launch=true";
