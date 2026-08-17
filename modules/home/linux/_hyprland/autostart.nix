@@ -14,6 +14,9 @@
         (lib.generators.mkLuaInline ''
           function()
             hl.exec_cmd("waybar")
+            -- without a daemon, each `eww open` forks its own half-daemon;
+            -- two racing opens then orphan the fullscreen click-catcher
+            hl.exec_cmd("eww daemon")
             hl.exec_cmd("swaync-wrapper")
             hl.exec_cmd("awww-daemon")
             hl.exec_cmd("swayosd-server")
