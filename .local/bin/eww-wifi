@@ -7,11 +7,81 @@
 #   toggle      flip the wifi radio
 #   connect S   bring up known profile S, or join open network S
 #   disconnect  drop the active wifi connection
+#
+# ...plus the inline password prompt for a network with no profile yet:
+#
+#   prompt S    raise the prompt for S (or just connect, if S is known)
+#   pw-stash    store the entry's current text (reads stdin, never argv)
+#   pw-submit   join the prompted SSID with the stashed password
+#   pw-cancel   drop the prompt and its stash
 
-# Actions push fresh state into the control center's poll var so the
-# WiFi tile updates instantly instead of waiting out the 2s poll.
+# Actions push fresh state into the control center's poll vars so the
+# WiFi tile and network list update instantly instead of waiting out the
+# 2s/4s polls.
 refresh_panel() {
-    eww update wifi_status="$("$0" status)" 2>/dev/null || true
+    eww update wifi_status="$("$0" status)" wifi_list="$("$0" list)" 2>/dev/null || true
+}
+
+# One-line progress/error strip in the menu's Networks card. Empty text
+# hides it; error=true colors it red.
+notice() {
+    eww update wifi_notice="$(jq -nc --arg text "$1" --argjson error "${2:-false}" \
+        '{text: $text, error: $error}')" 2>/dev/null || true
+}
+
+# nmcli talks in "Error: <first line>\n<hint>"; the strip keeps the half
+# that fits the notice label.
+fail_notice() {
+    local msg=${1%%$'\n'*}
+    notice "${msg#Error: }" true
+}
+
+# What the password entry has typed so far. A file, not an eww var: vars
+# are readable with `eww get` and land in the daemon's state dump, and
+# not argv either (`ps` is world-readable) - so 0600 in the runtime dir,
+# removed the moment the prompt closes.
+pw_file="${XDG_RUNTIME_DIR:-/tmp}/eww-wifi-pw"
+
+# :focusable is evaluated per `eww open`, so the panel has to be re-opened
+# to take (or drop) the keyboard for the password entry. Re-opening the
+# *same* window id unmaps the layer before mapping it again, which the eye
+# catches as the whole panel blinking - so the two modes live under two
+# window ids of the same definition, and the replacement is mapped before
+# its predecessor is closed. Both instances render the same vars, so the
+# overlap is invisible.
+#
+#   control_center        the panel proper, deaf to the keyboard
+#   control_center_focus  identical, but on-demand: the compositor hands
+#                         it the keyboard when the entry is clicked, and
+#                         hands it straight back on the next click
+#                         elsewhere. Not an exclusive grab - that would
+#                         hold the keyboard hostage for as long as the
+#                         prompt is up, and every other control in the
+#                         panel has to keep working while you type.
+#
+# Geometry has to match eww-control-center-toggle's open.
+panel_map() { # <window id> <focusable>
+    eww active-windows 2>/dev/null | grep -q "^$1:" ||
+        eww open control_center --id "$1" \
+            --arg x_pos="3px" --arg y_pos="2px" --arg focus="$2" 2>/dev/null
+    true
+}
+
+panel_swap() { # <window id to map> <focusable> <window id to drop>
+    panel_map "$1" "$2"
+    # only if it is actually mapped - eww logs a failed close as an error
+    eww active-windows 2>/dev/null | grep -q "^$3:" && eww close "$3"
+    true
+}
+
+# Take the prompt down and give the keyboard back. The plain instance is
+# mapped while the prompt is still revealed (so the swap shows no change),
+# and only then is the prompt collapsed - that way the revealer's slide
+# still plays on the way out.
+pw_close() {
+    rm -f "$pw_file" "$pw_file".*
+    panel_swap control_center false control_center_focus
+    eww update wifi_pw_ssid= wifi_pw_shown=false 2>/dev/null || true
 }
 
 wifi_enabled() {
@@ -67,13 +137,18 @@ list)
                 | {inuse: (.[0] == "1"),
                    ssid: .[1],
                    signal: (.[2] | tonumber? // 0),
-                   secured: (.[3] != "" and .[3] != "--")})
+                   secured: (.[3] != "" and .[3] != "--"),
+                   # 802.1X wants identity/EAP method/CA cert - more than
+                   # one password prompt can collect, so those rows go to
+                   # nm-connection-editor instead
+                   enterprise: ((.[3] // "") | test("802.1X"))})
             # the connected SSID lives in the Connected card, not the list
             # (drop its other APs too, not just the in-use BSSID)
             | (map(select(.inuse) | .ssid)) as $active
             | map(select((.ssid != "") and (.ssid as $s | $active | index($s) | not)))
             | group_by(.ssid) | map(max_by(.signal))
-            | map({ssid, signal, secured, known: (.ssid as $s | $known | index($s) != null)})
+            | map({ssid, signal, secured, enterprise,
+                   known: (.ssid as $s | $known | index($s) != null)})
             | sort_by(-.signal)
             | .[0:6]'
     ;;
@@ -83,6 +158,8 @@ scan)
     ;;
 
 toggle)
+    # flipping the radio abandons a password prompt either way
+    "$0" pw-cancel
     if wifi_enabled; then
         nmcli radio wifi off
     else
@@ -93,14 +170,108 @@ toggle)
 
 connect)
     ssid="$2"
+    notice "Connecting to ${ssid}..."
+    # -w bounds the wait: nmcli's default is 90s, long enough that a
+    # network that never answers reads as a frozen panel.
     if nmcli -t -f NAME connection show | grep -Fxq "$ssid"; then
-        nmcli connection up id "$ssid"
+        if err=$(nmcli -w 30 connection up id "$ssid" 2>&1); then err=""; fi
     else
-        # Open networks only; secured-unknown networks are routed to
-        # nm-connection-editor by the popover instead.
-        nmcli device wifi connect "$ssid"
+        # Open networks only; secured ones come through `join` (which asks
+        # for the password first).
+        if err=$(nmcli -w 30 device wifi connect "$ssid" 2>&1); then err=""; fi
+    fi
+    if [ -n "$err" ]; then
+        fail_notice "$err"
+    else
+        notice ""
     fi
     refresh_panel
+    ;;
+
+prompt)
+    ssid="$2"
+    [ -n "$ssid" ] || exit 1
+
+    # Already saved: NM holds the secret, so there is nothing to ask.
+    if nmcli -t -f NAME connection show | grep -Fxq "$ssid"; then
+        exec "$0" connect "$ssid"
+    fi
+
+    rm -f "$pw_file" "$pw_file".*
+    notice ""
+    eww update wifi_pw_ssid="$ssid" wifi_pw_shown=false 2>/dev/null || true
+    # Let the reveal play on the instance that is already on screen, then
+    # swap in the twin that holds the keyboard - it maps with the prompt
+    # already open, so the slide would otherwise be skipped.
+    sleep 0.25
+    panel_swap control_center_focus ondemand control_center
+    ;;
+
+pw-stash)
+    # The password arrives on stdin (wifi.yuck feeds it through a quoted
+    # heredoc), so nothing here has to survive a trip through the shell.
+    #
+    # Written to a private name and renamed into place: every keystroke
+    # runs its own copy of this, and two overlapping `cat >` on one path
+    # interleave into a torn file (seen in testing: a fast typist ends up
+    # sending a password that was never typed).
+    umask 077
+    tmp="${pw_file}.$$"
+    cat >"$tmp"
+    mv -f "$tmp" "$pw_file"
+    ;;
+
+pw-submit)
+    # One attempt at a time: Enter plus a click on Connect would
+    # otherwise fire two joins at the same SSID.
+    exec 9>"${XDG_RUNTIME_DIR:-/tmp}/eww-wifi-join.lock"
+    flock -n 9 || exit 0
+
+    ssid=$(eww get wifi_pw_ssid 2>/dev/null)
+    [ -n "$ssid" ] || exit 0
+    # command substitution eats the heredoc's trailing newline for us
+    pw=$(cat "$pw_file" 2>/dev/null)
+    if [ -z "$pw" ]; then
+        notice "Enter a password" true
+        exit 0
+    fi
+
+    notice "Connecting to ${ssid}..."
+    # The secret rides in argv here, so it shows in `ps` for the length of
+    # the attempt - nmcli has no stdin path for a one-shot join.
+    if err=$(nmcli -w 30 device wifi connect "$ssid" password "$pw" 2>&1); then
+        pw_close
+        notice ""
+        refresh_panel
+        exit 0
+    fi
+
+    # A rejected attempt leaves the half-made profile behind; drop it so
+    # the retry starts clean instead of reusing the bad secret.
+    nmcli connection delete id "$ssid" >/dev/null 2>&1
+
+    case "$err" in
+    # "Secrets were required, but not provided" - i.e. wrong password.
+    # Leave the prompt up with the text intact so it can be corrected.
+    *ecrets*) notice "Wrong password - try again" true ;;
+    # anything else (AP gone, timeout) is not going to be fixed by
+    # retyping the password
+    *)
+        pw_close
+        fail_notice "$err"
+        ;;
+    esac
+    refresh_panel
+    ;;
+
+pw-cancel)
+    # Also the "the prompt is no longer relevant" hook for the rest of the
+    # panel (collapsing the WiFi menu, opening another one, flipping the
+    # radio), so it has to be free when no prompt is up: no window churn,
+    # no var writes.
+    [ -n "$(eww get wifi_pw_ssid 2>/dev/null)" ] || exit 0
+    pw_close
+    notice ""
     ;;
 
 disconnect)
@@ -111,6 +282,7 @@ disconnect)
 
 *)
     echo "usage: eww-wifi status|list|scan|toggle|connect <ssid>|disconnect" >&2
+    echo "       eww-wifi prompt <ssid>|pw-stash|pw-submit|pw-cancel" >&2
     exit 1
     ;;
 esac

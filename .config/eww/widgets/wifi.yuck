@@ -1,7 +1,9 @@
 ; WiFi section of the control center: status polls + the inline menu
-; content revealed under the WiFi tile. Quick actions only - new secured
-; networks hand off to nm-connection-editor (no password entry in a
-; non-focusable layer).
+; content revealed under the WiFi tile. Clicking a network we have no
+; profile for swaps the list for an inline password prompt - click the
+; field to type in it (see `eww-wifi prompt` for why the keyboard works
+; that way). Only 802.1X networks, which need an identity and an EAP
+; method on top of a password, still hand off to nm-connection-editor.
 
 ; Tile fill/sublabel need status whenever the panel is open; the network
 ; list only while the wifi menu is expanded. cc_open / cc_active_menu
@@ -17,6 +19,84 @@
   :run-while {cc_open && cc_active_menu == "wifi"}
   :initial "[]"
   `eww-wifi list`)
+
+; "Connecting to X..." / the nmcli error that came back, pushed by
+; eww-wifi. Cleared when the panel opens (eww-control-center-toggle).
+(defvar wifi_notice '{"text":"","error":false}')
+
+; SSID being asked about: non-empty means the password prompt is up (and
+; the panel is holding keyboard focus for it). Set by `eww-wifi prompt`,
+; cleared by pw-cancel/pw-submit and by the panel closing.
+(defvar wifi_pw_ssid "")
+
+; the prompt's show-password toggle
+(defvar wifi_pw_shown false)
+
+; Shared by the Networks card and the password prompt - only one of the
+; two is on screen at a time, and both need to say what nmcli is doing.
+(defwidget wifi_notice_label []
+  (label
+    :class "wf-notice ${wifi_notice.error ? "wf-notice-error" : ""}"
+    :halign "start"
+    :limit-width 34
+    :visible {wifi_notice.text != ""}
+    :text {wifi_notice.text}))
+
+; Inline password prompt. The typed value never touches a command line:
+; eww splices `{}` into `sh -c` unescaped (a password holding a quote, a
+; `$` or a backtick would be mangled, or worse, run), so it rides in on
+; stdin through a quoted heredoc - which is why the heredoc body and its
+; terminator sit at column 0 below. Leading whitespace there would end up
+; inside the password.
+;
+; `:value` is deliberately unbound: binding it to a var that onchange
+; writes makes eww re-set the entry on every keystroke, which drops
+; characters. The entry keeps its own text, and pw-stash keeps the file
+; behind the Connect button in sync.
+(defwidget wifi_password_card []
+  (box
+    :class "wf-card"
+    :orientation "v"
+    :space-evenly false
+    :spacing 8
+    (box
+      :orientation "v"
+      :space-evenly false
+      (label :class "wf-title" :halign "start" :text "Password")
+      (label :halign "start" :limit-width 26 :text wifi_pw_ssid))
+    (box
+      :space-evenly false
+      :spacing 6
+      (input
+        :class "wf-pw"
+        :hexpand true
+        :password {!wifi_pw_shown}
+        :onchange "eww-wifi pw-stash <<'EWWPW'
+{}
+EWWPW
+"
+        :onaccept "eww-wifi pw-stash <<'EWWPW'
+{}
+EWWPW
+eww-wifi pw-submit &
+")
+      (button
+        :class "wf-eye ${wifi_pw_shown ? "wf-eye-on" : ""}"
+        :tooltip {wifi_pw_shown ? "Hide password" : "Show password"}
+        :onclick "eww update wifi_pw_shown=${!wifi_pw_shown}"
+        (label :text {wifi_pw_shown ? "󰈈" : "󰈉"})))
+    (wifi_notice_label)
+    ; Cancel left, Connect right - where the platform puts them
+    (box
+      :spacing 8
+      (button
+        :class "wf-action"
+        :onclick "eww-wifi pw-cancel &"
+        (label :text "Cancel"))
+      (button
+        :class "wf-action wf-action-primary"
+        :onclick "eww-wifi pw-submit &"
+        (label :text "Connect")))))
 
 (defwidget wifi_menu_content []
   (box
@@ -52,13 +132,16 @@
       :orientation "v"
       :space-evenly false
       :spacing 6
-      :visible {wifi_status.enabled}
+      ; the prompt takes this card's place: the list is noise once you
+      ; have picked a network, and the panel's height is fixed
+      :visible {wifi_status.enabled && wifi_pw_ssid == ""}
       (label :class "wf-title" :halign "start" :text "Networks")
       (label
         :class "wf-empty"
         :halign "start"
         :visible {arraylength(wifi_list) == 0}
         :text "No networks found")
+      (wifi_notice_label)
       (box
         :orientation "v"
         :space-evenly false
@@ -68,7 +151,9 @@
             :class "wf-row"
             :onclick {net.known || !net.secured ?
               "eww-wifi connect '${net.ssid}' &" :
-              "(eww-control-center-toggle; nm-connection-editor) &"}
+              (net.enterprise ?
+                "(eww-control-center-toggle; nm-connection-editor) &" :
+                "eww-wifi prompt '${net.ssid}' &")}
             (box
               :space-evenly false
               :spacing 10
@@ -77,6 +162,11 @@
                                              (net.signal >= 25 ? "󰤢" : "󰤟"))})
               (label :halign "start" :hexpand true :limit-width 24 :text {net.ssid})
               (label :class "wf-lock" :visible {net.secured} :text "󰌾"))))))
+    (revealer
+      :transition "slidedown"
+      :duration "200ms"
+      :reveal {wifi_pw_ssid != ""}
+      (wifi_password_card))
     (button
       :class "wf-footer"
       :onclick "(eww-control-center-toggle; nm-connection-editor) &"

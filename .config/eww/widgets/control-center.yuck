@@ -60,7 +60,16 @@
 ; Anchored top RIGHT: 340px is only the minimum width, and content that
 ; needs more room (long USB rows) must grow leftward into the screen,
 ; not rightward off it. x_pos is the inset from the screen's right edge.
-(defwindow control_center [x_pos y_pos]
+;
+; `focus` is normally false - a HUD that grabbed the keyboard would stop
+; you typing in the window underneath. eww evaluates :focusable per
+; `eww open`, so `eww-wifi prompt` re-opens the panel as "ondemand" for
+; as long as the password entry is on screen: the compositor hands the
+; keyboard over when the entry is clicked and takes it back on the next
+; click elsewhere. Never exclusive - that would hold the keyboard for the
+; whole time the prompt is up, and every other control here (tiles,
+; sliders, the other menus) has to keep working while you type.
+(defwindow control_center [x_pos y_pos focus]
   :monitor 0
   :geometry (geometry
     :x {x_pos}
@@ -69,7 +78,7 @@
     :height "940px"
     :anchor "top right")
   :stacking "overlay"
-  :focusable false
+  :focusable focus
   :namespace "control_center"
   ; whole-panel entrance: unfurls downward from under the bar button
   ; (clipped-height expansion, same mechanic as the tile menus) and
@@ -86,6 +95,12 @@
 ; Split tile: the icon zone toggles the radio, the label/chevron zone
 ; expands the tile's menu (eww has no long-press events, so the split
 ; stands in for press-and-hold). Pressing the open tile again collapses.
+;
+; Changing which menu is open abandons a WiFi password prompt: it lives
+; inside the WiFi menu, so collapsing that menu (or opening another
+; tile's) has to drop the prompt, its stashed text and its keyboard grab
+; rather than leave them hanging. Only spawned when a prompt is actually
+; up - the common click stays a plain var update.
 (defwidget cc_tile [icon name sub active menu toggle_cmd]
   (box
     :class "cc-tile ${active ? "cc-tile-active" : ""}"
@@ -97,9 +112,7 @@
     (button
       :class "cc-tile-expand"
       :hexpand true
-      :onclick {cc_active_menu == menu ?
-        "eww update cc_active_menu=" :
-        "eww update cc_active_menu=${menu}"}
+      :onclick "${wifi_pw_ssid != "" ? "eww-wifi pw-cancel & " : ""}eww update cc_active_menu=${cc_active_menu == menu ? "" : menu}"
       (box
         :space-evenly false
         :spacing 6

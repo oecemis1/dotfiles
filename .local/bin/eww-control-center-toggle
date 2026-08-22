@@ -23,12 +23,17 @@ fi
 
 active=$(eww active-windows)
 
+# The panel is mapped under one of two window ids: control_center, or the
+# control_center_focus twin that holds the keyboard while the WiFi
+# password prompt is up (see eww-wifi). Either one counts as open.
+panel_open=$(grep -cE "^control_center(_focus)?:" <<<"$active")
+
 # Orphaned closer (click-catcher mapped but the panel gone, e.g. after a
 # daemon crash): a click anywhere lands here - just clean up, never open.
-if grep -q "^control_center_closer:" <<<"$active" &&
-    ! grep -q "^control_center:" <<<"$active"; then
+if grep -q "^control_center_closer:" <<<"$active" && [ "$panel_open" = 0 ]; then
     eww close control_center_closer
-    eww update cc_power_open=false cc_active_menu= cc_open=false cc_reveal=false
+    eww update cc_power_open=false cc_active_menu= cc_open=false cc_reveal=false \
+        wifi_pw_ssid=
     exit 0
 fi
 
@@ -36,14 +41,22 @@ fi
 # and panel buttons chain commands after this script ("...-toggle;
 # nm-connection-editor &"). The collapse plays out in a detached
 # subshell; it aborts if the panel was re-revealed in the meantime.
-if grep -q "^control_center:" <<<"$active"; then
+if [ "$panel_open" != 0 ]; then
     eww update cc_reveal=false
     (
         sleep 0.3
         [ "$(eww get cc_reveal)" = "false" ] || exit 0
-        eww close control_center
+        # whichever id the panel ended up under (closing one that is not
+        # mapped is logged as an error, so ask rather than close both)
+        mapped=$(eww active-windows |
+            awk -F: '$1 == "control_center" || $1 == "control_center_focus" {print $1}')
+        # shellcheck disable=SC2086 # deliberate word splitting: window ids
+        [ -n "$mapped" ] && eww close $mapped
         eww close control_center_closer
-        eww update cc_power_open=false cc_active_menu= cc_open=false
+        eww update cc_power_open=false cc_active_menu= cc_open=false wifi_pw_ssid=
+        # a prompt dismissed by closing the panel leaves its stash behind
+        rm -f "${XDG_RUNTIME_DIR:-/tmp}/eww-wifi-pw" \
+            "${XDG_RUNTIME_DIR:-/tmp}/eww-wifi-pw".*
     ) &
     exit
 fi
@@ -53,12 +66,17 @@ fi
 [ "$1" = "close" ] && exit 0
 
 # open collapsed (no tile menu, power section closed); cc_open gates the
-# panel's defpolls. Closer first so it stacks below the panel.
-eww update cc_power_open=false cc_active_menu= cc_open=true cc_reveal=false
+# panel's defpolls. The wifi prompt/notice state is cleared here so a
+# failed connect from an earlier session doesn't greet the next open.
+# Closer first so it stacks below the panel.
+eww update cc_power_open=false cc_active_menu= cc_open=true cc_reveal=false \
+    wifi_pw_ssid= wifi_pw_shown=false 'wifi_notice={"text":"","error":false}'
 eww open control_center_closer
 # x 3px = the bar's right margin; y 2px below the bar's exclusive zone
-# aligns with the top edge of tiled windows.
-eww open control_center --arg x_pos="3px" --arg y_pos="2px"
+# aligns with the top edge of tiled windows. focus=false: the panel takes
+# no keyboard until the password prompt swaps in its twin (see eww-wifi).
+eww open control_center --id control_center \
+    --arg x_pos="3px" --arg y_pos="2px" --arg focus=false
 # let the window map with the revealer collapsed, then play the slide
 # (GTK skips transitions on unmapped widgets)
 sleep 0.1

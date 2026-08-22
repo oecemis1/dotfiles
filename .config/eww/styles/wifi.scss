@@ -21,6 +21,16 @@
   color: $overlay;
 }
 
+/* progress/error strip under the Networks title (eww-wifi pushes it) */
+.cc label.wf-notice {
+  font-size: 14px;
+  color: $accent;
+}
+
+.cc label.wf-notice-error {
+  color: $red;
+}
+
 .wf-card {
   background-color: rgba($text, 0.05);
   border-radius: 6px;
@@ -39,6 +49,102 @@
 
 .wf-row:active {
   background-color: rgba($text, 0.14);
+}
+
+/* Password prompt: entry, reveal toggle, and the Cancel/Connect pair.
+   Everything here is sized on the panel's own rhythm - tile padding
+   (11px), 6px radii, 120ms ease-out fades - so the prompt reads as part
+   of the control center instead of a dialog dropped into it, and the
+   controls are the same size as the tiles you just clicked. */
+.wf-pw {
+  background-color: rgba($text, 0.08);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 9px 12px;
+  color: $text;
+  caret-color: $text;
+  font-size: 17.5px;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+
+/* the field says where the keystrokes are going */
+.wf-pw:focus {
+  background-color: rgba($text, 0.12);
+  border-color: rgba($accent, 0.8);
+}
+
+/* Wears the entry's material and its 1px box, so the two line up to the
+   pixel and read as one segmented field rather than a loose glyph. */
+.wf-eye {
+  background-color: rgba($text, 0.08);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 9px 12px;
+  transition: background-color 120ms ease-out;
+}
+
+.wf-eye:hover {
+  background-color: rgba($text, 0.14);
+}
+
+.wf-eye:active {
+  background-color: rgba($text, 0.2);
+}
+
+/* Full-strength, not the $overlay the other secondary glyphs use: on a
+   translucent card a dimmed icon stops reading as a control at all, and
+   this one has to be findable to be used. */
+.wf-eye label {
+  font-size: 19px;
+  color: $text;
+}
+
+/* revealed is a state worth showing, so it takes the accent */
+.wf-eye-on label {
+  color: $accent;
+}
+
+/* Full-width pair. Fill and weight carry the hierarchy - no extra
+   chrome - and :active gives the press its own step, so feedback lands
+   on the way down rather than after the release. */
+.wf-action {
+  background-color: rgba($text, 0.08);
+  border-radius: 6px;
+  padding: 11px 14px;
+  transition: background-color 120ms ease-out;
+}
+
+.wf-action:hover {
+  background-color: rgba($text, 0.14);
+}
+
+.wf-action:active {
+  background-color: rgba($text, 0.2);
+}
+
+.wf-action label {
+  font-size: 16.5px;
+  font-weight: 500;
+}
+
+/* primary: the same accent fill an enabled tile wears */
+.wf-action-primary {
+  background-color: rgba($accent, 0.9);
+}
+
+.wf-action-primary:hover {
+  background-color: $accent;
+}
+
+.wf-action-primary:active {
+  background-color: rgba($accent, 0.7);
+}
+
+.wf-action-primary label {
+  color: $crust;
+  font-weight: 600;
 }
 
 .wf-small-btn {
