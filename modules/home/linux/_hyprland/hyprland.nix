@@ -71,9 +71,41 @@ in
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "lua";
-    # monitors.lua is written by nwg-displays; pcall so a missing file
-    # doesn't abort the rest of the config.
+    # monitors.conf is written by nwg-displays in hyprlang syntax, which the
+    # lua config can't source, so parse its monitor= lines ourselves. Without
+    # this Hyprland falls back to scale=auto (2.0 on HiDPI panels).
+    # monitors.lua remains as a hand-written per-machine escape hatch.
     extraConfig = ''
+      do
+        local conf = io.open(os.getenv("HOME") .. "/.config/hypr/monitors.conf", "r")
+        if conf then
+          for line in conf:lines() do
+            local args = line:match("^%s*monitor%s*=%s*(.+)")
+            if args then
+              local fields = {}
+              for field in args:gmatch("[^,]+") do
+                fields[#fields + 1] = field:match("^%s*(.-)%s*$")
+              end
+              if fields[2] == "disable" then
+                hl.monitor({ output = fields[1], disabled = true })
+              else
+                local spec = {
+                  output = fields[1],
+                  mode = fields[2],
+                  position = fields[3],
+                  scale = tonumber(fields[4]) or fields[4],
+                }
+                -- trailing fields are key/value pairs (transform, vrr, ...)
+                for i = 5, #fields - 1, 2 do
+                  spec[fields[i]] = tonumber(fields[i + 1]) or fields[i + 1]
+                end
+                hl.monitor(spec)
+              end
+            end
+          end
+          conf:close()
+        end
+      end
       pcall(require, "monitors")
     '';
     settings = {
