@@ -3,12 +3,17 @@
 
 get_battery_info() {
     # Check if battery exists, exit silently if not
-    if [[ ! -d "/sys/class/power_supply/BAT1" ]]; then
+    local battery_path=""
+    if [[ -d "/sys/class/power_supply/BAT1" ]]; then
+        battery_path="/sys/class/power_supply/BAT1"
+    elif [[ -d "/sys/class/power_supply/BAT0" ]]; then
+        battery_path="/sys/class/power_supply/BAT0"
+    else
         return
     fi
 
-    local capacity=$(cat /sys/class/power_supply/BAT1/capacity 2>/dev/null || echo "0")
-    local status=$(cat /sys/class/power_supply/BAT1/status 2>/dev/null || echo "Unknown")
+    local capacity=$(cat "${battery_path}/capacity" 2>/dev/null || echo "0")
+    local status=$(cat "${battery_path}/status" 2>/dev/null || echo "Unknown")
 
     # Choose icon based on status and capacity
     local icon=""
