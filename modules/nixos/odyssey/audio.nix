@@ -40,19 +40,5 @@
           ExecStart = "${pkgs.bash}/bin/bash -c 'echo spi1-CSC3556:00-cs35l56-hda.1 > /sys/bus/spi/drivers/cs35l56-hda/bind'";
         };
       };
-
-      # Belt-and-braces port of the bugzilla #221161 cs35l41 fix: wake the
-      # amps in the PM .complete stage, after the shared reset release has
-      # settled. Verified NOT sufficient on its own for this machine (the
-      # amp still wedged across hibernate on 2026-08-28); kept because it
-      # makes the resume ordering strictly saner. Costs a full local kernel
-      # rebuild per nixpkgs kernel bump — drop it if the module reload hook
-      # above proves sufficient on its own.
-      boot.kernelPatches = [
-        {
-          name = "cs35l56-defer-system-resume";
-          patch = ./cs35l56-defer-resume.patch;
-        }
-      ];
     };
 }
