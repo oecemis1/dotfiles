@@ -1,6 +1,6 @@
 # Central color-scheme switch. Flip `colorScheme.flavor` below (or set it from
 # a host module) and rebuild to retheme waybar, swaync, hyprland, eww, kitty,
-# tmux and yazi in one go. Both palettes stay in the repo permanently:
+# tmux, neovim and yazi in one go. Both palettes stay in the repo permanently:
 # kitty keeps dracula.conf/mocha.conf, yazi keeps its vendored flavors.
 { self, ... }:
 {
@@ -111,6 +111,12 @@
         # btop.conf does `color_theme = "current"`.
         xdg.configFile."btop/themes/current.theme".source =
           btopThemes.${config.colorScheme.flavor};
+
+        # init.lua does `colorscheme(require("current-theme"))`; the flavor
+        # names double as the colorscheme names under .config/nvim/colors/.
+        xdg.configFile."nvim/lua/current-theme.lua".text = ''
+          return "${config.colorScheme.flavor}"
+        '';
 
         # tmux.conf does `source-file ~/.config/tmux/current-theme.conf`.
         # Palette only — the styling lives in tmux.conf.

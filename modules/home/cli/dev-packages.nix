@@ -9,7 +9,6 @@
         inputs.claude-code.packages.${pkgs.stdenv.hostPlatform.system}.default
         helix
         # (pkgs.callPackage ../../../pkgs/helix.nix { })
-        neovim
         direnv
         libqalculate
 
@@ -40,7 +39,7 @@
         lldb
         nixfmt
         ruff
-        vscode-json-languageserver
+        vscode-langservers-extracted # json/css/html servers for helix and nvim
         shfmt
         prettier
         cmake-language-server

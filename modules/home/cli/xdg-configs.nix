@@ -22,6 +22,7 @@
         gdb = immutable "gdb";
         helix = immutable "helix";
         kitty = immutable "kitty";
+        nvim = immutable "nvim";
         tmux = immutable "tmux";
         yazi = immutable "yazi";
       };
