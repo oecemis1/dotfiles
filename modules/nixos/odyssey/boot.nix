@@ -3,23 +3,29 @@
   flake.modules.nixos.odyssey =
     { pkgs, ... }:
     {
+      # Trackpad contact during hibernate entry aborts the hibernation, so its
+      # wake source is disarmed around hibernate. Done via the device's wakeup
+      # toggle — NOT by unbinding the INTC105E pin controller: that controller
+      # also provides the CS35L56 amps' reset GPIO, interrupt, and SPI chip
+      # select, and bouncing it leaves those dangling until reboot (amp
+      # re-probe then fails with request_irq -EINVAL / firmware boot timeout).
       systemd.services.pre-hibernate-disable-input-wake = {
-        description = "Unbind pin controller before hibernate to prevent wake";
+        description = "Disarm trackpad wake source before hibernate to prevent abort-on-contact";
         before = [ "systemd-hibernate.service" ];
         wantedBy = [ "systemd-hibernate.service" ];
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = "${pkgs.bash}/bin/bash -c 'echo INTC105E:00 > /sys/bus/platform/drivers/meteorlake-pinctrl/unbind'";
+          ExecStart = "${pkgs.bash}/bin/bash -c 'echo disabled > /sys/bus/i2c/devices/i2c-ASUF1209:00/power/wakeup'";
         };
       };
 
       systemd.services.post-hibernate-restore-input = {
-        description = "Rebind pin controller after hibernate";
+        description = "Re-arm trackpad wake source after hibernate";
         after = [ "systemd-hibernate.service" ];
         wantedBy = [ "systemd-hibernate.service" ];
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = "${pkgs.bash}/bin/bash -c 'echo INTC105E:00 > /sys/bus/platform/drivers/meteorlake-pinctrl/bind && ${pkgs.kmod}/bin/rmmod i2c_hid_acpi && ${pkgs.kmod}/bin/modprobe i2c_hid_acpi'";
+          ExecStart = "${pkgs.bash}/bin/bash -c 'echo enabled > /sys/bus/i2c/devices/i2c-ASUF1209:00/power/wakeup'";
         };
       };
 
