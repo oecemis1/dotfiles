@@ -9,6 +9,7 @@
         inputs.claude-code.packages.${pkgs.stdenv.hostPlatform.system}.default
         helix
         # (pkgs.callPackage ../../../pkgs/helix.nix { })
+        opencode
         direnv
         libqalculate
 

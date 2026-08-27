@@ -23,6 +23,7 @@
         helix = immutable "helix";
         kitty = immutable "kitty";
         nvim = immutable "nvim";
+        opencode = immutable "opencode";
         tmux = immutable "tmux";
         yazi = immutable "yazi";
       };
