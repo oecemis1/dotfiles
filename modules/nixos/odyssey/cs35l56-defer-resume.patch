@@ -1,0 +1,96 @@
+ALSA: hda/cs35l56: Move amp wake and firmware load on system resume into .complete callback
+
+On laptops with two CS35L56 amps sharing one RESET GPIO (e.g. ASUS
+Zephyrus G16 GU605CR, SSID 10431034), the amp instance that does not
+own the GPIO fails to reboot its firmware after resume from
+suspend/hibernation:
+
+  cs35l56-hda spi1-CSC3556:00-cs35l56-hda.1: Firmware boot timed out(0): HALO_STATE=0x0
+  cs35l56-hda spi1-CSC3556:00-cs35l56-hda.1: Hibernate wake failed: -5
+
+leaving one speaker silent until reboot.
+
+Port of Stefan Binding's working fix for the same problem in cs35l41
+(kernel bugzilla #221161, 'System Resume Complete v2'): defer
+pm_runtime_force_resume() and the firmware reload from the resume()
+stage into the .complete() stage, so the amps are only woken after
+every device has finished resume() and the shared RESET release from
+resume_early() has fully settled.
+
+--- a/sound/hda/codecs/side-codecs/cs35l56_hda.c
++++ b/sound/hda/codecs/side-codecs/cs35l56_hda.c
+@@ -947,20 +947,44 @@
+ static int cs35l56_hda_system_resume(struct device *dev)
+ {
+ 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
++
++	/*
++	 * RESET is usually shared by all amps so the earliest the amp can
++	 * safely be woken is after every instance has finished its resume()
++	 * stage. Defer the wake and firmware reload to the .complete() stage,
++	 * otherwise an amp that does not own the shared RESET GPIO can fail
++	 * to reboot its firmware.
++	 */
++	cs35l56->system_resuming = true;
++
++	return 0;
++}
++
++static void cs35l56_hda_system_resume_complete(struct device *dev)
++{
++	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
+ 	int ret;
+ 
++	/* resume() was skipped, e.g. the suspend cycle was aborted */
++	if (!cs35l56->system_resuming)
++		return;
++
++	cs35l56->system_resuming = false;
++
+ 	/* Undo pm_runtime_force_suspend() before re-enabling the irq */
+ 	ret = pm_runtime_force_resume(dev);
+ 	if (cs35l56->base.irq)
+ 		enable_irq(cs35l56->base.irq);
+ 
+-	if (ret)
+-		return ret;
++	if (ret) {
++		dev_err(dev, "System Resume Failed: Unable to runtime resume: %d\n", ret);
++		return;
++	}
+ 
+ 	cs35l56->suspended = false;
+ 
+ 	if (!cs35l56->codec)
+-		return 0;
++		return;
+ 
+ 	ret = cs35l56_is_fw_reload_needed(&cs35l56->base);
+ 	dev_dbg(cs35l56->base.dev, "fw_reload_needed: %d\n", ret);
+@@ -969,8 +993,6 @@
+ 
+ 	if (cs35l56->playing)
+ 		cs35l56_hda_play(cs35l56);
+-
+-	return 0;
+ }
+ 
+ static int cs35l56_hda_fixup_yoga9(struct cs35l56_hda *cs35l56, int *bus_addr)
+@@ -1264,6 +1286,7 @@
+ 
+ const struct dev_pm_ops cs35l56_hda_pm_ops = {
+ 	RUNTIME_PM_OPS(cs35l56_hda_runtime_suspend, cs35l56_hda_runtime_resume, NULL)
++	.complete = cs35l56_hda_system_resume_complete,
+ 	SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend, cs35l56_hda_system_resume)
+ 	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend_late,
+ 				 cs35l56_hda_system_resume_early)
+--- a/sound/hda/codecs/side-codecs/cs35l56_hda.h
++++ b/sound/hda/codecs/side-codecs/cs35l56_hda.h
+@@ -33,6 +33,7 @@
+ 	struct cs_dsp cs_dsp;
+ 	bool playing;
+ 	bool suspended;
++	bool system_resuming;
+ 	u8 asp_tx_mask;
+ 
+ 	struct snd_kcontrol *posture_ctl;
