@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "keybinds": {
+    "messages_line_up": "ctrl+alt+y,alt+up",
+    "messages_line_down": "ctrl+alt+e,alt+down",
+    "messages_half_page_up": "ctrl+alt+u,alt+k",
+    "messages_half_page_down": "ctrl+alt+d,alt+j",
+    "messages_page_up": "pageup,ctrl+alt+b,alt+shift+k",
+    "messages_page_down": "pagedown,ctrl+alt+f,alt+shift+j",
+    "messages_last": "ctrl+alt+g,end,alt+shift+g"
+  }
+}
