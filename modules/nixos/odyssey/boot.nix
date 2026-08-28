@@ -29,6 +29,39 @@
         };
       };
 
+      # The eww daemon can wedge across hibernate with the control center's
+      # fullscreen click-catcher still mapped, turning every screen click
+      # into "open the panel". Restart it clean after any sleep; windows are
+      # all transient popups, so nothing user-visible is lost.
+      systemd.services.post-sleep-restart-eww = {
+        description = "Restart the eww daemon after sleep";
+        after = [
+          "systemd-suspend.service"
+          "systemd-hibernate.service"
+          "systemd-suspend-then-hibernate.service"
+        ];
+        wantedBy = [
+          "systemd-suspend.service"
+          "systemd-hibernate.service"
+          "systemd-suspend-then-hibernate.service"
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = "${pkgs.util-linux}/bin/runuser -u orhun -- ${pkgs.writeShellScript "restart-eww" ''
+            export HOME=/home/orhun
+            export XDG_RUNTIME_DIR=/run/user/1000
+            export WAYLAND_DISPLAY=wayland-1
+            export PATH=/home/orhun/.local/bin:/home/orhun/.nix-profile/bin:$PATH
+            pkill -u orhun -f 'eww open' || true
+            eww kill 2>/dev/null || true
+            pkill -u orhun -f 'eww daemon' || true
+            sleep 0.3
+            ${pkgs.util-linux}/bin/setsid -f eww-ensure-daemon
+            exit 0
+          ''}";
+        };
+      };
+
       boot.kernelParams = [
         "intel_pstate"
         "intel_idle.max_cstate=99"
