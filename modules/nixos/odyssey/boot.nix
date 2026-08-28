@@ -3,12 +3,6 @@
   flake.modules.nixos.odyssey =
     { pkgs, ... }:
     {
-      # Trackpad contact during hibernate entry aborts the hibernation, so its
-      # wake source is disarmed around hibernate. Done via the device's wakeup
-      # toggle — NOT by unbinding the INTC105E pin controller: that controller
-      # also provides the CS35L56 amps' reset GPIO, interrupt, and SPI chip
-      # select, and bouncing it leaves those dangling until reboot (amp
-      # re-probe then fails with request_irq -EINVAL / firmware boot timeout).
       systemd.services.pre-hibernate-disable-input-wake = {
         description = "Disarm trackpad wake source before hibernate to prevent abort-on-contact";
         before = [ "systemd-hibernate.service" ];
@@ -29,10 +23,6 @@
         };
       };
 
-      # The eww daemon can wedge across hibernate with the control center's
-      # fullscreen click-catcher still mapped, turning every screen click
-      # into "open the panel". Restart it clean after any sleep; windows are
-      # all transient popups, so nothing user-visible is lost.
       systemd.services.post-sleep-restart-eww = {
         description = "Restart the eww daemon after sleep";
         after = [

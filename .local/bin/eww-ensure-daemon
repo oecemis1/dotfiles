@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Make sure exactly one eww daemon is up, spawning it if needed.
-#
-# Without a daemon, each `eww open` forks its own half-daemon; two racing
-# opens then split the windows across instances and orphan the fullscreen
-# click-catcher, which turns every screen click into "open the panel".
-# Everything that might spawn the daemon (compositor autostart, the panel
-# toggles) goes through this single-flight lock, held until the daemon
-# actually answers - `eww daemon` returns before its socket is ready, so
-# releasing at fork would just move the race.
 exec 9>"${XDG_RUNTIME_DIR:-/tmp}/eww-daemon-spawn.lock"
 flock 9
 

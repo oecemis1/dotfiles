@@ -9,8 +9,6 @@
 # collapsed, then reveals; close collapses first, then drops the window
 # once the 250ms slide has played.
 
-# Single-flight daemon spawn (see eww-ensure-daemon): a bar click racing
-# the compositor autostart must not fork a second half-daemon.
 eww-ensure-daemon
 
 active=$(eww active-windows)
