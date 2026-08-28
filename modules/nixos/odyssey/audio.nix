@@ -37,7 +37,14 @@
         wantedBy = sleepServices;
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = "${pkgs.bash}/bin/bash -c 'echo spi1-CSC3556:00-cs35l56-hda.1 > /sys/bus/spi/drivers/cs35l56-hda/bind'";
+          ExecStart = [
+            "${pkgs.bash}/bin/bash -c 'echo spi1-CSC3556:00-cs35l56-hda.1 > /sys/bus/spi/drivers/cs35l56-hda/bind'"
+            # PipeWire holds the ALSA device open across sleep, so nothing
+            # re-prepares the stream and the rebound amp doesn't get its
+            # AUDIO_PLAY until the sink idles and reopens - the woofers stay
+            # silent for a while. Cycling the sink forces the reopen now.
+            "${pkgs.util-linux}/bin/runuser -u orhun -- ${pkgs.bash}/bin/bash -c 'export XDG_RUNTIME_DIR=/run/user/1000; ${pkgs.pulseaudio}/bin/pactl suspend-sink @DEFAULT_SINK@ 1; sleep 0.5; ${pkgs.pulseaudio}/bin/pactl suspend-sink @DEFAULT_SINK@ 0; exit 0'"
+          ];
         };
       };
     };
