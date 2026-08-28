@@ -7,7 +7,7 @@ timeout 2 eww ping >/dev/null 2>&1 && exit 0
 pkill -9 -u "${USER:-$(id -un)}" -f 'eww daemon' 2>/dev/null
 pkill -9 -u "${USER:-$(id -un)}" -f 'eww open' 2>/dev/null
 sleep 0.2
-setsid -f eww daemon </dev/null >/dev/null 2>&1
+setsid -f eww daemon 9>&- </dev/null >/dev/null 2>&1
 for _ in $(seq 30); do
     timeout 2 eww ping >/dev/null 2>&1 && exit 0
     sleep 0.1
