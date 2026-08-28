@@ -11,7 +11,7 @@
 
 eww-ensure-daemon
 
-active=$(eww active-windows)
+active=$(timeout 2 eww active-windows)
 
 # The panel is mapped under one of two window ids: control_center, or the
 # control_center_focus twin that holds the keyboard while the WiFi
@@ -35,10 +35,10 @@ if [ "$panel_open" != 0 ]; then
     eww update cc_reveal=false
     (
         sleep 0.3
-        [ "$(eww get cc_reveal)" = "false" ] || exit 0
+        [ "$(timeout 2 eww get cc_reveal)" = "false" ] || exit 0
         # whichever id the panel ended up under (closing one that is not
         # mapped is logged as an error, so ask rather than close both)
-        mapped=$(eww active-windows |
+        mapped=$(timeout 2 eww active-windows |
             awk -F: '$1 == "control_center" || $1 == "control_center_focus" {print $1}')
         # shellcheck disable=SC2086 # deliberate word splitting: window ids
         [ -n "$mapped" ] && eww close $mapped

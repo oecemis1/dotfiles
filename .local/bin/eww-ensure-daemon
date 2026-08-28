@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 exec 9>"${XDG_RUNTIME_DIR:-/tmp}/eww-daemon-spawn.lock"
-flock 9
+flock -w 10 9 || exit 1
 
-eww ping >/dev/null 2>&1 && exit 0
+timeout 2 eww ping >/dev/null 2>&1 && exit 0
 
-eww daemon
+pkill -9 -u "${USER:-$(id -un)}" -f 'eww daemon' 2>/dev/null
+pkill -9 -u "${USER:-$(id -un)}" -f 'eww open' 2>/dev/null
+sleep 0.2
+setsid -f eww daemon </dev/null >/dev/null 2>&1
 for _ in $(seq 30); do
-    eww ping >/dev/null 2>&1 && exit 0
+    timeout 2 eww ping >/dev/null 2>&1 && exit 0
     sleep 0.1
 done
 exit 1

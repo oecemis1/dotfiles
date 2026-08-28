@@ -41,12 +41,13 @@
             export HOME=/home/orhun
             export XDG_RUNTIME_DIR=/run/user/1000
             export WAYLAND_DISPLAY=wayland-1
-            export PATH=/home/orhun/.local/bin:/home/orhun/.nix-profile/bin:$PATH
-            pkill -u orhun -f 'eww open' || true
-            eww kill 2>/dev/null || true
-            pkill -u orhun -f 'eww daemon' || true
+            export PATH=/home/orhun/.local/bin:/home/orhun/.nix-profile/bin:/run/current-system/sw/bin:$PATH
+            ${pkgs.procps}/bin/pkill -9 -u orhun -f 'eww daemon' || true
+            ${pkgs.procps}/bin/pkill -9 -u orhun -f 'eww open' || true
+            ${pkgs.procps}/bin/pkill -9 -u orhun -f 'eww-ensure-daemon' || true
+            ${pkgs.procps}/bin/pkill -9 -u orhun -f 'eww-control-center-toggle' || true
             sleep 0.3
-            ${pkgs.util-linux}/bin/setsid -f eww-ensure-daemon
+            ${pkgs.util-linux}/bin/setsid -f eww-ensure-daemon </dev/null >/dev/null 2>&1
             exit 0
           ''}";
         };
