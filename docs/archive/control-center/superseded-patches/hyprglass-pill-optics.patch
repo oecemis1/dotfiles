@@ -1,0 +1,258 @@
+diff --git a/src/GlassLayerSurface.cpp b/src/GlassLayerSurface.cpp
+index 5ba3243..cd3b649 100644
+--- a/src/GlassLayerSurface.cpp
++++ b/src/GlassLayerSurface.cpp
+@@ -457,6 +457,10 @@ void CGlassLayerSurface::compositeAndRestore(PHLMONITOR monitor, float alpha) {
+             maskInfo.pillBezelPx   = pills->bezel * monitor->m_scale;
+             maskInfo.pillOpacity   = pills->opacity;
+             maskInfo.pillCornerLobes = pills->cornerLobes;
++            if (pills->lens) {
++                maskInfo.pillLensMagnification = pills->lens->magnification();
++                maskInfo.pillLensWidthPx = pills->lens->width() * monitor->m_scale;
++            }
+             maskInfo.jfaTextureId  = field->getTexture()->m_texID;
+             maskInfo.jfaSize       = {transformBox.w, transformBox.h};
+             if (pills->blur >= 0.0f) {
+diff --git a/src/GlassRenderer.cpp b/src/GlassRenderer.cpp
+index 0df7078..ab12958 100644
+--- a/src/GlassRenderer.cpp
++++ b/src/GlassRenderer.cpp
+@@ -362,6 +362,8 @@ void applyGlassEffect(SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFr
+         glUniform1f(uniforms.pillBezelPx, mask->pillBezelPx);
+         glUniform1f(uniforms.pillOpacity, mask->pillOpacity);
+         glUniform1i(uniforms.pillCornerLobes, mask->pillCornerLobes ? 1 : 0);
++        glUniform1f(uniforms.pillLensMagnification, mask->pillLensMagnification);
++        glUniform1f(uniforms.pillLensWidthPx, mask->pillLensWidthPx);
+         glUniform1i(uniforms.pillTexIdx, mask->pillTexIdx);
+         glUniform1i(uniforms.jfaTex, 5);
+         glUniform2f(uniforms.jfaSizePx,
+@@ -371,6 +373,8 @@ void applyGlassEffect(SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFr
+         glUniform1i(uniforms.pillsEnabled, 0);
+         glUniform1f(uniforms.pillOpacity, 1.0f);
+         glUniform1i(uniforms.pillCornerLobes, 0);
++        glUniform1f(uniforms.pillLensMagnification, 1.0f);
++        glUniform1f(uniforms.pillLensWidthPx, 0.0f);
+     }
+ 
+     if (mask && mask->backgroundFieldEnabled && mask->backgroundJfaTextureId != 0) {
+diff --git a/src/GlassRenderer.hpp b/src/GlassRenderer.hpp
+index 494850c..f3cea96 100644
+--- a/src/GlassRenderer.hpp
++++ b/src/GlassRenderer.hpp
+@@ -68,6 +68,8 @@ struct SMaskInfo {
+     float    pillBezelPx   = 8.0f;
+     float    pillOpacity   = 1.0f;
+     bool     pillCornerLobes = false;
++    float    pillLensMagnification = 1.0f;
++    float    pillLensWidthPx = 0.0f;
+     int      pillTexIdx    = 0;
+     GLuint   jfaTextureId  = 0;
+     Vector2D jfaSize;
+diff --git a/src/PluginConfig.cpp b/src/PluginConfig.cpp
+index 61385d4..1c0a7e2 100644
+--- a/src/PluginConfig.cpp
++++ b/src/PluginConfig.cpp
+@@ -490,6 +490,13 @@ struct SPendingLayer {
+ 
+ static std::vector<SPendingLayer> s_pendingLayers;
+ 
++std::optional<SPillLensConfig> SPillLensConfig::from(double magnification, double width) {
++    if (!std::isfinite(magnification) || magnification < 1.0 || magnification > 1.25 ||
++        !std::isfinite(width) || width < 8.0 || width > 48.0)
++        return std::nullopt;
++    return SPillLensConfig{static_cast<float>(magnification), static_cast<float>(width)};
++}
++
+ std::optional<SBackgroundFadeWidth> SBackgroundFadeWidth::from(double value) {
+     if (!std::isfinite(value) || value < 0.0 || value > std::numeric_limits<float>::max())
+         return std::nullopt;
+@@ -570,7 +577,7 @@ static int handleLuaLayer(lua_State* L) {
+         }
+         lua_pop(L, 1);
+ 
+-        // pills = { threshold = , blur = , opacity = , bezel = , corner_lobes = }: alpha-derived dynamic slabs
++        // pills = { threshold = , blur = , opacity = , bezel = , corner_lobes = , lens = {...} }: alpha-derived dynamic slabs
+         lua_getfield(L, 2, "pills");
+         if (lua_istable(L, -1)) {
+             entry.hasPills = true;
+@@ -596,6 +603,33 @@ static int handleLuaLayer(lua_State* L) {
+             if (lua_isboolean(L, -1))
+                 entry.pills.cornerLobes = lua_toboolean(L, -1);
+             lua_pop(L, 1);
++
++            lua_getfield(L, -1, "lens");
++            if (!lua_isnil(L, -1)) {
++                if (lua_type(L, -1) != LUA_TTABLE) {
++                    notifyLayerWarning(std::format("[hyprglass] layer '{}': pills.lens must be a table; ignoring the lens object", entry.ns));
++                } else {
++                    lua_getfield(L, -1, "magnification");
++                    const bool magnificationIsNumber = lua_type(L, -1) == LUA_TNUMBER;
++                    const double magnification = magnificationIsNumber ? lua_tonumber(L, -1) : 0.0;
++                    lua_pop(L, 1);
++
++                    lua_getfield(L, -1, "width");
++                    const bool widthIsNumber = lua_type(L, -1) == LUA_TNUMBER;
++                    const double width = widthIsNumber ? lua_tonumber(L, -1) : 0.0;
++                    lua_pop(L, 1);
++
++                    if (magnificationIsNumber && widthIsNumber) {
++                        entry.pills.lens = SPillLensConfig::from(magnification, width);
++                    }
++                    if (!entry.pills.lens) {
++                        notifyLayerWarning(std::format(
++                            "[hyprglass] layer '{}': pills.lens requires finite numeric magnification in [1.0, 1.25] and width in [8, 48] logical px; ignoring the lens object",
++                            entry.ns));
++                    }
++                }
++            }
++            lua_pop(L, 1);
+         }
+         lua_pop(L, 1);
+ 
+diff --git a/src/PluginConfig.hpp b/src/PluginConfig.hpp
+index c69323a..b52f936 100644
+--- a/src/PluginConfig.hpp
++++ b/src/PluginConfig.hpp
+@@ -190,6 +190,19 @@ enum class ELayerDebugMode : int {
+ // Uniform array size in the glass shader; extra regions are dropped with a warning.
+ inline constexpr size_t MAX_GLASS_REGIONS = 16;
+ 
++class SPillLensConfig {
++  public:
++    [[nodiscard]] static std::optional<SPillLensConfig> from(double magnification, double width);
++    [[nodiscard]] constexpr float magnification() const { return m_magnification; }
++    [[nodiscard]] constexpr float width() const { return m_width; }
++
++  private:
++    constexpr SPillLensConfig(float magnification, float width) : m_magnification(magnification), m_width(width) {}
++
++    float m_magnification;
++    float m_width;
++};
++
+ // Alpha-derived pills: surface pixels above `threshold` form dynamic glass
+ // slabs whose edges come from a per-frame jump-flood distance field — they
+ // follow the layout wherever the widgets move, unlike declared regions.
+@@ -200,6 +213,7 @@ struct SPillConfig {
+     float opacity     = 1.0f;  // pill glass opacity; 0 is clear, 1 inherits the full preset opacity
+     float bezel       = 8.0f;  // pill edge-effect width, logical px
+     bool  cornerLobes = false; // separated top-left and bottom-right rim reflections
++    std::optional<SPillLensConfig> lens;
+ };
+ 
+ class SBackgroundFadeWidth {
+diff --git a/src/ShaderManager.cpp b/src/ShaderManager.cpp
+index feb63b4..733b675 100644
+--- a/src/ShaderManager.cpp
++++ b/src/ShaderManager.cpp
+@@ -59,6 +59,8 @@ bool CShaderManager::compileGlassShader() {
+     glassUniforms.pillBezelPx         = glGetUniformLocation(program, "pillBezelPx");
+     glassUniforms.pillOpacity         = glGetUniformLocation(program, "pillOpacity");
+     glassUniforms.pillCornerLobes     = glGetUniformLocation(program, "pillCornerLobes");
++    glassUniforms.pillLensMagnification = glGetUniformLocation(program, "pillLensMagnification");
++    glassUniforms.pillLensWidthPx     = glGetUniformLocation(program, "pillLensWidthPx");
+     glassUniforms.pillTexIdx          = glGetUniformLocation(program, "pillTexIdx");
+     glassUniforms.jfaTex              = glGetUniformLocation(program, "jfaTex");
+     glassUniforms.jfaSizePx           = glGetUniformLocation(program, "jfaSizePx");
+diff --git a/src/ShaderManager.hpp b/src/ShaderManager.hpp
+index 1e4386b..81e1372 100644
+--- a/src/ShaderManager.hpp
++++ b/src/ShaderManager.hpp
+@@ -43,6 +43,8 @@ struct SGlassUniforms {
+     GLint pillBezelPx = -1;
+     GLint pillOpacity = -1;
+     GLint pillCornerLobes = -1;
++    GLint pillLensMagnification = -1;
++    GLint pillLensWidthPx = -1;
+     GLint pillTexIdx = -1;
+     GLint jfaTex = -1;
+     GLint jfaSizePx = -1;
+diff --git a/src/Shaders.hpp b/src/Shaders.hpp
+index ad5f0e2..aafa85c 100644
+--- a/src/Shaders.hpp
++++ b/src/Shaders.hpp
+@@ -82,6 +82,8 @@ uniform float pillThreshold;
+ uniform float pillBezelPx;
+ uniform float pillOpacity;
+ uniform int pillCornerLobes;
++uniform float pillLensMagnification;
++uniform float pillLensWidthPx;
+ uniform int pillTexIdx;
+ uniform sampler2D jfaTex;
+ uniform vec2 jfaSizePx;
+@@ -105,6 +107,45 @@ float pillBoundaryDistance(vec2 sampleUV) {
+     return seedPx.x > 60000.0 ? 1e5 : length(seedPx + 0.5 - samplePx);
+ }
+ 
++struct PillFieldSample {
++    float distance;
++    vec2 outward;
++};
++
++PillFieldSample pillLensFieldSample(vec2 samplePx) {
++    ivec2 sizePx = max(ivec2(jfaSizePx), ivec2(1));
++    ivec2 sampleTexel = clamp(ivec2(floor(samplePx)), ivec2(0), sizePx - ivec2(1));
++    vec2 seedPx = jfaDecode(texelFetch(jfaTex, sampleTexel, 0));
++
++    vec2 toOutside = vec2(-samplePx.x - 0.5, 0.0);
++    float nearestDistance = length(toOutside);
++    vec2 candidate = vec2(jfaSizePx.x + 0.5 - samplePx.x, 0.0);
++    if (length(candidate) < nearestDistance) {
++        toOutside = candidate;
++        nearestDistance = length(candidate);
++    }
++    candidate = vec2(0.0, -samplePx.y - 0.5);
++    if (length(candidate) < nearestDistance) {
++        toOutside = candidate;
++        nearestDistance = length(candidate);
++    }
++    candidate = vec2(0.0, jfaSizePx.y + 0.5 - samplePx.y);
++    if (length(candidate) < nearestDistance) {
++        toOutside = candidate;
++        nearestDistance = length(candidate);
++    }
++
++    if (seedPx.x <= 60000.0) {
++        candidate = seedPx + 0.5 - samplePx;
++        if (length(candidate) < nearestDistance) {
++            toOutside = candidate;
++            nearestDistance = length(candidate);
++        }
++    }
++
++    return PillFieldSample(nearestDistance, toOutside / max(nearestDistance, 0.001));
++}
++
+ float backgroundBoundaryDistance(vec2 sampleUV) {
+     vec2 samplePx = sampleUV * backgroundJfaSizePx;
+     vec2 seedPx = jfaDecode(texture(backgroundJfaTex, clamp(sampleUV, 0.001, 0.999)));
+@@ -435,8 +476,28 @@ void main() {
+             shadowBias *= 1.0 - 0.7 * bottomRightLobe;
+         }
+ 
++        vec2 pillDomeUV = vec2(0.0);
++        if (pillLensMagnification > 1.0 && pillLensWidthPx > 0.0) {
++            PillFieldSample base = pillLensFieldSample(uv * jfaSizePx);
++            float d = max(base.distance - 0.5, 0.0);
++            float W = pillLensWidthPx;
++            float M = pillLensMagnification;
++            if (d < W) {
++                float t = clamp(d / W, 0.0, 1.0);
++                float profile = (1.0 - t) * (1.0 - t) * (1.0 + 2.0 * t);
++                float A = W * (M - 1.0) / (1.5 * M);
++                float probeStep = max(2.0, 1.1 * W * (M - 1.0));
++                PillFieldSample probe = pillLensFieldSample(
++                    uv * jfaSizePx - base.outward * probeStep);
++                float rise = smoothstep(-probeStep, probeStep, probe.distance - base.distance);
++                float sameBoundary = smoothstep(0.25, 0.75, dot(base.outward, probe.outward));
++                float confidence = mix(rise, 1.0, sameBoundary);
++                pillDomeUV = -base.outward * (A * profile * confidence * outerCoverage) / fullSize;
++            }
++        }
++
+         applyGlass(uv, surfacePixel, hasMask,
+-                   1.0, edgeProximity, bevelSlope * outerCoverage, inwardDir, vec2(0.0),
++                   1.0, edgeProximity, bevelSlope * outerCoverage, inwardDir, pillDomeUV,
+                    rimBias, rimLine, specBias, shadowBias, pillOpacity, pillTexIdx);
+         return;
+     }

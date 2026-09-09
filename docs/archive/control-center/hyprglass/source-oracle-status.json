@@ -1,0 +1,841 @@
+{
+  "schema_version": 4,
+  "status": "passed",
+  "authoritative": true,
+  "authority": {
+    "scope": "Fresh pinned source-executable GPU rendering compared with the canonical embedded liquidglass.frag and gaussianblur.frag shaders in this standalone deterministic scene.",
+    "exclusions": [
+      "production C++ uniform-upload wiring",
+      "CPU-oracle completion",
+      "compositor integration",
+      "other materials and runtime configurations"
+    ]
+  },
+  "generated_at_utc": "2026-09-07T19:12:25Z",
+  "command": {
+    "runner": "tests/visual/source-oracle-capture.sh",
+    "source_directory": "/tmp/opencode/LiquidGlass-phase4",
+    "output_root": "/tmp/opencode/hyprglass-source-oracle",
+    "display": ":96"
+  },
+  "run": {
+    "id": "20260907T191225Z-1424810",
+    "output_root": "/tmp/opencode/hyprglass-source-oracle",
+    "directory": "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810",
+    "report": "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/source-oracle-report.json",
+    "latest_link": "/tmp/opencode/hyprglass-source-oracle/latest",
+    "immutable_unique_directory": true
+  },
+  "source": {
+    "repository": "https://github.com/OverShifted/LiquidGlass",
+    "directory": "/tmp/opencode/LiquidGlass-phase4",
+    "commit": "3797fa541c1f026c521a75885ee271f03bdf9f0f",
+    "tree": "912b33a0f40361513042af72c174e74d782966c0",
+    "overengine_submodule": "1a460cade8d0162a0040b871cda2e23ba66c4547",
+    "worktree_before_build": "clean",
+    "worktree_after_capture": "clean",
+    "submodules": [
+      " 1a460cade8d0162a0040b871cda2e23ba66c4547 vendor/OverEngine (remotes/origin/liquid-glass)",
+      " 94afe57b63ae66add9e47e1e06c0668f320d747d vendor/OverEngine/OverEngine/vendor/GLFW (3.3-963-g94afe57b)",
+      " f3c328ab2a1045adb085565c943c45e344ebd1e6 vendor/OverEngine/OverEngine/vendor/box2d (v2.4.1-1-gf3c328a)",
+      " 2622cd23e69b67316cf678a97c268a874774c0e1 vendor/OverEngine/OverEngine/vendor/fmt (9.1.0-167-g2622cd23)",
+      " fc8f4bb442b9540969f2f3f351c4960d91bca17a vendor/OverEngine/OverEngine/vendor/glm (0.9.5.3-2719-gfc8f4bb4)",
+      " 187884e648939c769210d84257d2928d0361c7bd vendor/OverEngine/OverEngine/vendor/imgui (v1.62-3912-g187884e6)",
+      " 797d434a77a693e49a0c972ae238accd60217e46 vendor/OverEngine/OverEngine/vendor/spdlog (v1.2.1-2433-g797d434a)",
+      " a3622b521b348e21007e3cc96e52869893be69d5 vendor/OverEngine/OverEngine/vendor/wren (0.1.0-476-ga3622b52)",
+      " 95f815025fcdb22fce4b02e3e22fde45091e857c vendor/OverEngine/OverEngine/vendor/wrenpp (heads/master)",
+      " 72a8835978cb8b061c5a59a2141ba4baa43017e2 vendor/OverEngine/OverEngine/vendor/yaml-cpp (yaml-cpp-0.7.0-102-g72a8835)"
+    ]
+  },
+  "build": {
+    "fresh_out_of_tree": true,
+    "build_directory": "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/build/source",
+    "build_directory_preexisted": false,
+    "build_type": "Release",
+    "executable": "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/build/source/LiquidGlass",
+    "executable_sha256_after_build": "570701d3d89c558a8bb8771ee314c3ab651e61f43cd29cc2ef16626b73f54202",
+    "executable_sha256_after_capture": "570701d3d89c558a8bb8771ee314c3ab651e61f43cd29cc2ef16626b73f54202",
+    "compiler": "gcc (GCC) 15.3.0",
+    "cmake": "cmake version 4.3.4"
+  },
+  "runtime": {
+    "display": "Xvfb :96, 1600x900x24; source client 512x512",
+    "software_rendering": true,
+    "source": {
+      "a": {
+        "version": "4.6 (Core Profile) Mesa 26.2.0",
+        "vendor": "Mesa",
+        "renderer": "llvmpipe (LLVM 21.1.8, 256 bits)"
+      },
+      "b": {
+        "version": "4.6 (Core Profile) Mesa 26.2.0",
+        "vendor": "Mesa",
+        "renderer": "llvmpipe (LLVM 21.1.8, 256 bits)"
+      }
+    },
+    "implementation": {
+      "renderer": "llvmpipe (LLVM 21.1.8, 256 bits)",
+      "version": "OpenGL ES 3.2 Mesa 26.2.0",
+      "vendor": "Mesa",
+      "api": "OpenGL ES",
+      "context_samples": 0,
+      "context_sample_buffers": 0,
+      "render_samples": 0,
+      "source_observed_samples": 0,
+      "production_framebuffer_wrap": "GL_CLAMP_TO_EDGE",
+      "source_framebuffer_wrap_variant": "GL_REPEAT",
+      "blend_equation": "GL_FUNC_ADD",
+      "blend_function": "GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA",
+      "camera_size": 9.40000153
+    },
+    "multisampling": {
+      "source_a": {
+        "requested_samples": 4,
+        "window_visual_id": "0x21",
+        "observed_samples": 0,
+        "observed_sample_buffers": 0,
+        "visual_record": "Visual ID: 21  depth=24  class=TrueColor, type=window,pixmap bufferSize=32 level=0 renderType=rgba doubleBuffer=1 stereo=0 rgba: redSize=8 greenSize=8 blueSize=8 alphaSize=8 float=N sRGB=N auxBuffers=0 depthSize=24 stencilSize=8 accum: redSize=0 greenSize=0 blueSize=0 alphaSize=0 multiSample=0  multiSampleBuffers=0"
+      },
+      "source_b": {
+        "requested_samples": 4,
+        "window_visual_id": "0x21",
+        "observed_samples": 0,
+        "observed_sample_buffers": 0,
+        "visual_record": "Visual ID: 21  depth=24  class=TrueColor, type=window,pixmap bufferSize=32 level=0 renderType=rgba doubleBuffer=1 stereo=0 rgba: redSize=8 greenSize=8 blueSize=8 alphaSize=8 float=N sRGB=N auxBuffers=0 depthSize=24 stencilSize=8 accum: redSize=0 greenSize=0 blueSize=0 alphaSize=0 multiSample=0  multiSampleBuffers=0"
+      },
+      "implementation_render_samples": 0,
+      "finding": "GLFW requests four samples; the selected GLX window visual determines the observed count used by the comparison renderer."
+    },
+    "source_processes": {
+      "launch": "fresh unmodified executable directly as process-group leader under a separate bounded timeout guard",
+      "source_a": {
+        "schema_version": 1,
+        "pid": 1430530,
+        "parent_guard_pid": 1430527,
+        "expected_guard_pid": 1430527,
+        "process_group": 1430530,
+        "start_time_ticks": 80463423,
+        "executable": "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/build/source/LiquidGlass",
+        "argv": [
+          "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/build/source/LiquidGlass"
+        ],
+        "direct_group_leader": true,
+        "direct_child_of_bounded_guard": true,
+        "executable_matches_fresh_build": true
+      },
+      "source_b": {
+        "schema_version": 1,
+        "pid": 1430928,
+        "parent_guard_pid": 1430924,
+        "expected_guard_pid": 1430924,
+        "process_group": 1430928,
+        "start_time_ticks": 80464902,
+        "executable": "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/build/source/LiquidGlass",
+        "argv": [
+          "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/build/source/LiquidGlass"
+        ],
+        "direct_group_leader": true,
+        "direct_child_of_bounded_guard": true,
+        "executable_matches_fresh_build": true
+      }
+    },
+    "cleanup": {
+      "a": {
+        "source_guard_pid": 1430527,
+        "source_process_group": 1430530,
+        "xvfb_process_group": 1430475,
+        "source_guard_gone": true,
+        "source_group_gone": true,
+        "xvfb_group_gone": true
+      },
+      "b": {
+        "source_guard_pid": 1430924,
+        "source_process_group": 1430928,
+        "xvfb_process_group": 1430872,
+        "source_guard_gone": true,
+        "source_group_gone": true,
+        "xvfb_group_gone": true
+      }
+    }
+  },
+  "scene": {
+    "frame": {
+      "width": 512,
+      "height": 512
+    },
+    "background": {
+      "asset_dimensions": [
+        512,
+        512
+      ],
+      "asset_format": "binary PPM (P6) RGB8 loaded by stb_image through an isolated .jpg path",
+      "formula": "RGB8 coordinate ramps with an 8x8 checker perturbation: R=clamp(round(255*x/511)+/-28), G=clamp(round(255*y/511)-/+24), B=clamp(round(255*(x+y)/1022)+/-18); the first sign applies when ((x//8) XOR (y//8)) is odd",
+      "sha256": "acafe1eaa8d41edc4d1ddaf421b0752759ccc0b940fc29c6932c044d89db9517",
+      "source_clear_rgba": [
+        0.1,
+        0.1,
+        0.1,
+        1.0
+      ]
+    },
+    "shape": {
+      "quad": {
+        "left": 128,
+        "top": 128,
+        "right": 383,
+        "bottom": 383
+      },
+      "center": [
+        256.0,
+        256.0
+      ],
+      "world_size_entered_through_ui": [
+        4.7,
+        4.7
+      ],
+      "camera_size_initial_pinned_source_default": 15.0,
+      "camera_scroll_steps_sent": 8,
+      "camera_scroll_delta_pinned_source_code": 0.7,
+      "camera_size_derived": 9.40000153,
+      "pixel_size_derivation": "512 * 4.7 / (15.0 - 8 * 0.7) = 256",
+      "changed_bounds_over_2_rgb8_within_comparison_roi_only": {
+        "source_a": {
+          "left": 128,
+          "top": 128,
+          "right": 383,
+          "bottom": 383
+        },
+        "source_b": {
+          "left": 128,
+          "top": 128,
+          "right": 383,
+          "bottom": 383
+        },
+        "implementation_clamp": {
+          "left": 128,
+          "top": 128,
+          "right": 383,
+          "bottom": 383
+        },
+        "implementation_repeat": {
+          "left": 128,
+          "top": 128,
+          "right": 383,
+          "bottom": 383
+        }
+      }
+    },
+    "source_ui": {
+      "values_entered": {
+        "width": 4.7,
+        "height": 4.7
+      },
+      "other_values_entered": [],
+      "configured_screenshots": [
+        "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/configured-source-a.png",
+        "/tmp/opencode/hyprglass-source-oracle/runs/20260907T191225Z-1424810/configured-source-b.png"
+      ],
+      "capture_state": "Settings collapsed and dragged down by 50 pixels with xdotool; pointer moved away before capture",
+      "collapsed_header_conservative_exclusion": {
+        "left": 0,
+        "top": 32,
+        "right": 420,
+        "bottom": 96
+      },
+      "collapsed_header_differences": {
+        "source_a": {
+          "changed_pixels": 12146,
+          "changed_bounds": {
+            "left": 0,
+            "top": 50,
+            "right": 404,
+            "bottom": 79
+          }
+        },
+        "source_b": {
+          "changed_pixels": 12146,
+          "changed_bounds": {
+            "left": 0,
+            "top": 50,
+            "right": 404,
+            "bottom": 79
+          }
+        }
+      },
+      "exclusion_disjoint_from_comparison_roi": true
+    },
+    "source_background_diagnostic": {
+      "geometry": {
+        "left": 0,
+        "top": 400,
+        "right": 511,
+        "bottom": 511
+      },
+      "description": "bottom strip outside the comparison ROI and collapsed-header exclusion"
+    },
+    "time_dependent_scene_input": false
+  },
+  "runtime_values": {
+    "ui_entered": {
+      "width": 4.7,
+      "height": 4.7
+    },
+    "pinned_source_defaults": {
+      "values": {
+        "shape_power": 3.0,
+        "refraction_curve": {
+          "a": 0.7,
+          "b": 2.3,
+          "c": 5.2,
+          "d": 6.9,
+          "power": 1.0
+        },
+        "noise_strength": 0.06,
+        "glow": {
+          "weight": 0.25,
+          "bias": 0.0,
+          "edge0": 0.5,
+          "edge1": -0.5
+        },
+        "blur_radius": 2.0,
+        "blur_iterations": 1,
+        "blur_downscale": 0.5
+      },
+      "provenance": "Defaults in hashed pinned source inputs, corroborated by parity output; not dynamically observed or entered through UI."
+    },
+    "centered_mapping_strength": {
+      "implementation_value": 1.0,
+      "source_behavior": "implicit exact upstream centered mapping"
+    },
+    "non_base_extensions": {
+      "source": "absent upstream",
+      "implementation_identity_values": {
+        "material_seed": 0.0,
+        "rounded_rectangle_radius_px": 0.0,
+        "monitor_scale": 1.0,
+        "snell_bezel_width_logical_px": 0.0,
+        "snell_thickness_logical_px": 0.0,
+        "snell_refractive_index": 1.3,
+        "snell_strength": 0.0,
+        "rim_width_logical_px": 0.0,
+        "rim_saturation": 1.0,
+        "rim_fresnel_strength": 0.0,
+        "rim_specular_strength": 0.0,
+        "rim_inner_shadow_strength": 0.0,
+        "rim_light_angle_radians": 0.0,
+        "chromatic_aberration": 0.0,
+        "glass_opacity": 1.0,
+        "tint_color": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "tint_alpha": 0.0,
+        "brightness": 1.0,
+        "contrast": 1.0,
+        "saturation": 1.0,
+        "vibrancy": 0.0,
+        "vibrancy_darkness": 0.0,
+        "adaptive_dim": 0.0,
+        "adaptive_boost": 0.0,
+        "use_mask": 0,
+        "region_count": 0,
+        "region_background": 0,
+        "pills_enabled": 0,
+        "background_field_enabled": 0,
+        "debug_mode": 0,
+        "texture_variant_0_binding": "base_blur_texture",
+        "texture_variant_1_binding": "base_blur_texture",
+        "texture_variant_2_binding": "base_blur_texture"
+      }
+    }
+  },
+  "comparison": {
+    "channels": "absolute normalized RGB",
+    "selection": {
+      "description": "complete 256x256 shape quad plus an exact four-pixel rectangular exterior ring",
+      "quad": {
+        "left": 128,
+        "top": 128,
+        "right": 383,
+        "bottom": 383
+      },
+      "outer": {
+        "left": 124,
+        "top": 124,
+        "right": 387,
+        "bottom": 387
+      },
+      "quad_pixels": 65536,
+      "ring_pixels": 4160,
+      "selected_pixels": 69696,
+      "selected_rgb_samples": 209088,
+      "outside_pixels": 192448
+    },
+    "percentile": "nearest-rank p95 over flattened selected pixel-channel errors",
+    "source_repeat": {
+      "full": {
+        "pixels": 262144,
+        "samples": 786432,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "selected": {
+        "pixels": 69696,
+        "samples": 209088,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "interior": {
+        "pixels": 65536,
+        "samples": 196608,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "ring": {
+        "pixels": 4160,
+        "samples": 12480,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "outside": {
+        "pixels": 192448,
+        "samples": 577344,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      }
+    },
+    "implementation_clamp_against_source": {
+      "source_a": {
+        "pixels": 69696,
+        "samples": 209088,
+        "p95": 0.00392156862745098,
+        "rms": 0.001347065278275894,
+        "max": 0.011764705882352941
+      },
+      "source_b": {
+        "pixels": 69696,
+        "samples": 209088,
+        "p95": 0.00392156862745098,
+        "rms": 0.001347065278275894,
+        "max": 0.011764705882352941
+      }
+    },
+    "implementation_p95_limit": 0.00784313725490196,
+    "implementation_rms_limit": 0.005,
+    "implementation_outside_roi_against_background": {
+      "implementation_clamp": {
+        "pixels": 192448,
+        "samples": 577344,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "implementation_repeat": {
+        "pixels": 192448,
+        "samples": 577344,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      }
+    },
+    "source_background_diagnostic_against_background": {
+      "source_a": {
+        "pixels": 57344,
+        "samples": 172032,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "source_b": {
+        "pixels": 57344,
+        "samples": 172032,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      }
+    },
+    "source_outside_roi_excluding_collapsed_ui": {
+      "source_a": {
+        "pixels": 165083,
+        "samples": 495249,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "source_b": {
+        "pixels": 165083,
+        "samples": 495249,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      }
+    },
+    "exterior_ring_against_background": {
+      "source_a": {
+        "pixels": 4160,
+        "samples": 12480,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "source_b": {
+        "pixels": 4160,
+        "samples": 12480,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "implementation_clamp": {
+        "pixels": 4160,
+        "samples": 12480,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      },
+      "implementation_repeat": {
+        "pixels": 4160,
+        "samples": 12480,
+        "p95": 0.0,
+        "rms": 0.0,
+        "max": 0.0
+      }
+    },
+    "framebuffer_wrap": {
+      "source": "default GL_REPEAT on OverEngine framebuffer color textures",
+      "implementation": "production GL_CLAMP_TO_EDGE",
+      "clamp_against_repeat": {
+        "full": {
+          "pixels": 262144,
+          "samples": 786432,
+          "p95": 0.0,
+          "rms": 0.0,
+          "max": 0.0
+        },
+        "selected": {
+          "pixels": 69696,
+          "samples": 209088,
+          "p95": 0.0,
+          "rms": 0.0,
+          "max": 0.0
+        },
+        "interior": {
+          "pixels": 65536,
+          "samples": 196608,
+          "p95": 0.0,
+          "rms": 0.0,
+          "max": 0.0
+        },
+        "ring": {
+          "pixels": 4160,
+          "samples": 12480,
+          "p95": 0.0,
+          "rms": 0.0,
+          "max": 0.0
+        }
+      },
+      "selected_roi_unaffected": true
+    }
+  },
+  "artifacts": {
+    "source_executable": {
+      "path": "build/source/LiquidGlass",
+      "sha256": "570701d3d89c558a8bb8771ee314c3ab651e61f43cd29cc2ef16626b73f54202",
+      "bytes": 2916376
+    },
+    "source_a": {
+      "path": "source-a.ppm",
+      "sha256": "388d64c17b5dacb8433fed53b59643e73f160c737c9e22c938e135061103c012",
+      "bytes": 786447
+    },
+    "source_b": {
+      "path": "source-b.ppm",
+      "sha256": "388d64c17b5dacb8433fed53b59643e73f160c737c9e22c938e135061103c012",
+      "bytes": 786447
+    },
+    "implementation_clamp": {
+      "path": "implementation-clamp.ppm",
+      "sha256": "6556e0a8d03e51f4e6d0cf39b3d6cde64e249a35532ce2e4ae307966ad971a03",
+      "bytes": 786447
+    },
+    "implementation_repeat": {
+      "path": "implementation-repeat.ppm",
+      "sha256": "6556e0a8d03e51f4e6d0cf39b3d6cde64e249a35532ce2e4ae307966ad971a03",
+      "bytes": 786447
+    },
+    "background": {
+      "path": "background.ppm",
+      "sha256": "2d5075203c1c252482d74a2291350e6dc3eaf9c5a15c776d8dc3bf7b79590793",
+      "bytes": 786447
+    },
+    "configured_source_a": {
+      "path": "configured-source-a.png",
+      "sha256": "7e8591ffe8592fb1e5e63691f49da1896ab4a1e8565e69a3c2fedd87685ec176",
+      "bytes": 42586
+    },
+    "configured_source_b": {
+      "path": "configured-source-b.png",
+      "sha256": "7e8591ffe8592fb1e5e63691f49da1896ab4a1e8565e69a3c2fedd87685ec176",
+      "bytes": 42586
+    },
+    "source_log_a": {
+      "path": "source-a.log",
+      "sha256": "22f18d654855a1a794b0697f3992dba5bc2361c97e60e5cc0fce9645a6324623",
+      "bytes": 471
+    },
+    "source_log_b": {
+      "path": "source-b.log",
+      "sha256": "2d599b97128a2fbfbb1f26b5356655d407d2b4030b6ca93521f1a8ebeec2f86d",
+      "bytes": 471
+    },
+    "glxinfo_a": {
+      "path": "glxinfo-a.txt",
+      "sha256": "639a15a093e674cdaa1a2e719a5d62337a1c127b5a0571f4069664aff04251eb",
+      "bytes": 157898
+    },
+    "glxinfo_b": {
+      "path": "glxinfo-b.txt",
+      "sha256": "eacef854a6ecb399c9c90af911412995e45535fb9e80e7c56ca2753b6a3658a8",
+      "bytes": 157898
+    },
+    "xwininfo_a": {
+      "path": "xwininfo-a.txt",
+      "sha256": "449db884a8a14df5417aef3928b2a69a03ba3ca12a4762db4c58deb05ab89299",
+      "bytes": 571
+    },
+    "xwininfo_b": {
+      "path": "xwininfo-b.txt",
+      "sha256": "449db884a8a14df5417aef3928b2a69a03ba3ca12a4762db4c58deb05ab89299",
+      "bytes": 571
+    },
+    "source_glx_a": {
+      "path": "source-glx-a.json",
+      "sha256": "497651a830c4cc20f17d12b5be7e65d3f0e1e7e2dacd7ce2def39561724f5e61",
+      "bytes": 455
+    },
+    "source_glx_b": {
+      "path": "source-glx-b.json",
+      "sha256": "497651a830c4cc20f17d12b5be7e65d3f0e1e7e2dacd7ce2def39561724f5e61",
+      "bytes": 455
+    },
+    "source_process_a": {
+      "path": "source-process-a.json",
+      "sha256": "d623888e64b1a2db1897af82b5e7b6082f7e5c1ace09d2c5cfbc98375bc3394c",
+      "bytes": 510
+    },
+    "source_process_b": {
+      "path": "source-process-b.json",
+      "sha256": "cc8be1745d218a8ce326b0eef6fa2eee9ab08f21bcf9edafac00153e7ee3bd61",
+      "bytes": 510
+    },
+    "cleanup_a": {
+      "path": "cleanup-a.json",
+      "sha256": "e2692eba885206c1a06fd75d97518d025117bbd5fad68d895a4cd41d1201e9ad",
+      "bytes": 187
+    },
+    "cleanup_b": {
+      "path": "cleanup-b.json",
+      "sha256": "2623cfc81c324121aa7277af47da89ca3840fa517de0b396c0047710f142d4de",
+      "bytes": 187
+    },
+    "geometry_a": {
+      "path": "geometry-a.txt",
+      "sha256": "effc05653bb489cd66f1421fade456871ab00dd52e79c52926b14babb01e0ca2",
+      "bytes": 53
+    },
+    "geometry_b": {
+      "path": "geometry-b.txt",
+      "sha256": "effc05653bb489cd66f1421fade456871ab00dd52e79c52926b14babb01e0ca2",
+      "bytes": 53
+    },
+    "canonical_liquid_shader": {
+      "path": "inputs/liquidglass.frag",
+      "sha256": "fe8fe848d72f720111ae41d3f11c41665f8668895bc714c6fcfe4bb804b7e03c",
+      "bytes": 26833
+    },
+    "canonical_blur_shader": {
+      "path": "inputs/gaussianblur.frag",
+      "sha256": "2a46f7157d12bc51c42e913e976c2ed863edeeb0600de7b32f73c5a81bf0bb12",
+      "bytes": 1107
+    },
+    "deterministic_pattern": {
+      "path": "inputs/background-cubes.jpg",
+      "sha256": "acafe1eaa8d41edc4d1ddaf421b0752759ccc0b940fc29c6932c044d89db9517",
+      "bytes": 786447
+    },
+    "implementation_renderer": {
+      "path": "source-oracle-render",
+      "sha256": "e83ac04dddb7323d409dcf36262772d24a2723c686f0d26cdffe1f7975788d8c",
+      "bytes": 28448
+    },
+    "implementation_metadata": {
+      "path": "implementation-metadata.json",
+      "sha256": "4a5e81dbaed4a8ba33d21183a88792e99587d4369e51791d9cf5e04181281a0a",
+      "bytes": 420
+    },
+    "configure_log": {
+      "path": "configure.log",
+      "sha256": "502fd31a85b59255bfbee908adb2d18de7f73ef3a94945b3a44af4bcb0057222",
+      "bytes": 2503
+    },
+    "build_log": {
+      "path": "build.log",
+      "sha256": "650586f7d8dd114242f41fa1b1bcecdbb5be068c85734217c25bf2db8db141a2",
+      "bytes": 22935
+    },
+    "cmake_cache": {
+      "path": "build/source/CMakeCache.txt",
+      "sha256": "7e23cf466b45ed1dac20d32f4ef472c2f80f7261a7e00423fe929d7c870bcef8",
+      "bytes": 56984
+    },
+    "runtime_link_directories": {
+      "path": "runtime-link-directories.txt",
+      "sha256": "556142b13938da78507dc43f895f0d7f577c5808f2facf36fb9c4376a7647d00",
+      "bytes": 1168
+    }
+  },
+  "freshness": {
+    "project_inputs": [
+      {
+        "path": "src/Shaders.hpp",
+        "sha256": "0df67d8d1e666bb67abcfb5b4d2b8fb904decd9b21e1eb80611db7b334821e8d",
+        "bytes": 32050
+      },
+      {
+        "path": "tests/visual/source-oracle-capture.sh",
+        "sha256": "fee5ea62b89eb419281d374fde9be324661051c1ee96357bdcfdcdd1592f6be7",
+        "bytes": 18240
+      },
+      {
+        "path": "tests/visual/source-oracle-imgui.ini",
+        "sha256": "e5045f15143710f582ebb471005ed36952d68aa1e6195e94cf49b9ea68d67fa6",
+        "bytes": 70
+      },
+      {
+        "path": "tests/visual/source-oracle-render.c",
+        "sha256": "03b158fd2d16b00e291ce88a10e3aa42d738537ec07c5b69c85196c9d3a27d78",
+        "bytes": 18938
+      },
+      {
+        "path": "tests/visual/source-oracle-verify.sh",
+        "sha256": "cc39c93184e1ab9c19ed244dd554701134b31cd7907f93201f1e720e8dfee678",
+        "bytes": 917
+      },
+      {
+        "path": "tests/visual/source-oracle.py",
+        "sha256": "101a3f73ac1da5418e553a872f4a6dacdbb8bf4c00a5e7cc00662b202ee01f51",
+        "bytes": 48405
+      }
+    ],
+    "canonical_shaders": {
+      "liquidglass.frag": {
+        "sha256": "fe8fe848d72f720111ae41d3f11c41665f8668895bc714c6fcfe4bb804b7e03c",
+        "bytes": 26833
+      },
+      "gaussianblur.frag": {
+        "sha256": "2a46f7157d12bc51c42e913e976c2ed863edeeb0600de7b32f73c5a81bf0bb12",
+        "bytes": 1107
+      }
+    },
+    "source_inputs": [
+      {
+        "path": "CMakeLists.txt",
+        "sha256": "203f0e9257f01b46b4a8edd51ca285d8d03c5179152ca6fe7b3619f0e15071a4",
+        "bytes": 664
+      },
+      {
+        "path": "src/App.cpp",
+        "sha256": "50a227b32f2290dcf6711b8a70ce99d9cfe23dbe5605d5d7368e6e1d7603baca",
+        "bytes": 627
+      },
+      {
+        "path": "src/BlurPass.h",
+        "sha256": "38ba757e3f4e31a5c9df8ef7cec786abfb611d2632954a7d06c983aaa30dcc5b",
+        "bytes": 2121
+      },
+      {
+        "path": "src/LiquidGlass.cpp",
+        "sha256": "d88f3f5ca2ad70aae73bd79f5748804e5b2add1309b6aad749a85e99a11e1e56",
+        "bytes": 12307
+      },
+      {
+        "path": "src/LiquidGlass.h",
+        "sha256": "986f28c9354112df596ed71634fdd1443074eae6f659be4d5b10f7b525f3f1f9",
+        "bytes": 1468
+      },
+      {
+        "path": "assets/shaders/BatchRenderer2D.glsl",
+        "sha256": "ae3c70d17d2b0c5648d1bbd90b9cfa820b947bf3a079319a1d14fb06ec15c862",
+        "bytes": 7634
+      },
+      {
+        "path": "assets/shaders/Blur.glsl",
+        "sha256": "6b7444f7213fdb022786c065108d2b2b06370089e361d9f324b471cdc7280ea3",
+        "bytes": 1539
+      },
+      {
+        "path": "vendor/OverEngine/OverEngine/src/Platform/Linux/LinuxWindow.cpp",
+        "sha256": "fb265f846ca53b2cce14f802b0c910af3b326c4bbe832e6705d5d143e2292ea6",
+        "bytes": 5578
+      },
+      {
+        "path": "vendor/OverEngine/OverEngine/src/Platform/OpenGL/OpenGLFrameBuffer.cpp",
+        "sha256": "86f4a8f9d8b2e93fea4eabf1ad2e8d753272c18143f2af404472b9af1d0cf464",
+        "bytes": 2090
+      },
+      {
+        "path": "vendor/OverEngine/OverEngine/src/Platform/OpenGL/OpenGLRendererAPI.cpp",
+        "sha256": "732def4adc23e797954bf91b8320ca2e7ad9fbb74b1e73e93ab81535192ba6c3",
+        "bytes": 2955
+      },
+      {
+        "path": "vendor/OverEngine/OverEngine/src/Platform/OpenGL/OpenGLTexture.cpp",
+        "sha256": "9d89e07d1ff5ab190bf2bf658ffef5a3b61087b7ae3a241bdd1b580a995b3b8b",
+        "bytes": 4567
+      }
+    ]
+  },
+  "assertions": {
+    "capture_dimensions_512": true,
+    "configured_screenshot_a_512": true,
+    "configured_screenshot_b_512": true,
+    "full_frame_source_repeat_exact": true,
+    "source_a_shape_bounds_inside_roi": true,
+    "source_b_shape_bounds_inside_roi": true,
+    "implementation_clamp_shape_bounds_inside_roi": true,
+    "implementation_repeat_shape_bounds_inside_roi": true,
+    "implementation_a_p95": true,
+    "implementation_a_rms": true,
+    "implementation_b_p95": true,
+    "implementation_b_rms": true,
+    "implementation_outside_roi_exact": true,
+    "source_background_diagnostic_exact": true,
+    "source_outside_ui_exclusion_exact": true,
+    "collapsed_ui_present_in_exclusion": true,
+    "ui_exclusion_outside_comparison_roi": true,
+    "exterior_ring_exact_background": true,
+    "clamp_repeat_selected_roi_exact": true,
+    "source_runtime_complete": true,
+    "same_software_renderer": true,
+    "same_vendor": true,
+    "source_requested_four_samples": true,
+    "source_observed_samples_repeat": true,
+    "implementation_follows_observed_samples": true,
+    "direct_source_process_a": true,
+    "direct_source_process_b": true,
+    "independent_source_processes": true,
+    "process_groups_cleaned": true,
+    "independent_x_servers": true,
+    "fresh_executable_unchanged": true,
+    "source_clean_before": true,
+    "source_clean_after": true,
+    "source_submodules_unchanged": true,
+    "source_submodules_initialized": true
+  },
+  "blocker": null
+}
