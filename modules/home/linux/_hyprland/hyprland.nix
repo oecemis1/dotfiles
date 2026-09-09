@@ -687,14 +687,11 @@ in
           [
             "waybar"
             "tofi"
-            "calendar"
-            "brightness_slider"
-            "power_menu"
           ]
         # Surfaces that own their motion (or shouldn't have any) skip the
         # compositor's layer fade: tofi is keyboard-summoned dozens of
-        # times a day and must appear instantly; the eww control center
-        # animates via its revealer.
+        # times a day and must appear instantly; the Quickshell control center
+        # owns its QML animations.
         ++
           map
             (namespace: {

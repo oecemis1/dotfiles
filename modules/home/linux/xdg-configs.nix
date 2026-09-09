@@ -13,22 +13,7 @@
     in
     {
       xdg.configFile = {
-        eww = immutable "eww";
         quickshell = immutable "quickshell";
-
-        # Palette for the eww widgets, generated from the colorScheme flavor.
-        "eww/styles/_colors.scss".text = ''
-          $crust: ${colors.crust};
-          $surface0: ${colors.surface0};
-          $surface1: ${colors.surface1};
-          $overlay: ${colors.overlay};
-          $text: ${colors.text};
-          $accent: ${colors.accent};
-          $accent2: ${colors.accent2};
-          $red: ${colors.red};
-          $teal: ${colors.teal};
-          $yellow: ${colors.yellow};
-        '';
 
         # tofi's config does `include = .../current-theme`.
         "tofi/current-theme".text = ''

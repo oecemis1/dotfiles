@@ -1,5 +1,5 @@
 # Central color-scheme switch. Flip `colorScheme.flavor` below (or set it from
-# a host module) and rebuild to retheme waybar, swaync, hyprland, eww, kitty,
+# a host module) and rebuild to retheme waybar, swaync, hyprland, kitty,
 # tmux, neovim and yazi in one go. Both palettes stay in the repo permanently:
 # kitty keeps dracula.conf/mocha.conf, yazi keeps its vendored flavors.
 { self, ... }:

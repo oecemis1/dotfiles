@@ -37,7 +37,6 @@
         xauth
 
         imhex
-        eww
       ];
     };
 }

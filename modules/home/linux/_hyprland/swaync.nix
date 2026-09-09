@@ -48,7 +48,7 @@ in
       notification-window-width = 350;
       keyboard-shortcuts = true;
       image-visibility = "never";
-      # panel reveal; matches the eww control center's 250ms slide. The
+      # panel reveal; matches the Quickshell control center's 250ms reveal. The
       # compositor's layer fade is disabled for this namespace so the
       # slide is the only motion.
       transition-time = 250;
@@ -64,7 +64,7 @@ in
         };
       };
 
-      # dnd lives in the eww control center now
+      # dnd lives in the Quickshell control center
       widgets = [
         "inhibitors"
         "title"

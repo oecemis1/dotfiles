@@ -50,8 +50,7 @@ in
         };
 
         # Clicking the clock opens the notification panel (which anchors to
-        # the right, under it). The eww calendar is retired but kept around:
-        # `eww-calendar-toggle` still works if bound somewhere again.
+        # the right, under it).
         clock = {
           format = "{:%a %d %b  %H:%M}";
           interval = 60;

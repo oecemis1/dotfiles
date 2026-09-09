@@ -1,5 +1,5 @@
-# tray is off: the waybar custom/usb widget + eww usb menu replace the
-# tray icon; udiskie stays for automount + notifications.
+# tray is off: the Quickshell control center provides the USB menu;
+# udiskie stays for automount + notifications.
 program_options:
   automount: true
   notify: true
