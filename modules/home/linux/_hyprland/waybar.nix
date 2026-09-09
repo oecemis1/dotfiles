@@ -44,7 +44,7 @@ in
         backlight = {
           format = "󰖙 {percent}%";
           tooltip = false;
-          on-click = "eww-control-center-toggle";
+          on-click = "control-center-toggle";
           return-type = "";
           signal = 8;
         };
@@ -57,7 +57,7 @@ in
           interval = 60;
           tooltip = false;
           # dismiss the control center first so the two panels never stack
-          on-click = "eww-control-center-toggle close; swaync-client -t";
+          on-click = "control-center-toggle close; swaync-client -t";
         };
 
         "custom/battery" = {
@@ -88,7 +88,7 @@ in
         "custom/control-center" = {
           format = "";
           # dismiss the notification panel first so the two never stack
-          on-click = "swaync-client -cp; eww-control-center-toggle";
+          on-click = "swaync-client -cp; control-center-toggle";
           tooltip = false;
         };
 
@@ -155,7 +155,7 @@ in
           format = "󰕾 {volume}%";
           format-muted = "󰝟 {volume}%";
           tooltip = false;
-          on-click = "eww-control-center-toggle";
+          on-click = "control-center-toggle";
           on-click-right = "pavucontrol";
         };
       };

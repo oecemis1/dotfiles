@@ -37,23 +37,37 @@ let
     focusLast = lua "hl.dsp.focus({ last = true })";
     focusWorkspace = ws: lua "hl.dsp.focus({ workspace = ${wsArg ws} })";
     moveToWorkspace = ws: lua "hl.dsp.window.move({ workspace = ${wsArg ws} })";
-    resizeBy = x: y: lua "hl.dsp.window.resize({ x = ${toString x}, y = ${toString y}, relative = true })";
+    resizeBy =
+      x: y: lua "hl.dsp.window.resize({ x = ${toString x}, y = ${toString y}, relative = true })";
     drag = lua "hl.dsp.window.drag()";
     resize = lua "hl.dsp.window.resize()";
     # deferred via hl.timer per the wiki: dpms straight from a bind is
     # undefined behavior
-    dpms = action: lua ''
-      function()
-        hl.timer(function()
-          hl.dispatch(hl.dsp.dpms({ action = "${action}" }))
-        end, { timeout = 500, type = "oneshot" })
-      end'';
+    dpms =
+      action:
+      lua ''
+        function()
+          hl.timer(function()
+            hl.dispatch(hl.dsp.dpms({ action = "${action}" }))
+          end, { timeout = 500, type = "oneshot" })
+        end'';
   };
   # numbered workspaces are integers; "e+1" / "special:x" stay strings
   wsArg = ws: if builtins.isInt ws then toString ws else ''"${ws}"'';
 
-  bind = keys: dispatcher: { _args = [ keys dispatcher ]; };
-  bindFlags = keys: dispatcher: flags: { _args = [ keys dispatcher flags ]; };
+  bind = keys: dispatcher: {
+    _args = [
+      keys
+      dispatcher
+    ];
+  };
+  bindFlags = keys: dispatcher: flags: {
+    _args = [
+      keys
+      dispatcher
+      flags
+    ];
+  };
 
   # SUPER+1..0 focus / SUPER+SHIFT+1..0 move (workspace 10 on key 0)
   workspaceBinds = lib.concatMap (
@@ -71,6 +85,7 @@ in
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "lua";
+    plugins = [ (pkgs.callPackage ../../../../pkgs/hyprglass.nix { }) ];
     # monitors.conf is written by nwg-displays in hyprlang syntax, which the
     # lua config can't source, so parse its monitor= lines ourselves. Without
     # this Hyprland falls back to scale=auto (2.0 on HiDPI panels).
@@ -107,6 +122,109 @@ in
         end
       end
       pcall(require, "monitors")
+
+      if hl.plugin.hyprglass then
+        local hg = hl.plugin.hyprglass
+        hg.config({
+          default_theme = "dark",
+          default_preset = "glass",
+          layers = { enabled = true },
+        })
+        hg.preset("glass", {
+          glass_opacity = 1.0,
+          blur_strength = 0.0,
+          blur_iterations = 5,
+          chromatic_aberration = 1.0,
+          fresnel_strength = 0.1,
+          tint_color = 0x00000000,
+          contrast = 1.0,
+          saturation = 1.0,
+          vibrancy = 1.0,
+          vibrancy_darkness = 1.0,
+          dark = {
+            brightness = 1.0,
+          },
+        })
+        hg.preset("panel", {
+          inherits = "glass",
+          blur_strength = 0.3,
+          chromatic_aberration = 0.2,
+        })
+        -- The backdrop is rendered first; controls sample that completed glass
+        -- surface to create a true glass-on-glass stack.
+        hg.preset("control_center_material", {
+          glass_opacity = 1.0,
+          blur_strength = 0.0,
+          blur_iterations = 0,
+          noise_strength = 0.0,
+          chromatic_aberration = 0.0,
+          tint_color = 0x00000000,
+          brightness = 1.0,
+          contrast = 1.0,
+          saturation = 1.0,
+          vibrancy = 0.0,
+          vibrancy_darkness = 0.0,
+          adaptive_dim = 0.0,
+          adaptive_boost = 0.0,
+          shape_power = 3.0,
+          refraction_curve = { a = 0.7, b = 2.3, c = 5.2, d = 6.9, power = 1.0 },
+          glow = { weight = 0.0, bias = 0.0, edge0 = 0.5, edge1 = -0.5 },
+          dark = { brightness = 1.0 },
+        })
+        hg.preset("control_center_backdrop", {
+          inherits = "control_center_material",
+          blur_strength = 2.5,
+          blur_iterations = 1,
+          refraction_strength = 0.35,
+          snell = {
+            bezel_width = 24.0,
+            glass_thickness = 36.0,
+            refractive_index = 1.3,
+            strength = 0.02,
+          },
+          rim = {
+            width = 2.0,
+            saturation = 1.0,
+            fresnel_strength = 0.0,
+            specular_strength = 0.28,
+            inner_shadow_strength = 0.06,
+            angle = 2.0943951023931953,
+          },
+        })
+        hg.preset("control_center_controls", {
+          inherits = "control_center_material",
+          blur_strength = 3.0,
+          blur_iterations = 1,
+          refraction_strength = 1.0,
+          snell = {
+            bezel_width = 18.0,
+            glass_thickness = 32.0,
+            refractive_index = 1.3,
+            strength = 0.02,
+          },
+          rim = {
+            width = 2.0,
+            saturation = 1.0,
+            fresnel_strength = 0.0,
+            specular_strength = 0.58,
+            inner_shadow_strength = 0.08,
+            angle = 2.0943951023931953,
+          },
+        })
+        hg.layer("control_center_backdrop", {
+          preset = "control_center_backdrop",
+          mask_threshold = 0.004,
+          live_blur = true,
+        })
+        hg.layer("control_center", {
+          preset = "control_center_controls",
+          mask_threshold = 0.02,
+          live_blur = true,
+        })
+        hg.layer("swaync-control-center", { preset = "panel", mask_threshold = 0.05 })
+        hg.layer("swaync-notification-window", { preset = "panel", mask_threshold = 0.05 })
+      end
+
     '';
     settings = {
       config = {
@@ -131,7 +249,7 @@ in
         };
 
         decoration = {
-          rounding = 2;
+          rounding = 12;
 
           shadow = {
             enabled = true;
@@ -180,13 +298,91 @@ in
       };
 
       curve = [
-        { _args = [ "easeOutQuint" { type = "bezier"; points = [ [ 0.23 1.0 ] [ 0.32 1.0 ] ]; } ]; }
-        { _args = [ "easeInOutCubic" { type = "bezier"; points = [ [ 0.65 0.05 ] [ 0.36 1.0 ] ]; } ]; }
-        { _args = [ "almostLinear" { type = "bezier"; points = [ [ 0.5 0.5 ] [ 0.75 1.0 ] ]; } ]; }
-        { _args = [ "quick" { type = "bezier"; points = [ [ 0.15 0.0 ] [ 0.1 1.0 ] ]; } ]; }
+        {
+          _args = [
+            "easeOutQuint"
+            {
+              type = "bezier";
+              points = [
+                [
+                  0.23
+                  1.0
+                ]
+                [
+                  0.32
+                  1.0
+                ]
+              ];
+            }
+          ];
+        }
+        {
+          _args = [
+            "easeInOutCubic"
+            {
+              type = "bezier";
+              points = [
+                [
+                  0.65
+                  0.05
+                ]
+                [
+                  0.36
+                  1.0
+                ]
+              ];
+            }
+          ];
+        }
+        {
+          _args = [
+            "almostLinear"
+            {
+              type = "bezier";
+              points = [
+                [
+                  0.5
+                  0.5
+                ]
+                [
+                  0.75
+                  1.0
+                ]
+              ];
+            }
+          ];
+        }
+        {
+          _args = [
+            "quick"
+            {
+              type = "bezier";
+              points = [
+                [
+                  0.15
+                  0.0
+                ]
+                [
+                  0.1
+                  1.0
+                ]
+              ];
+            }
+          ];
+        }
         # Critically damped (2*sqrt(stiffness*mass)): settles with no
         # overshoot - nothing here is momentum-driven, so no bounce.
-        { _args = [ "standard" { type = "spring"; mass = 1; stiffness = 300; dampening = 34.6; } ]; }
+        {
+          _args = [
+            "standard"
+            {
+              type = "spring";
+              mass = 1;
+              stiffness = 300;
+              dampening = 34.6;
+            }
+          ];
+        }
       ];
 
       # Geometry rides the spring; fades and color stay on beziers. Enter
@@ -195,124 +391,333 @@ in
       # split reads as a single motion: the sibling's edge retreats while
       # the newcomer grows into the opening.
       animation = [
-        { leaf = "global"; enabled = true; speed = 3.0; bezier = "easeOutQuint"; }
+        {
+          leaf = "global";
+          enabled = true;
+          speed = 3.0;
+          bezier = "easeOutQuint";
+        }
         # focus flips constantly; keep the border color change out of the way
-        { leaf = "border"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; }
-        { leaf = "windows"; enabled = true; speed = 3.0; spring = "standard"; }
+        {
+          leaf = "border";
+          enabled = true;
+          speed = 2.0;
+          bezier = "easeOutQuint";
+        }
+        {
+          leaf = "windows";
+          enabled = true;
+          speed = 3.0;
+          spring = "standard";
+        }
         # windowsMove set explicitly: left to inherit it reported speed 0,
         # so the sibling snapped to its new slot while the newcomer animated
-        { leaf = "windowsMove"; enabled = true; speed = 3.0; spring = "standard"; }
+        {
+          leaf = "windowsMove";
+          enabled = true;
+          speed = 3.0;
+          spring = "standard";
+        }
         # slide = directional entrance from the nearest edge; exit mirrors it
-        { leaf = "windowsIn"; enabled = true; speed = 3.0; spring = "standard"; style = "slide"; }
-        { leaf = "windowsOut"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; style = "slide"; }
-        { leaf = "fadeIn"; enabled = true; speed = 1.7; bezier = "almostLinear"; }
-        { leaf = "fadeOut"; enabled = true; speed = 1.5; bezier = "almostLinear"; }
-        { leaf = "fade"; enabled = true; speed = 2.5; bezier = "quick"; }
-        { leaf = "layers"; enabled = true; speed = 2.5; bezier = "easeOutQuint"; }
-        { leaf = "layersIn"; enabled = true; speed = 2.5; bezier = "easeOutQuint"; style = "fade"; }
-        { leaf = "layersOut"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; style = "fade"; }
-        { leaf = "fadeLayersIn"; enabled = true; speed = 1.8; bezier = "almostLinear"; }
-        { leaf = "fadeLayersOut"; enabled = true; speed = 1.4; bezier = "almostLinear"; }
+        {
+          leaf = "windowsIn";
+          enabled = true;
+          speed = 3.0;
+          spring = "standard";
+          style = "slide";
+        }
+        {
+          leaf = "windowsOut";
+          enabled = true;
+          speed = 2.0;
+          bezier = "easeOutQuint";
+          style = "slide";
+        }
+        {
+          leaf = "fadeIn";
+          enabled = true;
+          speed = 1.7;
+          bezier = "almostLinear";
+        }
+        {
+          leaf = "fadeOut";
+          enabled = true;
+          speed = 1.5;
+          bezier = "almostLinear";
+        }
+        {
+          leaf = "fade";
+          enabled = true;
+          speed = 2.5;
+          bezier = "quick";
+        }
+        {
+          leaf = "layers";
+          enabled = true;
+          speed = 2.5;
+          bezier = "easeOutQuint";
+        }
+        {
+          leaf = "layersIn";
+          enabled = true;
+          speed = 2.5;
+          bezier = "easeOutQuint";
+          style = "fade";
+        }
+        {
+          leaf = "layersOut";
+          enabled = true;
+          speed = 2.0;
+          bezier = "easeOutQuint";
+          style = "fade";
+        }
+        {
+          leaf = "fadeLayersIn";
+          enabled = true;
+          speed = 1.8;
+          bezier = "almostLinear";
+        }
+        {
+          leaf = "fadeLayersOut";
+          enabled = true;
+          speed = 1.4;
+          bezier = "almostLinear";
+        }
         # a 15% slide hints which way you moved; one clock for both sides
-        { leaf = "workspaces"; enabled = true; speed = 2.0; bezier = "easeOutQuint"; style = "slidefade 15%"; }
+        {
+          leaf = "workspaces";
+          enabled = true;
+          speed = 2.0;
+          bezier = "easeOutQuint";
+          style = "slidefade 15%";
+        }
         # calculator/todo specials drop in from the top
-        { leaf = "specialWorkspace"; enabled = true; speed = 2.5; bezier = "easeOutQuint"; style = "slidefadevert 15%"; }
+        {
+          leaf = "specialWorkspace";
+          enabled = true;
+          speed = 2.5;
+          bezier = "easeOutQuint";
+          style = "slidefadevert 15%";
+        }
       ];
 
       window_rule = [
-        { match = { float = true; }; border_size = 0; }
+        {
+          match = {
+            float = true;
+          };
+          border_size = 0;
+        }
+
+        # glass adds nothing over a fullscreen surface, just shader cost
+        {
+          match = {
+            fullscreen = true;
+          };
+          tag = "+hyprglass_disabled";
+        }
 
         # VideoBridge
         {
-          match = { class = "^(xwaylandvideobridge)$"; };
+          match = {
+            class = "^(xwaylandvideobridge)$";
+          };
           workspace = "1";
           opacity = "0.0 override";
           no_anim = true;
           no_initial_focus = true;
-          max_size = [ 1 1 ];
+          max_size = [
+            1
+            1
+          ];
           no_blur = true;
           no_focus = true;
         }
 
         # Browser
-        { match = { class = "(google-chrome)"; }; workspace = "1"; }
-        { match = { class = "(firefox)"; }; workspace = "1"; }
-
-        { match = { class = "^(org.gnome.Calculator)"; }; float = true; }
-
-        { match = { class = "^(termfilechooser)$"; }; float = true; }
         {
-          match = { title = "^(termfilechooser)$"; };
+          match = {
+            class = "(google-chrome)";
+          };
+          workspace = "1";
+        }
+        {
+          match = {
+            class = "(firefox)";
+          };
+          workspace = "1";
+        }
+
+        {
+          match = {
+            class = "^(org.gnome.Calculator)";
+          };
           float = true;
-          size = [ "80%" "60%" ];
+        }
+
+        {
+          match = {
+            class = "^(termfilechooser)$";
+          };
+          float = true;
+        }
+        {
+          match = {
+            title = "^(termfilechooser)$";
+          };
+          float = true;
+          size = [
+            "80%"
+            "60%"
+          ];
           center = true;
         }
-        { match = { class = "^(kitty)$"; initial_title = "^(kitty)$"; }; workspace = "2"; }
-
-        { match = { class = "^(org.gnome.Nautilus)"; }; float = true; }
         {
-          match = { title = "^(my_todo)$"; };
+          match = {
+            class = "^(kitty)$";
+            initial_title = "^(kitty)$";
+          };
+          workspace = "2";
+        }
+
+        {
+          match = {
+            class = "^(org.gnome.Nautilus)";
+          };
           float = true;
-          size = [ 1380 1011 ];
+        }
+        {
+          match = {
+            title = "^(my_todo)$";
+          };
+          float = true;
+          size = [
+            1380
+            1011
+          ];
           center = true;
           workspace = "special:todo";
         }
         {
-          match = { title = "^(Brightness Control)$"; };
+          match = {
+            title = "^(Brightness Control)$";
+          };
           float = true;
           no_initial_focus = true;
           no_blur = true;
         }
-        { match = { class = "^(org.pulseaudio.pavucontrol)$"; }; float = true; }
+        {
+          match = {
+            class = "^(org.pulseaudio.pavucontrol)$";
+          };
+          float = true;
+        }
 
         # deep-config apps behind the wifi/bluetooth/usb bar widgets
-        { match = { class = "^(nm-connection-editor)$"; }; float = true; }
-        { match = { class = "^(io.github.kaii_lb.Overskride)$"; }; float = true; }
-        { match = { class = "^(gnome-disks)$"; }; float = true; }
-        { match = { class = "^(org.gnome.DiskUtility)$"; }; float = true; }
+        {
+          match = {
+            class = "^(nm-connection-editor)$";
+          };
+          float = true;
+        }
+        {
+          match = {
+            class = "^(io.github.kaii_lb.Overskride)$";
+          };
+          float = true;
+        }
+        {
+          match = {
+            class = "^(gnome-disks)$";
+          };
+          float = true;
+        }
+        {
+          match = {
+            class = "^(org.gnome.DiskUtility)$";
+          };
+          float = true;
+        }
 
         # yazi browsing a usb stick, spawned by the usb menu's folder button
         {
-          match = { initial_title = "^(usb-browse)$"; };
+          match = {
+            initial_title = "^(usb-browse)$";
+          };
           float = true;
-          size = [ "60%" "60%" ];
+          size = [
+            "60%"
+            "60%"
+          ];
           center = true;
         }
 
         # qalculate
-        { match = { class = "(qalculate-qt)"; }; float = true; workspace = "special:calculator"; }
-        { match = { class = "(io.github.Qalculate.qalculate-qt)"; }; float = true; workspace = "special:calculator"; }
+        {
+          match = {
+            class = "(qalculate-qt)";
+          };
+          float = true;
+          workspace = "special:calculator";
+        }
+        {
+          match = {
+            class = "(io.github.Qalculate.qalculate-qt)";
+          };
+          float = true;
+          workspace = "special:calculator";
+        }
 
         # matplotlib
-        { match = { class = "(Matplotlib)"; }; float = true; }
+        {
+          match = {
+            class = "(Matplotlib)";
+          };
+          float = true;
+        }
       ];
 
       layer_rule =
-        map (namespace: { match = { inherit namespace; }; blur = true; ignore_alpha = 0.3; }) [
-          "waybar"
-          "swaync-control-center"
-          "swaync-notification-window"
-          "tofi"
-          "calendar"
-          "brightness_slider"
-          "power_menu"
-          "control_center"
-        ]
+        map
+          (namespace: {
+            match = { inherit namespace; };
+            blur = true;
+            ignore_alpha = 0.3;
+          })
+          [
+            "waybar"
+            "tofi"
+            "calendar"
+            "brightness_slider"
+            "power_menu"
+          ]
         # Surfaces that own their motion (or shouldn't have any) skip the
         # compositor's layer fade: tofi is keyboard-summoned dozens of
         # times a day and must appear instantly; the eww control center
         # animates via its revealer.
-        ++ map (namespace: { match = { inherit namespace; }; no_anim = true; }) [
-          "tofi"
-          "control_center"
-          "control_center_closer"
-        ]
+        ++
+          map
+            (namespace: {
+              match = { inherit namespace; };
+              no_anim = true;
+            })
+            [
+              "tofi"
+              "control_center_backdrop"
+              "control_center"
+              "control_center_closer"
+            ]
         # swaync has no panel animation of its own (verified: it snaps
         # with no_anim) - the compositor slides it in, forced from the top
         # edge to match the control center's drop-down (bare "slide"
         # picked the bottom).
         ++ [
-          { match = { namespace = "swaync-control-center"; }; animation = "slide top"; }
+          {
+            match = {
+              namespace = "swaync-control-center";
+            };
+            animation = "slide top";
+          }
         ];
 
       bind = [
@@ -347,7 +752,9 @@ in
         (bind "CTRL + ALT + T" (dsp.exec terminal))
         (bind "ALT + N" (dsp.exec "todo_my"))
 
-        (bind "SUPER + SHIFT + S" (dsp.exec "pgrep hyprshot || hyprshot -m region -o $HOME/Pictures/Screenshots"))
+        (bind "SUPER + SHIFT + S" (
+          dsp.exec "pgrep hyprshot || hyprshot -m region -o $HOME/Pictures/Screenshots"
+        ))
 
         # Window resizing (was binde)
         (bindFlags "SUPER + CTRL + H" (dsp.resizeBy (-20) 0) { repeating = true; })
@@ -360,10 +767,20 @@ in
         (bindFlags "SUPER + SUPER_R" (dsp.exec launcher) { release = true; })
 
         # Media/brightness keys, active on the lockscreen too (was bindel/bindl)
-        (bindFlags "XF86AudioRaiseVolume" (dsp.exec "swayosd-client --output-volume +5") { locked = true; repeating = true; })
-        (bindFlags "XF86AudioLowerVolume" (dsp.exec "swayosd-client --output-volume -5") { locked = true; repeating = true; })
-        (bindFlags "XF86AudioMute" (dsp.exec "swayosd-client --output-volume mute-toggle") { locked = true; })
-        (bindFlags "XF86AudioMicMute" (dsp.exec "swayosd-client --input-volume mute-toggle") { locked = true; })
+        (bindFlags "XF86AudioRaiseVolume" (dsp.exec "swayosd-client --output-volume +5") {
+          locked = true;
+          repeating = true;
+        })
+        (bindFlags "XF86AudioLowerVolume" (dsp.exec "swayosd-client --output-volume -5") {
+          locked = true;
+          repeating = true;
+        })
+        (bindFlags "XF86AudioMute" (dsp.exec "swayosd-client --output-volume mute-toggle") {
+          locked = true;
+        })
+        (bindFlags "XF86AudioMicMute" (dsp.exec "swayosd-client --input-volume mute-toggle") {
+          locked = true;
+        })
         (bindFlags "XF86MonBrightnessUp" (dsp.exec "swayosd-client --brightness +10") { locked = true; })
         (bindFlags "XF86MonBrightnessDown" (dsp.exec "swayosd-client --brightness -10") { locked = true; })
         (bindFlags "XF86AudioNext" (dsp.exec "playerctl next") { locked = true; })

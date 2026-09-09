@@ -23,36 +23,6 @@
         };
       };
 
-      systemd.services.post-sleep-restart-eww = {
-        description = "Restart the eww daemon after sleep";
-        after = [
-          "systemd-suspend.service"
-          "systemd-hibernate.service"
-          "systemd-suspend-then-hibernate.service"
-        ];
-        wantedBy = [
-          "systemd-suspend.service"
-          "systemd-hibernate.service"
-          "systemd-suspend-then-hibernate.service"
-        ];
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = "${pkgs.util-linux}/bin/runuser -u orhun -- ${pkgs.writeShellScript "restart-eww" ''
-            export HOME=/home/orhun
-            export XDG_RUNTIME_DIR=/run/user/1000
-            export WAYLAND_DISPLAY=wayland-1
-            export PATH=/home/orhun/.local/bin:/home/orhun/.nix-profile/bin:/run/current-system/sw/bin:$PATH
-            ${pkgs.procps}/bin/pkill -9 -u orhun -f 'eww daemon' || true
-            ${pkgs.procps}/bin/pkill -9 -u orhun -f 'eww open' || true
-            ${pkgs.procps}/bin/pkill -9 -u orhun -f 'eww-ensure-daemon' || true
-            ${pkgs.procps}/bin/pkill -9 -u orhun -f 'eww-control-center-toggle' || true
-            sleep 0.3
-            ${pkgs.util-linux}/bin/setsid -f eww-ensure-daemon </dev/null >/dev/null 2>&1
-            exit 0
-          ''}";
-        };
-      };
-
       boot.kernelParams = [
         "intel_pstate"
         "intel_idle.max_cstate=99"

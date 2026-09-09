@@ -14,7 +14,6 @@
         (lib.generators.mkLuaInline ''
           function()
             hl.exec_cmd("waybar")
-            hl.exec_cmd("eww-ensure-daemon")
             hl.exec_cmd("swaync-wrapper")
             hl.exec_cmd("awww-daemon")
             hl.exec_cmd("swayosd-server")
