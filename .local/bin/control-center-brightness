@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case ${1:-} in
+get)
+	current=$(brightnessctl get)
+	maximum=$(brightnessctl max)
+	((maximum > 0))
+	value=$((current * 100 / maximum))
+	((value < 1)) && value=1
+	((value > 100)) && value=100
+	printf '%d\n' "$value"
+	;;
+set)
+	[[ ${2:-} =~ ^[0-9]+$ ]] || exit 2
+	value=$2
+	((value >= 1 && value <= 100)) || exit 2
+	brightnessctl set "${2}%" >/dev/null
+	;;
+*)
+	printf 'usage: control-center-brightness get|set PERCENT\n' >&2
+	exit 2
+	;;
+esac

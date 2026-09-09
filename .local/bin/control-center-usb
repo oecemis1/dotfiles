@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+snapshot() {
+	timeout 5s lsblk -J -p -o NAME,PATH,LABEL,SIZE,MOUNTPOINT,FSAVAIL,RM,HOTPLUG,TYPE,TRAN,MAJ:MIN,UUID,SERIAL,WWN
+}
+
+list() {
+	snapshot | jq -c '[.blockdevices[]
+		| select(.type == "disk" and ((.tran == "usb") or (.rm == true) or (.hotplug == true)))
+		| . as $disk
+		| (if (.children // [] | length) > 0 then .children[] else . end)
+		| {path: .path, id: (($disk.serial // $disk.wwn // "") + ":" + (.uuid // "")), drive: $disk.path,
+		   label: (.label // $disk.label // .name), size: (.size // ""),
+		   mounted: (.mountpoint != null), mountpoint: (.mountpoint // ""), free: (.fsavail // "")}]'
+}
+
+device=${2:-}
+expected_id=${3:-}
+case ${1:-} in
+list)
+	list
+	;;
+mount|unmount|browse|eject)
+	[[ -n $device ]] || exit 2
+	data=$(snapshot)
+	disk=$(jq -r --arg device "$device" '[.blockdevices[]
+		| select(.type == "disk" and ((.tran == "usb") or (.rm == true) or (.hotplug == true)))
+		| select(any(([.] + (.children // []))[]; .path == $device))
+		| .path][0] // empty' <<<"$data")
+	stable=$(jq -r --arg device "$device" '[.blockdevices[] | . as $disk
+		| ([.] + (.children // []))[] | select(.path == $device)
+		| (($disk.serial // $disk.wwn // "") + ":" + (.uuid // ""))][0] // empty' <<<"$data")
+	[[ -n $disk && -b $device && $expected_id != : && $stable == "$expected_id" ]] || {
+		printf 'removable media changed: %s\n' "$device" >&2; exit 2;
+	}
+	case $1 in
+	mount)
+		exec timeout 30s udisksctl mount -b "$device" --no-user-interaction
+		;;
+	unmount)
+		exec timeout 30s udisksctl unmount -b "$device" --no-user-interaction
+		;;
+	browse)
+		mountpoint=$(jq -r --arg device "$device" '[.. | objects | select(.path? == $device) | .mountpoint][0] // empty' <<<"$data")
+		[[ -n $mountpoint ]] || exit 1
+		setsid -f kitty --title usb-browse -e yazi "$mountpoint"
+		;;
+	eject)
+		child_count=$(jq -r --arg disk "$disk" '[.blockdevices[] | select(.path == $disk) | (.children // [])[]] | length' <<<"$data")
+		((child_count <= 1)) || { printf 'use GNOME Disks for multi-volume media\n' >&2; exit 1; }
+		timeout 30s sync
+		[[ $(snapshot | jq -r --arg device "$device" '[.blockdevices[] | . as $disk
+			| ([.] + (.children // []))[] | select(.path == $device)
+			| (($disk.serial // $disk.wwn // "") + ":" + (.uuid // ""))][0] // empty') == "$expected_id" ]] || exit 2
+		while IFS= read -r mounted; do
+			[[ -n $mounted ]] || continue
+			timeout 30s udisksctl unmount -b "$mounted" --no-user-interaction
+		done < <(jq -r --arg disk "$disk" '.blockdevices[] | select(.path == $disk)
+			| recurse(.children[]?) | select(.mountpoint != null) | .path' <<<"$data")
+		[[ $(snapshot | jq -r --arg device "$device" '[.blockdevices[] | . as $disk
+			| ([.] + (.children // []))[] | select(.path == $device)
+			| (($disk.serial // $disk.wwn // "") + ":" + (.uuid // ""))][0] // empty') == "$expected_id" ]] || exit 2
+		exec timeout 30s udisksctl power-off -b "$disk" --no-user-interaction
+		;;
+	esac
+	;;
+manage)
+	setsid -f gnome-disks
+	;;
+*)
+	printf 'usage: control-center-usb list|mount|unmount|browse|eject DEVICE|manage\n' >&2
+	exit 2
+	;;
+esac

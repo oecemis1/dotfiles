@@ -14,6 +14,7 @@
     {
       xdg.configFile = {
         eww = immutable "eww";
+        quickshell = immutable "quickshell";
 
         # Palette for the eww widgets, generated from the colorScheme flavor.
         "eww/styles/_colors.scss".text = ''

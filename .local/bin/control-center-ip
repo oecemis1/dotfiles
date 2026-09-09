@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ ${1:-} == get && -n ${2:-} ]] || exit 2
+ip -j -4 address show dev "$2" | jq -r '[.[].addr_info[]? | select(.family == "inet" and .scope == "global") | .local][0] // ""'

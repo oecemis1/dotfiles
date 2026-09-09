@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_dir=${CONTROL_CENTER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell}
+service=quickshell-control-center.service
+
+ipc() {
+	qs ipc -p "$config_dir" --newest --any-display call controlCenter "$@"
+}
+
+ensure_ready() {
+	if ipc isOpen >/dev/null 2>&1; then
+		return
+	fi
+
+	systemctl --user start "$service"
+	for _ in {1..50}; do
+		if ipc isOpen >/dev/null 2>&1; then
+			return
+		fi
+		sleep 0.1
+	done
+
+	printf 'control-center-toggle: Quickshell IPC did not become ready\n' >&2
+	return 1
+}
+
+command=${1:-toggle}
+ensure_ready
+
+case $command in
+toggle | open | close)
+	ipc "$command" >/dev/null
+	;;
+menu)
+	[[ $# -eq 2 ]] || {
+		printf 'usage: control-center-toggle menu none|wifi|bluetooth|usb\n' >&2
+		exit 2
+	}
+	case $2 in
+	none | wifi | bluetooth | usb) ;;
+	*)
+		printf 'control-center-toggle: unknown menu: %s\n' "$2" >&2
+		exit 2
+		;;
+	esac
+	ipc open >/dev/null
+	result=$(ipc setMenu "$2")
+	[[ $result == true ]] || {
+		printf 'control-center-toggle: unknown menu: %s\n' "$2" >&2
+		exit 2
+	}
+	;;
+status)
+	printf 'open=%s menu=%s\n' "$(ipc isOpen)" "$(ipc activeMenu)"
+	;;
+*)
+	printf 'usage: control-center-toggle [open|close|menu MENU|status]\n' >&2
+	exit 2
+	;;
+esac

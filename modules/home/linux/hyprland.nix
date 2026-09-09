@@ -13,6 +13,7 @@
         ./_hyprland/swaync.nix
         ./_hyprland/hyprlock.nix
         ./_hyprland/hypridle.nix
+        ./_hyprland/quickshell.nix
       ];
 
       home.packages = with pkgs; [

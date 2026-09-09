@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case ${1:-} in
+suspend|hibernate|poweroff)
+	exec timeout 120s systemctl "$1"
+	;;
+*)
+	printf 'usage: control-center-power suspend|hibernate|poweroff\n' >&2
+	exit 2
+	;;
+esac
