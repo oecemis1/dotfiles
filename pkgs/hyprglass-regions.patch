@@ -1,0 +1,1679 @@
+diff --git a/Makefile b/Makefile
+index ef3b5f0..06858d9 100644
+--- a/Makefile
++++ b/Makefile
+@@ -28,4 +28,16 @@ $(TARGET): $(OBJ)
+ clean:
+ 	rm -f $(OBJ) $(TARGET)
+ 
+-.PHONY: all clean
++test-tier0:
++	@tests/run.sh tier0
++
++test-nested:
++	@tests/run.sh nested
++
++test-live:
++	@tests/run.sh live
++
++test:
++	@tests/run.sh all
++
++.PHONY: all clean test-tier0 test-nested test-live test
+diff --git a/README.md b/README.md
+index a351792..d184ab3 100644
+--- a/README.md
++++ b/README.md
+@@ -181,6 +181,118 @@ hg.layer("debug-panel", { exclude = true })
+ | `preset` | string | Preset override for this layer |
+ | `mask_threshold` | float | Alpha threshold (pixels below this are not glassed). Default `0.001` |
+ | `exclude` | bool | Blacklist this namespace instead of whitelisting it |
++| `regions` | table | Declared per-widget slabs, see below |
++| `background` | bool | Glass the visible mask area outside declared regions as a base slab |
++| `pills` | table | Derive dynamic slabs from surface alpha, see below |
++| `debug` | string | Diagnostic render mode: `mask`, `pill_field`, or `attribution` |
++
++#### Declared regions (per-widget slabs)
++
++By default the whole layer surface is one glass slab: widgets in the panel
++interior get the flat middle of that slab and only the panel border shows
++edge effects. Declaring `regions` renders each rectangle as an independent
++slab with its own edges, bezel, refraction center, lens dome and highlights —
++the way first-party glass materials treat each control as its own shape:
++
++```lua
++hg.layer("my-panel", {
++  preset = "panel",
++  regions = {
++    { x = 12,  y = 12, w = 182, h = 64, radius = 6 },
++    { x = 200, y = 12, w = 182, h = 64, radius = 6 },
++    { x = 12,  y = 82, w = 370, h = 48, radius = 6 },
++  },
++})
++```
++
++| Field | Type | Description |
++|---|---|---|
++| `x`, `y` | float | Region top-left, layer-local logical pixels |
++| `w`, `h` | float | Region size, logical pixels |
++| `radius` | float | Corner radius, logical pixels |
++| `blur` | float | Optional per-region blur strength (same units as `blur_strength`); omit to inherit the layer preset. `0` gives clear glass. |
++
++- Lua config only; up to 16 regions per layer (extras are dropped with a warning).
++- `background = true` on the layer renders the mask area *outside* all regions
++  as a whole-surface base slab (a panel sheet behind the widget pills) instead
++  of passing it through unglassed. The sheet's shape comes from the alpha
++  mask, so it follows dynamic layouts. Regions may be nested inside it —
++  attribution picks the innermost containing region.
++- Per-region blur is rendered as extra blurred copies of the sampled
++  background: one additional sample+blur pass per **distinct** `blur` value,
++  capped at 3 distinct values per layer (further values fall back to the
++  preset blur). Reuse values across regions — they share a pass.
++- Glass renders where a region intersects visible content — the alpha mask
++  still applies. Outside all regions the surface renders unglassed. A region
++  that drifts from a dynamic layout therefore degrades to "no glass", never a
++  floating slab over empty space.
++- Each fragment belongs to the nearest region (min SDF), so touching or
++  overlapping regions merge into one continuous slab.
++- The background is sampled and blurred once for the whole layer; regions add
++  no extra blur passes.
++- On rotated/transformed monitors regions fall back to the whole-surface slab.
++
++#### Alpha-derived pills
++
++Pills derive slab geometry from the layer's rendered alpha instead of fixed
++coordinates. Pixels above `threshold` become independent glass controls, so
++the controls follow layout changes without updating configuration:
++
++```lua
++hg.layer("my-panel", {
++  preset = "panel",
++  mask_threshold = 0.001,
++  pills = {
++    threshold = 0.02,
++    bezel = 8,
++    blur = 1.5,
++    corner_lobes = true,
++  },
++})
++```
++
++| Field | Type | Description |
++|---|---|---|
++| `threshold` | float | Surface alpha at which a pixel belongs to a pill. Default `0.02` |
++| `bezel` | float | Edge-effect width in logical pixels. Default `8` |
++| `blur` | float | Optional pill blur strength; omit to inherit the layer preset |
++| `corner_lobes` | bool | Add separated top-left and bottom-right rim reflections. Default `false` |
++
++- Lua config only. Set `threshold` above `mask_threshold` so the lower-alpha
++  panel surface remains a base slab while higher-alpha controls become pills.
++- For a pill-only transparent layer, set `threshold` and `mask_threshold` to
++  the same value. Otherwise lower-alpha antialias pixels around each control
++  intentionally fall through to the base-slab path and can appear as a fringe.
++- The plugin computes a jump-flood distance field from the current surface
++  alpha on every rendered frame. Widget movement and reveal animations do not
++  require declared coordinates.
++- The field's boundary distance and direction form a compact convex bevel with
++  a fixed top-left light. The bevel produces a bright directional rim, narrow
++  glare, and an opposing bottom-right inner shadow while leaving the interior
++  flat and clear.
++- `bezel` controls the bevel width. The active preset's
++  `refraction_strength`, `fresnel_strength`, and `specular_strength` tune its
++  displacement, rim, and glare without changing CSS tint or typography.
++- `corner_lobes` changes only the alpha-derived pills on that layer. Normal
++  windows, declared regions, and pills that leave it disabled are unchanged.
++- Distinct pill and region blur strengths share the same three-variant limit.
++- Pill layers damage their expanded layer box when the surface commits new
++  content, ensuring distance-field changes replace every affected slab.
++- On rotated/transformed monitors pills fall back to the whole-surface slab.
++
++#### Debug modes
++
++Set `debug` on one layer binding to inspect its render inputs without changing
++other namespaces:
++
++| Value | Output |
++|---|---|
++| `mask` | Surface alpha amplified by 50 |
++| `pill_field` | Normalized pill distance field, black near seeds and white at the far limit |
++| `attribution` | Cyan pills, yellow background slab, blue sub-threshold pixels, and white remaining slab pixels |
++
++Debug modes replace the selected layer's normal output and are intended for
++pixel tests and temporary diagnostics.
+ 
+ #### Legacy .conf config
+ 
+@@ -296,16 +408,16 @@ The window/layer is modeled as a **thick convex glass slab**. The rendering pipe
+ 
+ 1. **Background sampling** — The framebuffer behind the window is captured with padding (content beyond the window boundary is included).
+ 2. **Gaussian blur** — Multi-pass two-pass (horizontal + vertical) Gaussian blur for the frosted look.
+-3. **Glass height field** — An SDF-based height profile: 1.0 deep inside the window, smooth S-curve to 0.0 at the edge. The transition width is `edge_thickness`.
+-4. **Edge refraction** — The height field gradient drives UV displacement. At the center the gradient is near-zero (no distortion). At the edges the gradient is steep, pushing sample UVs outward — pulling in content from beyond the window boundary. This creates natural color bleeding.
++3. **Glass height field** — Windows and declared regions use an SDF-based profile. Alpha-derived pills use their per-frame jump-flood boundary distance and direction to form a compact convex bevel.
++4. **Edge refraction** — The profile slope drives UV displacement. At the center the gradient is zero; at the curved edge it pushes samples inward to compress and distort the background behind the slab.
+ 5. **Chromatic aberration** — R, G, B channels are sampled with slightly different refraction scales (blue bends more), creating spectral fringing at edges.
+ 6. **Center dome lens** — Subtle barrel magnification in the flat interior, controlled by `lens_distortion`.
+ 7. **Frosted tint** — Per-theme tone mapping: adaptive luminance-dependent brightness, contrast, desaturation, and vibrancy applied to the blurred background.
+ 8. **Color tint overlay** — Configurable color tint.
+-9. **Fresnel edge glow** — Schlick-based fresnel approximation at the glass edge.
+-10. **Specular highlight + inner shadow** — Top-biased highlight and bottom-rim shadow for depth.
++9. **Fresnel edge glow** — Edge glow follows the active slab profile; pills bias it toward a fixed top-left light.
++10. **Specular highlight + inner shadow** — Pills derive a pseudo-surface normal from the jump-flood direction and bevel slope, producing narrow top-left glare and an opposing bottom-right shadow.
+ 
+-For windows, the plugin integrates with Hyprland's render pass system as a `DECORATION_LAYER_BOTTOM` decoration, drawing before the window surface so the glass shows through transparent windows. For layer surfaces, the plugin hooks `renderLayer` and uses a temp FBO redirect: the background is sampled and blurred, then Hyprland's surface rendering is redirected into a transparent temporary framebuffer to capture the surface's exact alpha. A post-surface pass then composites the glass effect (masked to visible content only) and the surface content back onto the main framebuffer in a single shader pass.
++For windows, the plugin integrates with Hyprland's render pass system as a `DECORATION_LAYER_BOTTOM` decoration, drawing before the window surface so the glass shows through transparent windows. For layer surfaces, the plugin hooks `renderLayer` and uses a temp FBO redirect: the background is sampled and blurred, then Hyprland's surface rendering is redirected into a transparent temporary framebuffer to capture the surface's exact alpha. Pill layers run jump-flood passes over that alpha mask to produce a per-frame edge-distance field. A post-surface pass then composites the glass effect (masked to visible content only) and the surface content back onto the main framebuffer in a single shader pass.
+ 
+ ## Unloading
+ 
+diff --git a/src/GlassLayerSurface.cpp b/src/GlassLayerSurface.cpp
+index 18ca4bd..9d75c48 100644
+--- a/src/GlassLayerSurface.cpp
++++ b/src/GlassLayerSurface.cpp
+@@ -8,6 +8,7 @@
+ #include <cmath>
+ #include <hyprland/src/desktop/Workspace.hpp>
+ #include <GLES3/gl32.h>
++#include <hyprland/src/protocols/LayerShell.hpp>
+ #include <hyprland/src/render/OpenGL.hpp>
+ #include <hyprland/src/render/Renderer.hpp>
+ #include <hyprutils/math/Misc.hpp>
+@@ -20,6 +21,8 @@ static CBox transformedLayerBox(CBox pixelBox, PHLMONITOR monitor) {
+ 
+ CGlassLayerSurface::CGlassLayerSurface(PHLLS layerSurface)
+     : m_layerSurface(layerSurface) {
++    if (auto resource = layerSurface->m_layerSurface.lock())
++        m_commitListener = resource->m_events.commit.listen([this] { damageOnCommit(); });
+ }
+ 
+ CGlassLayerSurface::~CGlassLayerSurface() {
+@@ -77,6 +80,59 @@ PHLLS CGlassLayerSurface::getLayerSurface() const {
+     return m_layerSurface.lock();
+ }
+ 
++const std::vector<SLayerRegion>* CGlassLayerSurface::declaredRegions(PHLMONITOR monitor) const {
++    if (!monitor || monitor->m_transform != WL_OUTPUT_TRANSFORM_NORMAL)
++        return nullptr;
++
++    const auto layerSurface = m_layerSurface.lock();
++    if (!layerSurface)
++        return nullptr;
++
++    const auto it = g_pGlobalState->layerNamespaceRegions.find(layerSurface->m_namespace);
++    if (it == g_pGlobalState->layerNamespaceRegions.end() || it->second.empty())
++        return nullptr;
++
++    return &it->second;
++}
++
++const SPillConfig* CGlassLayerSurface::pillConfig(PHLMONITOR monitor) const {
++    if (!monitor || monitor->m_transform != WL_OUTPUT_TRANSFORM_NORMAL)
++        return nullptr;
++
++    const auto layerSurface = m_layerSurface.lock();
++    if (!layerSurface)
++        return nullptr;
++
++    const auto it = g_pGlobalState->layerNamespacePills.find(layerSurface->m_namespace);
++    if (it == g_pGlobalState->layerNamespacePills.end())
++        return nullptr;
++
++    return &it->second;
++}
++
++void CGlassLayerSurface::damageOnCommit() {
++    const auto layerSurface = m_layerSurface.lock();
++    if (!layerSurface || !g_pGlobalState->layerNamespacePills.contains(layerSurface->m_namespace))
++        return;
++
++    const auto position = layerSurface->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
++    const auto size     = layerSurface->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
++    if (size.x <= 0.0 || size.y <= 0.0 ||
++        !std::isfinite(position.x) || !std::isfinite(position.y) ||
++        !std::isfinite(size.x) || !std::isfinite(size.y))
++        return;
++
++    auto box = CBox{position, size};
++    const auto monitor = layerSurface->m_monitor.lock();
++    const float scale = monitor ? monitor->m_scale : 1.0f;
++    box.expand(GlassRenderer::SAMPLE_PADDING_PX / scale).noNegativeSize();
++    if (box.w > 0.0 && box.h > 0.0)
++        g_pHyprRenderer->damageBox(box);
++
++    if (monitor)
++        g_pGlobalState->bumpSceneGeneration(monitor);
++}
++
+ void CGlassLayerSurface::damageIfMoved() {
+     const auto layerSurface = m_layerSurface.lock();
+     if (!layerSurface)
+@@ -143,8 +199,40 @@ void CGlassLayerSurface::sampleAndRedirect(PHLMONITOR monitor, float alpha) {
+                              layerSurface->sizeAnimation()->isBeingAnimated() ||
+                              layerSurface->alpha()[Desktop::View::LS_ALPHA_FADE]->isBeingAnimated() ||
+                              (activeWs && activeWs->m_renderOffset->isBeingAnimated());
++
++    const bool isDark          = resolveThemeIsDark();
++    const std::string preset   = resolvePresetName();
++    const SResolveContext ctx  = {preset, isDark, g_pGlobalState->config, g_pGlobalState->customPresets};
++
++    const float blurStrength = resolvePresetFloat(ctx, &SPresetValues::blurStrength, &SOverridableConfig::blurStrength);
++
++    // Distinct per-region/pill blur strengths, declaration order, capped at
++    // MAX_BLUR_VARIANTS. Each costs one extra sample+blur when re-blurring.
++    std::vector<float> variantStrengths;
++    const auto addVariant = [&](float strength) {
++        if (strength < 0.0f)
++            return;
++        if (std::find(variantStrengths.begin(), variantStrengths.end(), strength) != variantStrengths.end())
++            return;
++        if (variantStrengths.size() >= static_cast<size_t>(GlassRenderer::MAX_BLUR_VARIANTS))
++            return;
++        variantStrengths.push_back(strength);
++    };
++    if (const auto* pills = pillConfig(monitor))
++        addVariant(pills->blur);
++    if (const auto* regions = declaredRegions(monitor)) {
++        for (const auto& region : *regions)
++            addVariant(region.blur);
++    }
++
++    std::vector<float> blurKey;
++    blurKey.reserve(1 + variantStrengths.size());
++    blurKey.push_back(blurStrength);
++    blurKey.insert(blurKey.end(), variantStrengths.begin(), variantStrengths.end());
++
+     const bool backgroundChanged = !m_hasCachedSample ||
+                                    currentGeneration != m_lastSceneGeneration ||
++                                   blurKey != m_lastBlurKey ||
+                                    isAnimating;
+ 
+     if (!layerSurface->m_mapped) {
+@@ -152,12 +240,7 @@ void CGlassLayerSurface::sampleAndRedirect(PHLMONITOR monitor, float alpha) {
+         if (!m_hasCachedSample)
+             return;
+     } else if (backgroundChanged) {
+-        const bool isDark          = resolveThemeIsDark();
+-        const std::string preset   = resolvePresetName();
+-        const SResolveContext ctx  = {preset, isDark, g_pGlobalState->config, g_pGlobalState->customPresets};
+-
+-        float blurStrength   = resolvePresetFloat(ctx, &SPresetValues::blurStrength, &SOverridableConfig::blurStrength);
+-        int downscale        = blurStrength >= GlassRenderer::BLUR_DOWNSCALE_THRESHOLD ? GlassRenderer::BLUR_DOWNSCALE_MAX : 1;
++        int downscale = blurStrength >= GlassRenderer::BLUR_DOWNSCALE_THRESHOLD ? GlassRenderer::BLUR_DOWNSCALE_MAX : 1;
+ 
+         GlassRenderer::sampleBackground(m_sampleFramebuffer, source, transformBox, m_samplePaddingRatio, downscale);
+ 
+@@ -165,8 +248,22 @@ void CGlassLayerSurface::sampleAndRedirect(PHLMONITOR monitor, float alpha) {
+         int blurIterations   = std::clamp(static_cast<int>(resolvePresetInt(ctx, &SPresetValues::blurIterations, &SOverridableConfig::blurIterations)), 1, 5);
+         GlassRenderer::blurBackground(m_sampleFramebuffer, blurRadius, blurIterations, source);
+ 
++        // One extra sample+blur per distinct per-region strength. The padding
++        // ratio is resolution-independent, so the base one serves all variants.
++        m_blurVariants.resize(variantStrengths.size());
++        for (size_t i = 0; i < variantStrengths.size(); i++) {
++            auto& variant    = m_blurVariants[i];
++            variant.strength = variantStrengths[i];
++
++            const int variantDownscale = variant.strength >= GlassRenderer::BLUR_DOWNSCALE_THRESHOLD ? GlassRenderer::BLUR_DOWNSCALE_MAX : 1;
++            Vector2D  paddingRatio;
++            GlassRenderer::sampleBackground(variant.framebuffer, source, transformBox, paddingRatio, variantDownscale);
++            GlassRenderer::blurBackground(variant.framebuffer, variant.strength * 12.0f / variantDownscale, blurIterations, source);
++        }
++
+         m_hasCachedSample      = true;
+         m_lastSceneGeneration  = currentGeneration;
++        m_lastBlurKey          = std::move(blurKey);
+     }
+     // else: background unchanged, reuse cached blur — skip 7 GPU operations
+ 
+@@ -265,6 +362,84 @@ void CGlassLayerSurface::compositeAndRestore(PHLMONITOR monitor, float alpha) {
+         .alphaThreshold    = maskThreshold,
+     };
+ 
++    const auto debugIt = g_pGlobalState->layerNamespaceDebug.find(layerSurface->m_namespace);
++    if (debugIt != g_pGlobalState->layerNamespaceDebug.end())
++        maskInfo.debugMode = debugIt->second;
++
++    // Declared per-region slabs (hg.layer(ns, { regions = {...} })), converted
++    // from layer-local logical px to glass-quad UV fractions. declaredRegions
++    // returns nullptr on rotated monitors, where the quad UV axes would not
++    // match the surface's own — those fall back to the whole-surface slab.
++    if (const auto* regions = declaredRegions(monitor)) {
++        const auto logicalSize = layerSurface->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
++        if (logicalSize.x > 0.0 && logicalSize.y > 0.0) {
++            for (const auto& region : *regions) {
++                // Regions with their own blur sample the matching variant
++                // (blurred in sampleAndRedirect); shader index = position + 1.
++                int texIndex = 0;
++                if (region.blur >= 0.0f) {
++                    for (size_t v = 0; v < m_blurVariants.size(); v++) {
++                        if (m_blurVariants[v].strength == region.blur && m_blurVariants[v].framebuffer) {
++                            texIndex = static_cast<int>(v) + 1;
++                            break;
++                        }
++                    }
++                }
++                maskInfo.regions.push_back({
++                    .centerX  = static_cast<float>((region.x + region.w * 0.5f) / logicalSize.x),
++                    .centerY  = static_cast<float>((region.y + region.h * 0.5f) / logicalSize.y),
++                    .halfW    = static_cast<float>(region.w * 0.5f / logicalSize.x),
++                    .halfH    = static_cast<float>(region.h * 0.5f / logicalSize.y),
++                    .radiusPx = region.radius * monitor->m_scale,
++                    .texIndex = texIndex,
++                });
++            }
++
++            // Innermost-containing attribution in the shader picks the first
++            // containing region, so order by area ascending (pills before a
++            // panel-sheet region that encloses them).
++            std::sort(maskInfo.regions.begin(), maskInfo.regions.end(),
++                      [](const auto& a, const auto& b) { return a.halfW * a.halfH < b.halfW * b.halfH; });
++
++            maskInfo.backgroundGlass = g_pGlobalState->layerNamespaceBackground.contains(layerSurface->m_namespace);
++        }
++    }
++
++    // Blur variants serve both declared regions and pills
++    for (const auto& variant : m_blurVariants) {
++        if (!variant.framebuffer || maskInfo.variantCount >= GlassRenderer::MAX_BLUR_VARIANTS)
++            break;
++        maskInfo.variantTextures[maskInfo.variantCount++] = variant.framebuffer->getTexture()->m_texID;
++    }
++
++    // Alpha-derived pills: build this frame's jump-flood field from the
++    // surface temp FBO so the pill slabs follow the layout wherever the
++    // widgets currently are.
++    if (const auto* pills = pillConfig(monitor)) {
++        const float pillThreshold = pills->threshold * std::clamp(alpha, 0.0f, 1.0f);
++        const auto field = GlassRenderer::computePillField(
++            m_jfaPing, m_jfaPong,
++            m_surfaceTempFramebuffer->getTexture()->m_texID,
++            maskInfo.uvOffset, maskInfo.uvScale, pillThreshold,
++            static_cast<int>(transformBox.w), static_cast<int>(transformBox.h), target);
++        if (field) {
++            maskInfo.pillsEnabled  = true;
++            maskInfo.pillThreshold = pillThreshold;
++            maskInfo.pillBezelPx   = pills->bezel * monitor->m_scale;
++            maskInfo.pillCornerLobes = pills->cornerLobes;
++            maskInfo.jfaTextureId  = field->getTexture()->m_texID;
++            maskInfo.jfaSize       = {transformBox.w, transformBox.h};
++            if (pills->blur >= 0.0f) {
++                for (size_t v = 0; v < m_blurVariants.size(); v++) {
++                    if (m_blurVariants[v].strength == pills->blur && m_blurVariants[v].framebuffer) {
++                        maskInfo.pillTexIdx = static_cast<int>(v) + 1;
++                        break;
++                    }
++                }
++            }
++        }
++    }
++
+     // The glass shader composites both the glass effect and the surface content
+     // in a single pass: glass behind, surface on top, using the temp FBO alpha.
+     GlassRenderer::applyGlassEffect(m_sampleFramebuffer, target,
+diff --git a/src/GlassLayerSurface.hpp b/src/GlassLayerSurface.hpp
+index 26fc97c..92909e5 100644
+--- a/src/GlassLayerSurface.hpp
++++ b/src/GlassLayerSurface.hpp
+@@ -28,6 +28,29 @@ class CGlassLayerSurface {
+     Vector2D     m_samplePaddingRatio;
+     bool         m_hasCachedSample = false;
+ 
++    // Extra blurred copies of the sampled background, one per distinct
++    // per-region blur strength (shader tex index = position + 1).
++    struct SBlurVariant {
++        float                    strength = -1.0f;
++        SP<Render::IFramebuffer> framebuffer;
++    };
++    std::vector<SBlurVariant> m_blurVariants;
++    // Base + variant strengths at the last blur; a change forces a re-blur
++    // even when the scene generation says the background is unchanged.
++    std::vector<float>        m_lastBlurKey;
++
++    // Ping-pong framebuffers for the pill jump-flood field
++    SP<Render::IFramebuffer> m_jfaPing;
++    SP<Render::IFramebuffer> m_jfaPong;
++    CHyprSignalListener      m_commitListener;
++
++    // Declared regions for this layer's namespace, or nullptr when there are
++    // none or the monitor is transformed (quad UV wouldn't match surface axes).
++    [[nodiscard]] const std::vector<SLayerRegion>* declaredRegions(PHLMONITOR monitor) const;
++    // Pill config for this layer's namespace, same transform restriction.
++    [[nodiscard]] const SPillConfig* pillConfig(PHLMONITOR monitor) const;
++    void damageOnCommit();
++
+     // Track last position/size to detect movement and expand damage
+     Vector2D     m_lastPosition;
+     Vector2D     m_lastSize;
+diff --git a/src/GlassRenderer.cpp b/src/GlassRenderer.cpp
+index ea45ebe..c381847 100644
+--- a/src/GlassRenderer.cpp
++++ b/src/GlassRenderer.cpp
+@@ -2,6 +2,7 @@
+ #include "BuiltInPresets.hpp"
+ #include "Globals.hpp"
+ 
++#include <algorithm>
+ #include <array>
+ #include <GLES3/gl32.h>
+ #include <hyprland/src/render/OpenGL.hpp>
+@@ -151,6 +152,91 @@ void blurBackground(SP<Render::IFramebuffer> sampleFramebuffer, float radius, in
+         static_cast<int>(callerFramebuffer->m_size.y));
+ }
+ 
++SP<Render::IFramebuffer> computePillField(SP<Render::IFramebuffer>& jfaPing, SP<Render::IFramebuffer>& jfaPong,
++                                          GLuint maskTextureId, Vector2D uvOffset, Vector2D uvScale,
++                                          float threshold, int width, int height,
++                                          SP<Render::IFramebuffer> callerFramebuffer) {
++    auto& shaderManager = g_pGlobalState->shaderManager;
++    if (!callerFramebuffer || !shaderManager.isInitialized() || width <= 0 || height <= 0 || maskTextureId == 0)
++        return nullptr;
++
++    const auto bindField = [](const SP<Render::IFramebuffer>& framebuffer) {
++        framebuffer->getTexture()->bind();
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    };
++
++    const auto prepare = [&](SP<Render::IFramebuffer>& framebuffer, const char* name) {
++        if (!framebuffer)
++            framebuffer = g_pHyprRenderer->createFB(name);
++        if (framebuffer->m_size.x != width || framebuffer->m_size.y != height)
++            framebuffer->alloc(width, height, DRM_FORMAT_ABGR8888);
++        bindField(framebuffer);
++    };
++    prepare(jfaPing, "hyprglass-jfa-ping");
++    prepare(jfaPong, "hyprglass-jfa-pong");
++
++    static constexpr std::array<float, 9> FULLSCREEN_PROJECTION = {
++        2.0f, 0.0f, 0.0f,
++        0.0f, 2.0f, 0.0f,
++       -1.0f,-1.0f, 1.0f,
++    };
++
++    const auto& jfaUniforms = shaderManager.jfaUniforms;
++
++    g_pHyprOpenGL->setCapStatus(GL_SCISSOR_TEST, false);
++    g_pHyprOpenGL->blend(false);
++    g_pHyprOpenGL->setViewport(0, 0, width, height);
++    glActiveTexture(GL_TEXTURE0);
++
++    // Init pass: threshold the surface mask into seeds
++    {
++        auto shader = g_pHyprOpenGL->useShader(shaderManager.jfaInitShader);
++        shader->setUniformMatrix3fv(SHADER_PROJ, 1, GL_FALSE, FULLSCREEN_PROJECTION);
++        shader->setUniformInt(SHADER_TEX, 0);
++        glUniform2f(jfaUniforms.initMaskUVOffset, static_cast<float>(uvOffset.x), static_cast<float>(uvOffset.y));
++        glUniform2f(jfaUniforms.initMaskUVScale, static_cast<float>(uvScale.x), static_cast<float>(uvScale.y));
++        glUniform1f(jfaUniforms.initThreshold, threshold);
++        glUniform2f(jfaUniforms.initSizePx, static_cast<float>(width), static_cast<float>(height));
++        glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
++        glBindFramebuffer(GL_FRAMEBUFFER, fbId(jfaPing));
++        glBindTexture(GL_TEXTURE_2D, maskTextureId);
++        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
++    }
++
++    // Flood passes: halving offsets from the largest power of two
++    {
++        auto shader = g_pHyprOpenGL->useShader(shaderManager.jfaStepShader);
++        shader->setUniformMatrix3fv(SHADER_PROJ, 1, GL_FALSE, FULLSCREEN_PROJECTION);
++        shader->setUniformInt(SHADER_TEX, 0);
++        glUniform2f(jfaUniforms.stepSizePx, static_cast<float>(width), static_cast<float>(height));
++        glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
++
++        int stepPx = 1;
++        while (stepPx * 2 < std::max(width, height))
++            stepPx *= 2;
++
++        auto* source = &jfaPing;
++        auto* destination = &jfaPong;
++        for (; stepPx >= 1; stepPx /= 2) {
++            glBindFramebuffer(GL_FRAMEBUFFER, fbId(*destination));
++            bindField(*source);
++            glUniform1f(jfaUniforms.stepStepPx, static_cast<float>(stepPx));
++            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
++            std::swap(source, destination);
++        }
++
++        glBindVertexArray(0);
++        g_pHyprOpenGL->blend(true);
++        glBindFramebuffer(GL_FRAMEBUFFER, fbId(callerFramebuffer));
++        g_pHyprOpenGL->setViewport(0, 0,
++            static_cast<int>(callerFramebuffer->m_size.x),
++            static_cast<int>(callerFramebuffer->m_size.y));
++
++        return *source;
++    }
++}
++
+ void applyGlassEffect(SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFramebuffer> targetFramebuffer,
+                        CBox& rawBox, CBox& transformedBox,
+                        float alpha, float cornerRadius, float roundingPower,
+@@ -180,6 +266,11 @@ void applyGlassEffect(SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFr
+     if (mask && mask->textureId != 0) {
+         glActiveTexture(GL_TEXTURE1);
+         glBindTexture(mask->target, mask->textureId);
++        // Per-region blur variants on units 2..2+N
++        for (int i = 0; i < mask->variantCount; i++) {
++            glActiveTexture(GL_TEXTURE2 + i);
++            glBindTexture(GL_TEXTURE_2D, mask->variantTextures[i]);
++        }
+         glActiveTexture(GL_TEXTURE0);
+     }
+ 
+@@ -231,6 +322,60 @@ void applyGlassEffect(SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFr
+         glUniform1f(uniforms.maskAlphaThreshold, 0.001f);
+     }
+ 
++    // Layers only: declared per-region slabs. regionCount=0 keeps the single
++    // whole-quad slab (windows and region-less layers).
++    if (mask && !mask->regions.empty()) {
++        const int count = std::min(static_cast<int>(mask->regions.size()),
++                                   static_cast<int>(MAX_GLASS_REGIONS));
++        std::array<float, MAX_GLASS_REGIONS * 4> rects{};
++        std::array<float, MAX_GLASS_REGIONS>     radii{};
++        std::array<GLint, MAX_GLASS_REGIONS>     texIndices{};
++        for (int i = 0; i < count; i++) {
++            const auto& region = mask->regions[i];
++            rects[i * 4 + 0] = region.centerX;
++            rects[i * 4 + 1] = region.centerY;
++            rects[i * 4 + 2] = region.halfW;
++            rects[i * 4 + 3] = region.halfH;
++            radii[i]         = region.radiusPx;
++            texIndices[i]    = region.texIndex;
++        }
++        glUniform1i(uniforms.regionCount, count);
++        glUniform4fv(uniforms.regionRects, count, rects.data());
++        glUniform1fv(uniforms.regionRadii, count, radii.data());
++        glUniform1iv(uniforms.regionTexIndex, count, texIndices.data());
++        glUniform1i(uniforms.regionBackground, mask->backgroundGlass ? 1 : 0);
++    } else {
++        glUniform1i(uniforms.regionCount, 0);
++    }
++
++    // Alpha-derived pills: bind the jump-flood field on unit 5
++    if (mask && mask->pillsEnabled && mask->jfaTextureId != 0) {
++        glActiveTexture(GL_TEXTURE5);
++        glBindTexture(GL_TEXTURE_2D, mask->jfaTextureId);
++        glActiveTexture(GL_TEXTURE0);
++        glUniform1i(uniforms.pillsEnabled, 1);
++        glUniform1f(uniforms.pillThreshold, mask->pillThreshold);
++        glUniform1f(uniforms.pillBezelPx, mask->pillBezelPx);
++        glUniform1i(uniforms.pillCornerLobes, mask->pillCornerLobes ? 1 : 0);
++        glUniform1i(uniforms.pillTexIdx, mask->pillTexIdx);
++        glUniform1i(uniforms.jfaTex, 5);
++        glUniform2f(uniforms.jfaSizePx,
++            static_cast<float>(mask->jfaSize.x),
++            static_cast<float>(mask->jfaSize.y));
++    } else {
++        glUniform1i(uniforms.pillsEnabled, 0);
++        glUniform1i(uniforms.pillCornerLobes, 0);
++    }
++
++    if (mask) {
++        glUniform1i(uniforms.texVariant0, 2);
++        glUniform1i(uniforms.texVariant1, 3);
++        glUniform1i(uniforms.texVariant2, 4);
++        glUniform1i(uniforms.debugMode, static_cast<int>(mask->debugMode));
++    } else {
++        glUniform1i(uniforms.debugMode, static_cast<int>(ELayerDebugMode::NONE));
++    }
++
+     shader->setUniformFloat(SHADER_RADIUS, cornerRadius);
+     shader->setUniformFloat(SHADER_ROUNDING_POWER, roundingPower);
+ 
+diff --git a/src/GlassRenderer.hpp b/src/GlassRenderer.hpp
+index 92d4daa..8280887 100644
+--- a/src/GlassRenderer.hpp
++++ b/src/GlassRenderer.hpp
+@@ -6,6 +6,8 @@
+ #include <hyprland/src/render/Framebuffer.hpp>
+ #include <hyprutils/math/Box.hpp>
+ #include <hyprutils/math/Vector2D.hpp>
++#include <array>
++#include <vector>
+ 
+ // Shared GL rendering pipeline used by both window decorations and layer surfaces.
+ // Callers own their sample framebuffers; these functions operate on passed-in state.
+@@ -19,6 +21,23 @@ inline constexpr int SAMPLE_PADDING_PX = 60;
+ inline constexpr int   BLUR_DOWNSCALE_MAX       = 2;
+ inline constexpr float BLUR_DOWNSCALE_THRESHOLD = 0.35f; // min blur_strength for downscale
+ 
++// Extra blurred copies of the sampled background for per-region blur, beyond
++// the base sample (shader tex index 0). Index i binds to texture unit 2 + i.
++inline constexpr int MAX_BLUR_VARIANTS = 3;
++
++// Declared glass region converted to glass-quad UV space. radiusPx is in
++// framebuffer pixels (the shader's SDF operates in pixels via fullSize).
++// texIndex selects the blurred background: 0 = base sample, 1..MAX_BLUR_VARIANTS
++// = a variant blurred at the region's own strength.
++struct SShaderRegion {
++    float centerX;
++    float centerY;
++    float halfW;
++    float halfH;
++    float radiusPx;
++    int   texIndex = 0;
++};
++
+ // Layers only: alpha mask from the temp FBO that captured the rendered surface.
+ // Constrains the glass effect to regions where the layer has visible content.
+ // Windows do not use masking, they pass mask=nullptr to applyGlassEffect.
+@@ -28,6 +47,28 @@ struct SMaskInfo {
+     Vector2D uvOffset; // mapping from glass box UV → full surface UV
+     Vector2D uvScale;
+     float    alphaThreshold = 0.001f;
++    // Non-empty: each entry is an independent glass slab. Glass renders only
++    // inside a region AND where the mask passes; outside all regions (or
++    // below the threshold) the surface passes through unglassed.
++    std::vector<SShaderRegion> regions;
++    // Textures for regions with their own blur strength; entry i serves
++    // shader tex index i + 1 on texture unit 2 + i.
++    std::array<GLuint, MAX_BLUR_VARIANTS> variantTextures{};
++    int                                   variantCount = 0;
++    // With regions: mask area outside all of them renders as a whole-surface
++    // base slab (panel sheet) instead of unglassed passthrough.
++    bool backgroundGlass = false;
++
++    // Alpha-derived pills (dynamic slabs). jfaTextureId holds the jump-flood
++    // field computed by computePillField for this frame; bound on unit 5.
++    bool     pillsEnabled  = false;
++    float    pillThreshold = 0.02f;
++    float    pillBezelPx   = 8.0f;
++    bool     pillCornerLobes = false;
++    int      pillTexIdx    = 0;
++    GLuint   jfaTextureId  = 0;
++    Vector2D jfaSize;
++    ELayerDebugMode debugMode = ELayerDebugMode::NONE;
+ };
+ 
+ void sampleBackground(SP<Render::IFramebuffer>& sampleFramebuffer, SP<Render::IFramebuffer> sourceFramebuffer,
+@@ -39,6 +80,17 @@ void sampleBackground(SP<Render::IFramebuffer>& sampleFramebuffer, SP<Render::IF
+ void blurBackground(SP<Render::IFramebuffer> sampleFramebuffer, float radius, int iterations,
+                     SP<Render::IFramebuffer> callerFramebuffer);
+ 
++// Compute the jump-flood field for alpha-derived pills: seeds are surface
++// pixels below `threshold`, the result stores each pixel's nearest seed. The
++// field covers the (untransformed) layer box at width×height framebuffer px;
++// uvOffset/uvScale map field UV into the monitor-sized surface temp FBO.
++// Returns the framebuffer holding the final field, or nullptr on failure.
++// callerFramebuffer is re-bound (with matching viewport) before returning.
++SP<Render::IFramebuffer> computePillField(SP<Render::IFramebuffer>& jfaPing, SP<Render::IFramebuffer>& jfaPong,
++                                          GLuint maskTextureId, Vector2D uvOffset, Vector2D uvScale,
++                                          float threshold, int width, int height,
++                                          SP<Render::IFramebuffer> callerFramebuffer);
++
+ // When mask is non-null (layers only), the shader composites the surface content
+ // over the glass effect in a single pass. When mask is null (windows), the shader
+ // outputs the glass effect alone.
+diff --git a/src/Globals.hpp b/src/Globals.hpp
+index 0e78548..4dd7d2a 100644
+--- a/src/Globals.hpp
++++ b/src/Globals.hpp
+@@ -40,6 +40,17 @@ struct SGlobalState {
+     std::unordered_map<std::string, std::string> layerNamespacePresets;
+     // Per-namespace mask alpha threshold (namespace → threshold, default 0.001)
+     std::unordered_map<std::string, float> layerNamespaceMaskThresholds;
++    // Per-namespace declared glass regions (namespace → layer-local logical px).
++    // Each region renders as an independent slab; outside them the surface
++    // passes through unglassed.
++    std::unordered_map<std::string, std::vector<SLayerRegion>> layerNamespaceRegions;
++    // Namespaces whose mask area outside all regions renders as a
++    // whole-surface base slab (panel sheet) instead of passing through.
++    std::unordered_set<std::string> layerNamespaceBackground;
++    // Per-namespace alpha-derived pill config (dynamic slabs via jump-flood)
++    std::unordered_map<std::string, SPillConfig> layerNamespacePills;
++    // Per-namespace diagnostic render mode
++    std::unordered_map<std::string, ELayerDebugMode> layerNamespaceDebug;
+ 
+     // Per-monitor generation counter, incremented when the scene behind layers
+     // changes on that monitor. Layer surfaces compare to their cached value to
+diff --git a/src/PluginConfig.cpp b/src/PluginConfig.cpp
+index 2db4b86..885f7e2 100644
+--- a/src/PluginConfig.cpp
++++ b/src/PluginConfig.cpp
+@@ -473,10 +473,15 @@ static int handleLuaPreset(lua_State* L) {
+ // ── Lua layer handler ───────────────────────────────────────────────────────
+ 
+ struct SPendingLayer {
+-    std::string ns;
+-    std::string preset;
+-    float       maskThreshold = -1.0f;
+-    bool        exclude       = false;
++    std::string               ns;
++    std::string               preset;
++    float                     maskThreshold = -1.0f;
++    bool                      exclude       = false;
++    bool                      background    = false;
++    bool                      hasPills      = false;
++    SPillConfig               pills;
++    ELayerDebugMode           debug         = ELayerDebugMode::NONE;
++    std::vector<SLayerRegion> regions;
+ };
+ 
+ static std::vector<SPendingLayer> s_pendingLayers;
+@@ -494,6 +499,14 @@ static int handleLuaLayer(lua_State* L) {
+             entry.exclude = true;
+         lua_pop(L, 1);
+ 
++        // background = true: with regions, the mask area outside all regions
++        // renders as a whole-surface base slab (panel sheet) instead of
++        // passing through unglassed.
++        lua_getfield(L, 2, "background");
++        if (lua_isboolean(L, -1) && lua_toboolean(L, -1))
++            entry.background = true;
++        lua_pop(L, 1);
++
+         lua_getfield(L, 2, "preset");
+         if (lua_isstring(L, -1))
+             entry.preset = lua_tostring(L, -1);
+@@ -503,6 +516,67 @@ static int handleLuaLayer(lua_State* L) {
+         if (lua_isnumber(L, -1))
+             entry.maskThreshold = static_cast<float>(lua_tonumber(L, -1));
+         lua_pop(L, 1);
++
++        lua_getfield(L, 2, "debug");
++        if (lua_isstring(L, -1)) {
++            const std::string_view debug = lua_tostring(L, -1);
++            if (debug == "mask")
++                entry.debug = ELayerDebugMode::MASK;
++            else if (debug == "pill_field")
++                entry.debug = ELayerDebugMode::PILL_FIELD;
++            else if (debug == "attribution")
++                entry.debug = ELayerDebugMode::ATTRIBUTION;
++        }
++        lua_pop(L, 1);
++
++        // pills = { threshold = , blur = , bezel = , corner_lobes = }: alpha-derived dynamic slabs
++        lua_getfield(L, 2, "pills");
++        if (lua_istable(L, -1)) {
++            entry.hasPills = true;
++            const auto readField = [L](const char* key, float& out) {
++                lua_getfield(L, -1, key);
++                if (lua_isnumber(L, -1))
++                    out = static_cast<float>(lua_tonumber(L, -1));
++                lua_pop(L, 1);
++            };
++            readField("threshold", entry.pills.threshold);
++            readField("blur", entry.pills.blur);
++            readField("bezel", entry.pills.bezel);
++            lua_getfield(L, -1, "corner_lobes");
++            if (lua_isboolean(L, -1))
++                entry.pills.cornerLobes = lua_toboolean(L, -1);
++            lua_pop(L, 1);
++        }
++        lua_pop(L, 1);
++
++        // regions = { { x = , y = , w = , h = , radius = }, ... }
++        // Layer-local logical pixels. Each region renders as its own glass slab.
++        lua_getfield(L, 2, "regions");
++        if (lua_istable(L, -1)) {
++            const int count = static_cast<int>(lua_rawlen(L, -1));
++            for (int i = 1; i <= count; i++) {
++                lua_rawgeti(L, -1, i);
++                if (lua_istable(L, -1)) {
++                    SLayerRegion region;
++                    const auto readField = [L](const char* key, float& out) {
++                        lua_getfield(L, -1, key);
++                        if (lua_isnumber(L, -1))
++                            out = static_cast<float>(lua_tonumber(L, -1));
++                        lua_pop(L, 1);
++                    };
++                    readField("x", region.x);
++                    readField("y", region.y);
++                    readField("w", region.w);
++                    readField("h", region.h);
++                    readField("radius", region.radius);
++                    readField("blur", region.blur);
++                    if (region.w > 0.0f && region.h > 0.0f)
++                        entry.regions.push_back(region);
++                }
++                lua_pop(L, 1);
++            }
++        }
++        lua_pop(L, 1);
+     }
+ 
+     s_pendingLayers.push_back(std::move(entry));
+@@ -516,6 +590,15 @@ void clearPendingLayers() {
+ void commitPendingLayers() {
+     if (!g_pGlobalState) return;
+     for (const auto& entry : s_pendingLayers) {
++        g_pGlobalState->layerNamespaceFilter.erase(entry.ns);
++        g_pGlobalState->layerNamespaceExclude.erase(entry.ns);
++        g_pGlobalState->layerNamespacePresets.erase(entry.ns);
++        g_pGlobalState->layerNamespaceMaskThresholds.erase(entry.ns);
++        g_pGlobalState->layerNamespaceRegions.erase(entry.ns);
++        g_pGlobalState->layerNamespaceBackground.erase(entry.ns);
++        g_pGlobalState->layerNamespacePills.erase(entry.ns);
++        g_pGlobalState->layerNamespaceDebug.erase(entry.ns);
++
+         if (entry.exclude) {
+             g_pGlobalState->layerNamespaceExclude.insert(entry.ns);
+         } else {
+@@ -524,6 +607,25 @@ void commitPendingLayers() {
+                 g_pGlobalState->layerNamespacePresets[entry.ns] = entry.preset;
+             if (entry.maskThreshold >= 0.0f)
+                 g_pGlobalState->layerNamespaceMaskThresholds[entry.ns] = entry.maskThreshold;
++            if (!entry.regions.empty()) {
++                auto regions = entry.regions;
++                if (regions.size() > MAX_GLASS_REGIONS) {
++                    HyprlandAPI::addNotificationV2(PHANDLE, {
++                        {"text", std::format("[hyprglass] layer '{}': {} regions declared, only the first {} are used",
++                                             entry.ns, regions.size(), MAX_GLASS_REGIONS)},
++                        {"time", (uint64_t)5000},
++                        {"color", CHyprColor{1.0, 0.8, 0.2, 1.0}},
++                    });
++                    regions.resize(MAX_GLASS_REGIONS);
++                }
++                g_pGlobalState->layerNamespaceRegions[entry.ns] = std::move(regions);
++            }
++            if (entry.background)
++                g_pGlobalState->layerNamespaceBackground.insert(entry.ns);
++            if (entry.hasPills)
++                g_pGlobalState->layerNamespacePills[entry.ns] = entry.pills;
++            if (entry.debug != ELayerDebugMode::NONE)
++                g_pGlobalState->layerNamespaceDebug[entry.ns] = entry.debug;
+         }
+     }
+     s_pendingLayers.clear();
+diff --git a/src/PluginConfig.hpp b/src/PluginConfig.hpp
+index 8dba9a8..d458c07 100644
+--- a/src/PluginConfig.hpp
++++ b/src/PluginConfig.hpp
+@@ -163,6 +163,42 @@ struct SCustomPreset {
+     SPresetValues light;
+ };
+ 
++// Declared glass region within a layer surface, in layer-local logical pixels.
++// When a layer declares regions, each one becomes an independent glass slab
++// (own edges, bezel, refraction center) instead of one slab spanning the
++// whole surface. Lua only: hg.layer(ns, { regions = { {x,y,w,h,radius}, ... } })
++struct SLayerRegion {
++    float x      = 0.0f;
++    float y      = 0.0f;
++    float w      = 0.0f;
++    float h      = 0.0f;
++    float radius = 0.0f;
++    // Per-region blur strength (same units as blur_strength); < 0 inherits the
++    // layer preset. Each distinct value costs one extra blur pass per frame.
++    float blur   = -1.0f;
++};
++
++enum class ELayerDebugMode : int {
++    NONE        = 0,
++    MASK        = 1,
++    PILL_FIELD  = 2,
++    ATTRIBUTION = 4,
++};
++
++// Uniform array size in the glass shader; extra regions are dropped with a warning.
++inline constexpr size_t MAX_GLASS_REGIONS = 16;
++
++// Alpha-derived pills: surface pixels above `threshold` form dynamic glass
++// slabs whose edges come from a per-frame jump-flood distance field — they
++// follow the layout wherever the widgets move, unlike declared regions.
++// Lua only: hg.layer(ns, { pills = { threshold = 0.02, blur = 2.0, bezel = 8 } })
++struct SPillConfig {
++    float threshold   = 0.02f; // surface alpha above this is pill material
++    float blur        = -1.0f; // pill blur strength; < 0 inherits the layer preset
++    float bezel       = 8.0f;  // pill edge-effect width, logical px
++    bool  cornerLobes = false; // separated top-left and bottom-right rim reflections
++};
++
+ struct StringConfigPtr {
+     void* const*          dataptr = nullptr;
+     const std::type_info* type    = nullptr;
+diff --git a/src/ShaderManager.cpp b/src/ShaderManager.cpp
+index 2ddc18e..f6e7c20 100644
+--- a/src/ShaderManager.cpp
++++ b/src/ShaderManager.cpp
+@@ -49,6 +49,22 @@ bool CShaderManager::compileGlassShader() {
+     glassUniforms.maskUVOffset        = glGetUniformLocation(program, "maskUVOffset");
+     glassUniforms.maskUVScale         = glGetUniformLocation(program, "maskUVScale");
+     glassUniforms.maskAlphaThreshold  = glGetUniformLocation(program, "maskAlphaThreshold");
++    glassUniforms.regionCount         = glGetUniformLocation(program, "regionCount");
++    glassUniforms.regionRects         = glGetUniformLocation(program, "regionRects");
++    glassUniforms.regionRadii         = glGetUniformLocation(program, "regionRadii");
++    glassUniforms.regionTexIndex      = glGetUniformLocation(program, "regionTexIndex");
++    glassUniforms.regionBackground    = glGetUniformLocation(program, "regionBackground");
++    glassUniforms.pillsEnabled        = glGetUniformLocation(program, "pillsEnabled");
++    glassUniforms.pillThreshold       = glGetUniformLocation(program, "pillThreshold");
++    glassUniforms.pillBezelPx         = glGetUniformLocation(program, "pillBezelPx");
++    glassUniforms.pillCornerLobes     = glGetUniformLocation(program, "pillCornerLobes");
++    glassUniforms.pillTexIdx          = glGetUniformLocation(program, "pillTexIdx");
++    glassUniforms.jfaTex              = glGetUniformLocation(program, "jfaTex");
++    glassUniforms.jfaSizePx           = glGetUniformLocation(program, "jfaSizePx");
++    glassUniforms.debugMode           = glGetUniformLocation(program, "debugMode");
++    glassUniforms.texVariant0         = glGetUniformLocation(program, "texVariant0");
++    glassUniforms.texVariant1         = glGetUniformLocation(program, "texVariant1");
++    glassUniforms.texVariant2         = glGetUniformLocation(program, "texVariant2");
+ 
+     return true;
+ }
+@@ -73,6 +89,28 @@ bool CShaderManager::compileBlurShader() {
+     return true;
+ }
+ 
++bool CShaderManager::compileJfaShaders() {
++    if (!jfaInitShader->createProgram(g_pHyprOpenGL->m_shaders->TEXVERTSRC, loadShaderSource("jfainit.frag"), true) ||
++        !jfaStepShader->createProgram(g_pHyprOpenGL->m_shaders->TEXVERTSRC, loadShaderSource("jfastep.frag"), true)) {
++        HyprlandAPI::addNotification(PHANDLE,
++            std::format("[{}] Failed to compile JFA shaders", PLUGIN_NAME),
++            CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
++        return false;
++    }
++
++    const auto initProgram = jfaInitShader->program();
++    jfaUniforms.initMaskUVOffset = glGetUniformLocation(initProgram, "maskUVOffset");
++    jfaUniforms.initMaskUVScale  = glGetUniformLocation(initProgram, "maskUVScale");
++    jfaUniforms.initThreshold    = glGetUniformLocation(initProgram, "threshold");
++    jfaUniforms.initSizePx       = glGetUniformLocation(initProgram, "sizePx");
++
++    const auto stepProgram = jfaStepShader->program();
++    jfaUniforms.stepSizePx = glGetUniformLocation(stepProgram, "sizePx");
++    jfaUniforms.stepStepPx = glGetUniformLocation(stepProgram, "stepPx");
++
++    return true;
++}
++
+ void CShaderManager::initializeIfNeeded() {
+     if (m_initialized)
+         return;
+@@ -83,11 +121,16 @@ void CShaderManager::initializeIfNeeded() {
+     if (!compileBlurShader())
+         return;
+ 
++    if (!compileJfaShaders())
++        return;
++
+     m_initialized = true;
+ }
+ 
+ void CShaderManager::destroy() noexcept {
+     glassShader->destroy();
+     blurShader->destroy();
++    jfaInitShader->destroy();
++    jfaStepShader->destroy();
+     m_initialized = false;
+ }
+diff --git a/src/ShaderManager.hpp b/src/ShaderManager.hpp
+index 64e70af..78a2473 100644
+--- a/src/ShaderManager.hpp
++++ b/src/ShaderManager.hpp
+@@ -26,6 +26,35 @@ struct SGlassUniforms {
+     GLint maskUVOffset = -1;
+     GLint maskUVScale = -1;
+     GLint maskAlphaThreshold = -1;
++
++    // Layers only: declared per-region slabs
++    GLint regionCount = -1;
++    GLint regionRects = -1;
++    GLint regionRadii = -1;
++    GLint regionTexIndex = -1;
++    GLint regionBackground = -1;
++    GLint texVariant0 = -1;
++    GLint texVariant1 = -1;
++    GLint texVariant2 = -1;
++
++    // Layers only: alpha-derived pills
++    GLint pillsEnabled = -1;
++    GLint pillThreshold = -1;
++    GLint pillBezelPx = -1;
++    GLint pillCornerLobes = -1;
++    GLint pillTexIdx = -1;
++    GLint jfaTex = -1;
++    GLint jfaSizePx = -1;
++    GLint debugMode = -1;
++};
++
++struct SJfaUniforms {
++    GLint initMaskUVOffset = -1;
++    GLint initMaskUVScale  = -1;
++    GLint initThreshold    = -1;
++    GLint initSizePx       = -1;
++    GLint stepSizePx       = -1;
++    GLint stepStepPx       = -1;
+ };
+ 
+ struct SBlurUniforms {
+@@ -46,10 +75,15 @@ class CShaderManager {
+     SP<CShader>    blurShader = makeShared<CShader>();
+     SBlurUniforms  blurUniforms;
+ 
++    SP<CShader>   jfaInitShader = makeShared<CShader>();
++    SP<CShader>   jfaStepShader = makeShared<CShader>();
++    SJfaUniforms  jfaUniforms;
++
+   private:
+     bool m_initialized = false;
+ 
+     [[nodiscard]] static std::string loadShaderSource(const char* fileName);
+     [[nodiscard]] bool compileGlassShader();
+     [[nodiscard]] bool compileBlurShader();
++    [[nodiscard]] bool compileJfaShaders();
+ };
+diff --git a/src/Shaders.hpp b/src/Shaders.hpp
+index 32fa9c5..316a216 100644
+--- a/src/Shaders.hpp
++++ b/src/Shaders.hpp
+@@ -18,15 +18,15 @@ precision highp float;
+  *     the window boundary, creating natural color bleeding
+  *
+  * Rendering layers:
+- * 1. Edge refraction via smooth outward direction + exponential proximity
++ * 1. Edge refraction via the slab's edge profile and inward direction
+  * 2. Chromatic aberration (per-channel refraction scale)
+  * 3. Edge raw-texture blend for vivid color pickup
+  * 4. Subtle center dome lens magnification
+  * 5. Frosted tint (brightness boost + desaturation)
+  * 6. Configurable color tint overlay
+  * 7. Fresnel edge glow
+- * 8. Specular highlight (top)
+- * 9. Inner shadow (bottom rim)
++ * 8. Specular highlight
++ * 9. Opposing inner shadow
+  */
+ 
+ uniform sampler2D tex;
+@@ -58,6 +58,50 @@ uniform vec2 maskUVOffset;
+ uniform vec2 maskUVScale;
+ uniform float maskAlphaThreshold;
+ 
++// Declared per-region slabs (layers only). Each region is an independent
++// glass slab with its own edges, bezel, refraction center and highlights;
++// fragments outside all regions pass the surface through unglassed.
++// regionCount = 0 -> single slab spanning the whole quad (original behavior).
++#define MAX_REGIONS 16
++uniform int regionCount;
++uniform vec4 regionRects[MAX_REGIONS];  // xy = center (quad UV), zw = half-size (quad UV)
++uniform float regionRadii[MAX_REGIONS]; // corner radius in framebuffer px
++
++// Per-region blurred background variants: index 0 samples `tex` (base blur),
++// 1..3 the variant blurred at that region's own strength.
++uniform int regionTexIndex[MAX_REGIONS];
++// 1 = mask area outside all regions renders as a whole-surface base slab
++// (panel sheet) instead of passing the surface through unglassed.
++uniform int regionBackground;
++
++// Alpha-derived pills: surface pixels whose alpha crosses pillThreshold form
++// dynamic slabs whose edges come from a jump-flood distance field (jfaTex,
++// computed per frame from the surface mask) — they follow layout changes.
++uniform int pillsEnabled;
++uniform float pillThreshold;
++uniform float pillBezelPx;
++uniform int pillCornerLobes;
++uniform int pillTexIdx;
++uniform sampler2D jfaTex;
++uniform vec2 jfaSizePx;
++uniform int debugMode;
++
++// Seeds are stored as integer pixel coords packed 16-bit into RGBA8
++// (xy = hi/lo of x, zw = hi/lo of y); 65535 = sentinel "no seed".
++vec2 jfaDecode(vec4 t) {
++    return vec2(t.r * 255.0 * 256.0 + t.g * 255.0,
++                t.b * 255.0 * 256.0 + t.a * 255.0);
++}
++
++float pillBoundaryDistance(vec2 sampleUV) {
++    vec2 samplePx = sampleUV * jfaSizePx;
++    vec2 seedPx = jfaDecode(texture(jfaTex, clamp(sampleUV, 0.001, 0.999)));
++    return seedPx.x > 60000.0 ? 1e5 : length(seedPx + 0.5 - samplePx);
++}
++uniform sampler2D texVariant0;
++uniform sampler2D texVariant1;
++uniform sampler2D texVariant2;
++
+ in vec2 v_texcoord;
+ layout(location = 0) out vec4 fragColor;
+ 
+@@ -69,9 +113,12 @@ vec2 toTexUV(vec2 wuv) {
+     return wuv * (1.0 - 2.0 * uvPadding) + uvPadding;
+ }
+ 
+-vec4 sampleBlurred(vec2 wuv) {
+-    vec2 tuv = toTexUV(wuv);
+-    return texture(tex, clamp(tuv, 0.001, 0.999));
++vec4 sampleBlurred(vec2 wuv, int texIdx) {
++    vec2 tuv = clamp(toTexUV(wuv), 0.001, 0.999);
++    if (texIdx == 1) return texture(texVariant0, tuv);
++    if (texIdx == 2) return texture(texVariant1, tuv);
++    if (texIdx == 3) return texture(texVariant2, tuv);
++    return texture(tex, tuv);
+ }
+ 
+ // ============================================================================
+@@ -82,70 +129,29 @@ float lpNorm(vec2 v, float p) {
+     return pow(pow(abs(v.x), p) + pow(abs(v.y), p), 1.0 / p);
+ }
+ 
+-float getRoundedBoxSDF(vec2 uv, float r) {
+-    vec2 p = (uv - 0.5) * fullSize;
+-    vec2 halfSize = fullSize * 0.5;
+-    float clampedR = min(r, min(halfSize.x, halfSize.y));
+-    vec2 q = abs(p) - halfSize + clampedR;
++// pPx: fragment offset from box center in px, halfSizePx: box half-size in px
++float roundedBoxSDF(vec2 pPx, vec2 halfSizePx, float r) {
++    float clampedR = min(r, min(halfSizePx.x, halfSizePx.y));
++    vec2 q = abs(pPx) - halfSizePx + clampedR;
+     return min(max(q.x, q.y), 0.0) + lpNorm(max(q, 0.0), roundingPower) - clampedR;
+ }
+ 
+ float getCornerSDF(vec2 uv) {
+-    return getRoundedBoxSDF(uv, radius);
+-}
+-
+-// ============================================================================
+-// REFRACTION DIRECTION
+-// Pixel-space direction toward window center — perfectly smooth everywhere,
+-// no SDF gradient needed. On straight edges the perpendicular pixel distance
+-// dominates, giving approximately edge-normal direction. At corners it
+-// naturally follows the diagonal.
+-// ============================================================================
+-
+-vec2 refractionDir(vec2 uv) {
+-    vec2 toCenterPx = (vec2(0.5) - uv) * fullSize;
+-    float len = length(toCenterPx);
+-    return len > 0.1 ? toCenterPx / len : vec2(0.0);
++    return roundedBoxSDF((uv - 0.5) * fullSize, fullSize * 0.5, radius);
+ }
+ 
+ // ============================================================================
+-// MAIN — Thick-glass refraction model
++// GLASS SHADING TAIL
++// Shared by every slab kind (whole-quad, declared region, alpha-derived
++// pill): refraction, frosted tint, rim/specular/shadow, final composite.
++// The caller provides the slab frame (edge and refraction profiles, inward
++// direction, dome offset, light biases) and the background variant to sample.
+ // ============================================================================
+ 
+-void main() {
+-    vec2 uv = v_texcoord;
+-
+-    // Layers only: sample the temp FBO to get the rendered surface pixel.
+-    // Discard fully transparent fragments so glass only covers visible content.
+-    // For windows, hasMask is false and this block is skipped entirely.
+-    vec4 surfacePixel = vec4(0.0);
+-    bool hasMask = (useMask == 1);
+-    if (hasMask) {
+-        vec2 maskUV = uv * maskUVScale + maskUVOffset;
+-        surfacePixel = texture(maskTex, clamp(maskUV, 0.001, 0.999));
+-        if (surfacePixel.a < maskAlphaThreshold) discard;
+-    }
+-
+-    float cornerSdf = getCornerSDF(uv);
+-
+-    if (cornerSdf > 0.0) {
+-        discard;
+-    }
+-
+-    float cornerAlpha = 1.0 - smoothstep(-1.5, 0.5, cornerSdf);
+-    if (cornerAlpha < 0.001) discard;
+-
+-    float minDim = min(fullSize.x, fullSize.y);
+-    float bezelWidthPx = edgeThickness * minDim;
+-
+-    // ========================================
+-    // EDGE PROXIMITY + DIRECTION
+-    // edgeProximity: 1.0 at boundary, exponential decay inward
+-    // inwardDir: pixel-space direction toward center (smooth everywhere)
+-    // ========================================
+-    float edgeProximity = exp(cornerSdf / bezelWidthPx);
+-    vec2 inwardDir = refractionDir(uv);
+-
++void applyGlass(vec2 uv, vec4 surfacePixel, bool hasMask,
++                float cornerAlpha, float edgeProximity, float refractionProfile,
++                vec2 inwardDir, vec2 domeUV, float rimBias,
++                float rimLine, float specBias, float shadowBias, int texIdx) {
+     // ========================================
+     // EDGE REFRACTION
+     // Offset sampling UV inward (toward center) at edges — like looking
+@@ -154,7 +160,7 @@ void main() {
+     // beyond the window boundary.
+     // ========================================
+     float refractionPx = refractionStrength * 50.0;
+-    float refractionMag = edgeProximity * refractionPx;
++    float refractionMag = refractionProfile * refractionPx;
+     vec2 baseOffset = inwardDir * refractionMag / fullSize;
+ 
+     // ========================================
+@@ -166,22 +172,6 @@ void main() {
+     vec2 offsetG = baseOffset;
+     vec2 offsetB = baseOffset * (1.0 + chromaSpread);
+ 
+-    // ========================================
+-    // CENTER DOME LENS (subtle magnification in the flat interior)
+-    // Fades near edges so it doesn't interfere with edge refraction.
+-    // ========================================
+-    vec2 domeUV = vec2(0.0);
+-    if (lensDistortion > 0.001) {
+-        vec2 c = (uv - 0.5) * 2.0;
+-        vec2 dGrad = vec2(
+-            -4.0 * c.x * (1.0 - c.y * c.y),
+-            -4.0 * c.y * (1.0 - c.x * c.x)
+-        );
+-        float lensMaxPx = lensDistortion * minDim * 0.006;
+-        float lensFade = 1.0 - edgeProximity;
+-        domeUV = dGrad * lensMaxPx * lensFade / fullSize;
+-    }
+-
+     // ========================================
+     // BACKGROUND SAMPLING (frosted blur only)
+     // Nearby color influence comes naturally from the Gaussian blur
+@@ -193,11 +183,11 @@ void main() {
+     vec2 uvB = uv + offsetB + domeUV;
+ 
+     if (chromaticAberration > 0.001 && edgeProximity > 0.01) {
+-        color.r = sampleBlurred(uvR).r;
+-        color.g = sampleBlurred(uvG).g;
+-        color.b = sampleBlurred(uvB).b;
++        color.r = sampleBlurred(uvR, texIdx).r;
++        color.g = sampleBlurred(uvG, texIdx).g;
++        color.b = sampleBlurred(uvB, texIdx).b;
+     } else {
+-        color = sampleBlurred(uvG).rgb;
++        color = sampleBlurred(uvG, texIdx).rgb;
+     }
+ 
+     // ========================================
+@@ -236,25 +226,24 @@ void main() {
+     // FRESNEL RIM GLOW (edge zone)
+     // ========================================
+     if (fresnelStrength > 0.001) {
+-        float fresnel = edgeProximity * edgeProximity * fresnelStrength * 0.15;
+-        color += vec3(1.0) * fresnel;
++        float fresnel = rimBias * edgeProximity * edgeProximity * fresnelStrength * 0.15;
++        float line = rimLine * fresnelStrength * 0.30;
++        color += vec3(1.0) * (fresnel + line);
+     }
+ 
+     // ========================================
+-    // SPECULAR — subtle top highlight (edge zone)
++    // SPECULAR — highlight on upward-facing edges
+     // ========================================
+     if (specularStrength > 0.001) {
+-        float topBias = pow(max(1.0 - uv.y, 0.0), 2.0);
+-        float spec = topBias * edgeProximity * edgeProximity * specularStrength * 0.08;
++        float spec = specBias * edgeProximity * edgeProximity * specularStrength * 0.08;
+         color += vec3(1.0, 0.99, 0.97) * spec;
+     }
+ 
+     // ========================================
+-    // INNER SHADOW (bottom rim)
++    // INNER SHADOW (downward-facing edges)
+     // ========================================
+     {
+-        float bottomBias = pow(uv.y, 2.0);
+-        float shadow = bottomBias * edgeProximity * edgeProximity * 0.06;
++        float shadow = shadowBias * edgeProximity * edgeProximity * 0.06;
+         color *= 1.0 - shadow;
+     }
+ 
+@@ -281,6 +270,329 @@ void main() {
+         fragColor = vec4(color * glassA, glassA);
+     }
+ }
++
++// ============================================================================
++// MAIN — Thick-glass refraction model
++// ============================================================================
++
++void main() {
++    vec2 uv = v_texcoord;
++
++    // Layers only: sample the temp FBO to get the rendered surface pixel.
++    // Glass only covers visible content (alpha above threshold). In region
++    // mode the effective glass shape is the intersection of the declared
++    // regions with that mask, so a region that drifts from a dynamic layout
++    // degrades to no glass instead of a phantom slab over empty space.
++    // For windows, hasMask is false and this block is skipped entirely.
++    vec4 surfacePixel = vec4(0.0);
++    bool hasMask = (useMask == 1);
++    bool regionMode = hasMask && regionCount > 0;
++    if (hasMask) {
++        vec2 maskUV = uv * maskUVScale + maskUVOffset;
++        surfacePixel = texture(maskTex, clamp(maskUV, 0.001, 0.999));
++        if (debugMode == 1) {
++            fragColor = vec4(vec3(surfacePixel.a * 50.0), 1.0);
++            return;
++        }
++        if (debugMode == 2) {
++            if (pillsEnabled != 1 || pillBezelPx <= 0.0) {
++                fragColor = vec4(0.0, 0.0, 0.0, 1.0);
++                return;
++            }
++            vec2 fragPx = uv * jfaSizePx;
++            vec2 seedPx = jfaDecode(texture(jfaTex, clamp(uv, 0.001, 0.999)));
++            float field = seedPx.x > 60000.0
++                ? 1.0
++                : clamp(length(seedPx + 0.5 - fragPx) / (8.0 * pillBezelPx), 0.0, 1.0);
++            fragColor = vec4(vec3(field), 1.0);
++            return;
++        }
++        if (surfacePixel.a < maskAlphaThreshold) {
++            if (debugMode == 4) {
++                fragColor = vec4(0.0, 0.35, 1.0, 1.0);
++                return;
++            }
++            if (regionMode) { fragColor = surfacePixel; return; }
++            discard;
++        }
++    }
++
++    // ========================================
++    // SLAB FRAME
++    // With declared regions the fragment belongs to the INNERMOST region that
++    // contains it (regions arrive sorted by area ascending, so the first
++    // containing hit wins) — nesting a widget pill inside a panel-sheet
++    // region works. Fragments outside all regions take the nearest region's
++    // AA fringe, then the whole-surface base slab when regionBackground is
++    // set, and otherwise pass the surface through unglassed. Without regions
++    // the whole quad is one slab (original behavior).
++    // ========================================
++    float cornerSdf;
++    vec2 slabCenter;  // quad UV
++    vec2 slabHalfUv;  // quad UV
++    int slabTexIdx = 0;
++
++    // Alpha-derived pills: attribution and edge geometry come from the
++    // surface itself (threshold band + jump-flood distance field), so pill
++    // slabs follow the layout wherever the widgets move. Handled before the
++    // declared-region path; non-pill pixels fall through to it.
++    bool pillMode = hasMask && pillsEnabled == 1 && surfacePixel.a >= pillThreshold;
++    if (pillMode) {
++        if (debugMode == 4) {
++            fragColor = vec4(0.0, 1.0, 1.0, 1.0);
++            return;
++        }
++        float boundaryDist = pillBoundaryDistance(uv);
++        vec2 outwardDir = vec2(0.0);
++        if (boundaryDist < pillBezelPx + 2.0) {
++            vec2 texel = 1.0 / jfaSizePx;
++            float dTL = pillBoundaryDistance(uv + texel * vec2(-1.0, -1.0));
++            float dT  = pillBoundaryDistance(uv + texel * vec2( 0.0, -1.0));
++            float dTR = pillBoundaryDistance(uv + texel * vec2( 1.0, -1.0));
++            float dL  = pillBoundaryDistance(uv + texel * vec2(-1.0,  0.0));
++            float dR  = pillBoundaryDistance(uv + texel * vec2( 1.0,  0.0));
++            float dBL = pillBoundaryDistance(uv + texel * vec2(-1.0,  1.0));
++            float dB  = pillBoundaryDistance(uv + texel * vec2( 0.0,  1.0));
++            float dBR = pillBoundaryDistance(uv + texel * vec2( 1.0,  1.0));
++            vec2 inwardGradient = vec2(
++                dTR + 2.0 * dR + dBR - dTL - 2.0 * dL - dBL,
++                dBL + 2.0 * dB + dBR - dTL - 2.0 * dT - dTR
++            );
++            float gradientLength = length(inwardGradient);
++            outwardDir = gradientLength > 0.01 ? -inwardGradient / gradientLength : vec2(0.0);
++        }
++
++        float bevelT        = clamp(boundaryDist / max(pillBezelPx, 0.001), 0.0, 1.0);
++        float bevelHeight   = bevelT * (2.0 - bevelT);
++        float outerCoverage = smoothstep(0.5, 2.0, boundaryDist);
++        float edgeProximity = sqrt(max(1.0 - bevelHeight, 0.0)) * outerCoverage;
++        float bevelSlope    = 1.0 - bevelT;
++        vec2 inwardDir      = -outwardDir;
++
++        vec3 pillNormal = normalize(vec3(outwardDir * bevelSlope * 0.35, 1.0));
++        vec3 lightDir   = normalize(vec3(-0.45, -0.55, 0.70));
++        vec3 halfDir    = normalize(lightDir + vec3(0.0, 0.0, 1.0));
++        float lightDelta = dot(pillNormal, lightDir) - lightDir.z;
++        float litFacing  = clamp(max(lightDelta, 0.0) / max(1.0 - lightDir.z, 0.001), 0.0, 1.0);
++        float rimBias    = 0.55 + 1.15 * litFacing;
++        float rimLine    = 0.0;
++        float specBias   = pow(max(dot(pillNormal, halfDir), 0.0), 16.0) * litFacing;
++        float shadowBias = clamp(max(-lightDelta, 0.0) / max(1.0 - lightDir.z, 0.001), 0.0, 1.0);
++        if (pillCornerLobes == 1) {
++            float diagonalFacing = dot(outwardDir, normalize(vec2(1.0)));
++            float topLeftLobe = pow(max(-diagonalFacing, 0.0), 4.0);
++            float bottomRightLobe = pow(max(diagonalFacing, 0.0), 4.0);
++            float cornerLobe = max(topLeftLobe, bottomRightLobe);
++            float lineFadeStart = mix(2.0, 1.7, cornerLobe);
++            float lineFadeEnd = mix(3.5, 2.6, cornerLobe);
++            float lineBand = smoothstep(0.75, 1.5, boundaryDist) *
++                (1.0 - smoothstep(lineFadeStart, lineFadeEnd, boundaryDist));
++            float linePattern = 0.4 + 0.6 * topLeftLobe + 0.45 * bottomRightLobe;
++            rimBias = 0.12 + 1.65 * topLeftLobe + 1.3 * bottomRightLobe;
++            rimLine = lineBand * linePattern;
++            shadowBias *= 1.0 - 0.7 * bottomRightLobe;
++        }
++
++        applyGlass(uv, surfacePixel, hasMask,
++                   1.0, edgeProximity, bevelSlope * outerCoverage, inwardDir, vec2(0.0),
++                   rimBias, rimLine, specBias, shadowBias, pillTexIdx);
++        return;
++    }
++
++    if (regionCount > 0) {
++        bool contained = false;
++        float nearestSdf = 1e9;
++        int nearestIdx = 0;
++        cornerSdf  = 1e9;
++        slabCenter = vec2(0.5);
++        slabHalfUv = vec2(0.5);
++        for (int i = 0; i < regionCount && i < MAX_REGIONS; i++) {
++            vec2 pPx = (uv - regionRects[i].xy) * fullSize;
++            float sdf = roundedBoxSDF(pPx, regionRects[i].zw * fullSize, regionRadii[i]);
++            if (!contained && sdf <= 0.0) {
++                contained  = true;
++                cornerSdf  = sdf;
++                slabCenter = regionRects[i].xy;
++                slabHalfUv = regionRects[i].zw;
++                slabTexIdx = regionTexIndex[i];
++            }
++            if (sdf < nearestSdf) {
++                nearestSdf = sdf;
++                nearestIdx = i;
++            }
++        }
++        if (!contained) {
++            if (nearestSdf <= 0.5) {
++                // antialiasing fringe of the nearest region edge
++                cornerSdf  = nearestSdf;
++                slabCenter = regionRects[nearestIdx].xy;
++                slabHalfUv = regionRects[nearestIdx].zw;
++                slabTexIdx = regionTexIndex[nearestIdx];
++            } else if (regionBackground == 1) {
++                if (debugMode == 4) {
++                    fragColor = vec4(1.0, 0.85, 0.0, 1.0);
++                    return;
++                }
++                cornerSdf  = getCornerSDF(uv);
++                slabCenter = vec2(0.5);
++                slabHalfUv = vec2(0.5);
++                slabTexIdx = 0;
++            } else if (regionMode) {
++                fragColor = surfacePixel;
++                return;
++            }
++        }
++    } else {
++        cornerSdf  = getCornerSDF(uv);
++        slabCenter = vec2(0.5);
++        slabHalfUv = vec2(0.5);
++    }
++
++    if (debugMode == 4) {
++        fragColor = vec4(1.0);
++        return;
++    }
++
++    // Outside every slab: layers pass the surface through unglassed (it lives
++    // in the temp FBO and would vanish if we discarded), windows just discard.
++    if (cornerSdf > 0.5) {
++        if (regionMode) { fragColor = surfacePixel; return; }
++        discard;
++    }
++
++    float cornerAlpha = 1.0 - smoothstep(-1.5, 0.5, cornerSdf);
++    if (cornerAlpha < 0.001) {
++        if (regionMode) { fragColor = surfacePixel; return; }
++        discard;
++    }
++
++    vec2 slabSizePx = 2.0 * slabHalfUv * fullSize;
++    float minDim = min(slabSizePx.x, slabSizePx.y);
++    float bezelWidthPx = edgeThickness * minDim;
++
++    // Fragment position within the slab, 0..1 (equals quad uv for the
++    // whole-quad slab). Drives the lens dome and the top/bottom biases.
++    vec2 localUv = clamp((uv - slabCenter) / (2.0 * slabHalfUv) + 0.5, 0.0, 1.0);
++
++    // ========================================
++    // EDGE PROXIMITY + DIRECTION
++    // edgeProximity: 1.0 at boundary, exponential decay inward
++    // inwardDir: pixel-space direction toward the slab center — smooth
++    // everywhere. On straight edges the perpendicular distance dominates
++    // (approximately edge-normal); at corners it follows the diagonal.
++    // ========================================
++    float edgeProximity = exp(cornerSdf / bezelWidthPx);
++    vec2 toCenterPx = (slabCenter - uv) * fullSize;
++    float toCenterLen = length(toCenterPx);
++    vec2 inwardDir = toCenterLen > 0.1 ? toCenterPx / toCenterLen : vec2(0.0);
++
++    // ========================================
++    // CENTER DOME LENS (subtle magnification in the flat interior)
++    // Fades near edges so it doesn't interfere with edge refraction.
++    // ========================================
++    vec2 domeUV = vec2(0.0);
++    if (lensDistortion > 0.001) {
++        vec2 c = (localUv - 0.5) * 2.0;
++        vec2 dGrad = vec2(
++            -4.0 * c.x * (1.0 - c.y * c.y),
++            -4.0 * c.y * (1.0 - c.x * c.x)
++        );
++        float lensMaxPx = lensDistortion * minDim * 0.006;
++        float lensFade = 1.0 - edgeProximity;
++        domeUV = dGrad * lensMaxPx * lensFade / fullSize;
++    }
++
++    float specBias   = pow(max(1.0 - localUv.y, 0.0), 2.0);
++    float shadowBias = pow(localUv.y, 2.0);
++
++    applyGlass(uv, surfacePixel, hasMask,
++               cornerAlpha, edgeProximity, edgeProximity, inwardDir, domeUV,
++               1.0, 0.0, specBias, shadowBias, slabTexIdx);
++}
++)GLSL"},
++
++    {"jfainit.frag", R"GLSL(
++#version 300 es
++precision highp float;
++
++// Jump-flood init: seeds are surface pixels BELOW the pill threshold (the
++// non-pill area). Output = own pixel coord packed 16-bit into RGBA8, or the
++// 65535 sentinel for pill pixels. The field texture covers the layer box;
++// maskUV* maps it into the monitor-sized surface temp FBO.
++
++uniform sampler2D tex;
++uniform vec2 maskUVOffset;
++uniform vec2 maskUVScale;
++uniform float threshold;
++uniform vec2 sizePx;
++
++in vec2 v_texcoord;
++layout(location = 0) out vec4 fragColor;
++
++vec4 jfaEncode(vec2 px) {
++    vec2 hi = floor(px / 256.0);
++    vec2 lo = px - hi * 256.0;
++    return vec4(hi.x, lo.x, hi.y, lo.y) / 255.0;
++}
++
++void main() {
++    vec2 maskUV = v_texcoord * maskUVScale + maskUVOffset;
++    float a = texture(tex, clamp(maskUV, 0.001, 0.999)).a;
++    if (a < threshold) {
++        fragColor = jfaEncode(floor(v_texcoord * sizePx));
++    } else {
++        fragColor = jfaEncode(vec2(65535.0, 65535.0));
++    }
++}
++)GLSL"},
++
++    {"jfastep.frag", R"GLSL(
++#version 300 es
++precision highp float;
++
++// One jump-flood iteration: adopt the nearest seed among self and the eight
++// neighbors at the current step offset.
++
++uniform sampler2D tex;
++uniform vec2 sizePx;
++uniform float stepPx;
++
++in vec2 v_texcoord;
++layout(location = 0) out vec4 fragColor;
++
++vec2 jfaDecode(vec4 t) {
++    return vec2(t.r * 255.0 * 256.0 + t.g * 255.0,
++                t.b * 255.0 * 256.0 + t.a * 255.0);
++}
++
++vec4 jfaEncode(vec2 px) {
++    vec2 hi = floor(px / 256.0);
++    vec2 lo = px - hi * 256.0;
++    return vec4(hi.x, lo.x, hi.y, lo.y) / 255.0;
++}
++
++void main() {
++    vec2 fragPx = v_texcoord * sizePx;
++    vec2 best = vec2(65535.0);
++    float bestDist = 1e12;
++    for (int dy = -1; dy <= 1; dy++) {
++        for (int dx = -1; dx <= 1; dx++) {
++            vec2 sampleUV = v_texcoord + vec2(float(dx), float(dy)) * stepPx / sizePx;
++            if (sampleUV.x < 0.0 || sampleUV.x > 1.0 || sampleUV.y < 0.0 || sampleUV.y > 1.0)
++                continue;
++            vec2 seed = jfaDecode(texture(tex, sampleUV));
++            if (seed.x > 60000.0)
++                continue;
++            vec2 d = seed + 0.5 - fragPx;
++            float dist = dot(d, d);
++            if (dist < bestDist) {
++                bestDist = dist;
++                best = seed;
++            }
++        }
++    }
++    fragColor = jfaEncode(best);
++}
+ )GLSL"},
+ 
+     {"gaussianblur.frag", R"GLSL(
+diff --git a/src/main.cpp b/src/main.cpp
+index 4e93536..e621f46 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -15,6 +15,7 @@
+ #include <hyprland/src/config/ConfigManager.hpp>
+ #include <hyprland/src/debug/log/Logger.hpp>
+ #include <hyprland/src/event/EventBus.hpp>
++#include <hyprland/src/plugins/PluginSystem.hpp>
+ 
+ #include <cstdlib>
+ #include <sstream>
+@@ -109,6 +110,13 @@ static void parseLayerNamespaceFilters() {
+     parseKeyValuePairs(config.layersNamespaceMaskThresholds, '=', [&](const std::string& ns, const std::string& val) {
+         try { g_pGlobalState->layerNamespaceMaskThresholds.emplace(ns, std::stof(val)); } catch (...) {}
+     });
++
++    // Regions have no string-config form; rebuilt from Lua layer() calls in
++    // commitPendingLayers, which runs right after this on every reload.
++    g_pGlobalState->layerNamespaceRegions.clear();
++    g_pGlobalState->layerNamespaceBackground.clear();
++    g_pGlobalState->layerNamespacePills.clear();
++    g_pGlobalState->layerNamespaceDebug.clear();
+ }
+ 
+ static bool shouldGlassLayer(PHLLS layerSurface) {
+@@ -198,6 +206,13 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
+ }
+ 
+ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
++    if (g_pPluginSystem) {
++        for (const auto* plugin : g_pPluginSystem->getAllPlugins()) {
++            if (plugin && plugin->m_handle != handle && plugin->m_name == PLUGIN_NAME)
++                throw std::runtime_error(std::format("{} is already loaded from {}", PLUGIN_NAME, plugin->m_path));
++        }
++    }
++
+     PHANDLE = handle;
+ 
+     const std::string HASH        = __hyprland_api_get_hash();
