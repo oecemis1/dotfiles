@@ -505,6 +505,21 @@ in
       window_rule = [
         {
           match = {
+            class = "(?i).*hyprland.*";
+          };
+          workspace = "4 silent";
+          no_initial_focus = true;
+        }
+        {
+          match = {
+            title = "(?i)^hyprland$";
+          };
+          workspace = "4 silent";
+          no_initial_focus = true;
+        }
+
+        {
+          match = {
             float = true;
           };
           border_size = 0;
