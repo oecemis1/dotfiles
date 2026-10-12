@@ -18,3 +18,7 @@
 - If applicable to the repo style, use semantic types over primitives. Avoid primitive obsession and "boolean blindness" (e.g., using a generic bool or i32 for domain concepts). Define descriptive enums or newtypes to clearly communicate intent and enforce correctness at compile time.
 - Follow the existing repo/code style.
 - FOLLOW the existing repo/code style!
+
+# Tools
+
+- PDFs: use `pdf-oxide` (see `pdf-oxide --help`; e.g. `pdf-oxide text|markdown|search|images|info FILE.pdf`) or the `pdf-oxide` MCP server. Do NOT reach for pdftotext, PyPDF or OCR first.

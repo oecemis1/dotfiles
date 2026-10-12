@@ -11,6 +11,13 @@
       "~/Documents/**": "allow"
     }
   },
+  "mcp": {
+    "pdf-oxide": {
+      "type": "local",
+      "command": ["pdf-oxide-mcp"],
+      "enabled": true
+    }
+  },
   "autoupdate": false,
   "lsp": false,
   "formatter": false,

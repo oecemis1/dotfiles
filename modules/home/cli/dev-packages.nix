@@ -49,6 +49,7 @@
         yaml-language-server
         lua-language-server
         difftastic
+        pdf-oxide
 
         trash-cli
         unar
