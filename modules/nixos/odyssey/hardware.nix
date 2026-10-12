@@ -39,6 +39,15 @@
       services.udev.extraRules = ''
         SUBSYSTEM=="drm", KERNEL=="card*", KERNELS=="0000:00:02.0", SYMLINK+="dri/igpu-card"
       '';
+      services.udev.packages = [
+        (pkgs.writeTextFile {
+          name = "compx-mouse-udev-rules";
+          destination = "/lib/udev/rules.d/50-usb-compxmouse.rules";
+          text = ''
+            KERNEL=="hidraw*", ATTRS{idVendor}=="373b", MODE="0666"
+          '';
+        })
+      ];
 
       services.pulseaudio.support32Bit = true;
       services.xserver.videoDrivers = [
