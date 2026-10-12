@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set Vivado version
-VIVADO_VERSION="2020.2"
+VIVADO_VERSION="2024.2"
 
 echo "Setting up Vivado $VIVADO_VERSION environment..."
 
