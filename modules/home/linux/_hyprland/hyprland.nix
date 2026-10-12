@@ -127,7 +127,7 @@ in
         local hg = hl.plugin.hyprglass
         hg.config({
           default_theme = "dark",
-          default_preset = "glass",
+          default_preset = "control_center_backdrop",
           layers = { enabled = true },
         })
         hg.preset("glass", {
@@ -221,6 +221,7 @@ in
           mask_threshold = 0.02,
           live_blur = true,
         })
+        hg.layer("waybar", { preset = "control_center_backdrop"})
         hg.layer("swaync-control-center", { preset = "panel", mask_threshold = 0.05 })
         hg.layer("swaync-notification-window", { preset = "panel", mask_threshold = 0.05 })
       end
