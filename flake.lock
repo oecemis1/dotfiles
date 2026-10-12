@@ -105,6 +105,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-opencode": {
+      "locked": {
+        "lastModified": 1791284827,
+        "narHash": "sha256-JfG3V31M2YHH3r1Xim1vGmed47DEgO+HS7df+0v1zY8=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "c108272c04abca14a11b798bf90ca09948a416b6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "master",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "quickshell": {
       "inputs": {
         "nixpkgs": [
@@ -133,6 +149,7 @@
         "home-manager": "home-manager",
         "import-tree": "import-tree",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-opencode": "nixpkgs-opencode",
         "quickshell": "quickshell"
       }
     },
