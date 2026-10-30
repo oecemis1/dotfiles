@@ -6,7 +6,7 @@ QtObject {
     readonly property color secondaryText: "#cdd6f4"
     readonly property color danger: "#f38ba8"
 
-    readonly property color sheet: "#03000000"
+    readonly property color sheet: "#50000000"
     readonly property color sheetBorder: "transparent"
     readonly property color control: "#14eba0ac"
     readonly property color controlBorder: "transparent"

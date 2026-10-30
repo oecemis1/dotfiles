@@ -107,7 +107,6 @@ Scope {
     }
     property bool panelVisible: false
     property bool closerVisible: false
-    property real panelProgress: 0
     property real menuHeight: 0
     property real powerHeight: state.powerOpen ? 204 : theme.stripHeight
     readonly property real panelContentHeight: theme.tileHeight * 2 + theme.sliderCardHeight * 2
@@ -148,7 +147,6 @@ Scope {
             Qt.callLater(function(): void {
                 if (generation !== state.transitionGeneration)
                     return;
-                panelAnimation.to = 1;
                 finishGuarded(panelAnimation, generation, function(): void {
                     state.phase = ControlCenterState.Open;
                 });
@@ -164,9 +162,8 @@ Scope {
         const generation = ++state.transitionGeneration;
         panelAnimation.stop();
         state.phase = ControlCenterState.Closing;
-        panelAnimation.to = 0;
+        panelVisible = false;
         finishGuarded(panelAnimation, generation, function(): void {
-            panelVisible = false;
             Qt.callLater(function(): void {
                 if (generation !== state.transitionGeneration)
                     return;
@@ -227,7 +224,6 @@ Scope {
     function reset(): void {
         ++state.transitionGeneration;
         panelAnimation.stop();
-        panelProgress = 0;
         panelVisible = false;
         closerVisible = false;
         closeAction = null;
@@ -244,6 +240,40 @@ Scope {
         renderType: Text.NativeRendering
     }
 
+    component ActionButton: Rectangle {
+        id: button
+
+        required property string text
+        property color backgroundColor: theme.control
+        property color hoverColor: theme.controlHover
+        property string fontFamily: theme.textFont
+        property int fontPixelSize: 12
+        signal clicked()
+
+        color: enabled && buttonMouse.containsMouse ? hoverColor : backgroundColor
+
+        Behavior on color {
+            ColorAnimation { duration: theme.hoverDuration }
+        }
+
+        ControlText {
+            anchors.centerIn: parent
+            text: button.text
+            font.family: button.fontFamily
+            font.pixelSize: button.fontPixelSize
+        }
+
+        MouseArea {
+            id: buttonMouse
+
+            anchors.fill: parent
+            enabled: button.enabled
+            hoverEnabled: true
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: button.clicked()
+        }
+    }
+
     component QuickTile: Rectangle {
         id: tile
 
@@ -254,6 +284,7 @@ Scope {
         property bool iconEnabled: false
         property bool iconCircular: false
         property bool menuEnabled: true
+        readonly property bool hovered: menuMouse.containsMouse || (!iconCircular && iconMouse.containsMouse)
         signal iconRequested()
         signal menuRequested()
 
@@ -263,8 +294,8 @@ Scope {
         border.width: 1
         border.color: theme.controlBorder
         color: !iconCircular && selected
-            ? (menuMouse.containsMouse ? theme.controlActiveHover : theme.controlActive)
-            : (menuMouse.containsMouse ? theme.controlHover : theme.control)
+            ? (hovered ? theme.controlActiveHover : theme.controlActive)
+            : (hovered ? theme.controlHover : theme.control)
 
         Behavior on color {
             ColorAnimation {
@@ -400,27 +431,18 @@ Scope {
             anchors.bottomMargin: 8
             height: 34
 
-            Item {
+            ActionButton {
                 id: leftIconArea
 
                 width: 30
                 height: parent.height
-
-                Text {
-                    anchors.centerIn: parent
-                    color: theme.text
-                    text: slider.leftIcon
-                    font.family: theme.iconFont
-                    font.pixelSize: 18
-                    renderType: Text.NativeRendering
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: slider.leftIconInteractive
-                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onClicked: slider.leftIconRequested()
-                }
+                radius: 7
+                backgroundColor: "transparent"
+                text: slider.leftIcon
+                fontFamily: theme.iconFont
+                fontPixelSize: 18
+                enabled: slider.leftIconInteractive
+                onClicked: slider.leftIconRequested()
             }
 
             Item {
@@ -536,13 +558,11 @@ Scope {
         }
     }
 
-    NumberAnimation {
+    // Defer lifecycle cleanup until the compositor has faded the panel out.
+    PauseAnimation {
         id: panelAnimation
 
-        target: root
-        property: "panelProgress"
         duration: theme.panelDuration
-        easing.type: Easing.OutCubic
     }
 
     Behavior on powerHeight {
@@ -615,7 +635,7 @@ Scope {
             id: backdropReveal
 
             width: parent.width
-            height: (root.panelContentHeight + theme.panelShadowExtent * 2) * root.panelProgress
+            height: root.panelContentHeight + theme.panelShadowExtent * 2
             clip: true
 
             Rectangle {
@@ -671,7 +691,7 @@ Scope {
             id: panelReveal
 
             width: parent.width
-            height: (root.panelContentHeight + theme.panelShadowExtent * 2) * root.panelProgress
+            height: root.panelContentHeight + theme.panelShadowExtent * 2
             clip: true
 
             Item {
@@ -932,36 +952,28 @@ Scope {
                                                 font.pixelSize: 13
                                                 elide: Text.ElideRight
                                             }
-                                            Rectangle {
+                                            ActionButton {
                                                 anchors.right: parent.right
                                                 anchors.rightMargin: 8
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 width: 76
                                                 height: 32
                                                 radius: 7
-                                                color: theme.control
-                                                ControlText { anchors.centerIn: parent; text: bluetoothRow.device.connected ? "Disconnect" : "Connect"; font.pixelSize: 12 }
-                                                MouseArea {
-                                                    anchors.fill: parent
-                                                    enabled: !bluetooth.busy
-                                                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                                    onClicked: bluetooth.requestDevice(bluetoothRow.device.address, !bluetoothRow.device.connected)
-                                                }
+                                                text: bluetoothRow.device.connected ? "Disconnect" : "Connect"
+                                                enabled: !bluetooth.busy
+                                                onClicked: bluetooth.requestDevice(bluetoothRow.device.address, !bluetoothRow.device.connected)
                                             }
                                         }
                                     }
                                     ControlText { visible: bluetooth.error !== ""; text: bluetooth.error; color: theme.danger; font.pixelSize: 13 }
-                                    Rectangle {
+                                    ActionButton {
                                         width: parent.width
                                         height: 36
                                         radius: 8
-                                        color: theme.footer
-                                        ControlText { anchors.centerIn: parent; text: "Open Overskride..."; font.pixelSize: 14 }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.requestCloseThen(() => Quickshell.execDetached(["overskride"]))
-                                        }
+                                        backgroundColor: theme.footer
+                                        text: "Open Overskride..."
+                                        fontPixelSize: 14
+                                        onClicked: root.requestCloseThen(() => Quickshell.execDetached(["overskride"]))
                                     }
                                 }
 
@@ -1155,8 +1167,8 @@ Scope {
                                                             }
                                                         }
                                                     }
-                                                    Rectangle { width: 60; height: 34; radius: 6; color: theme.control; ControlText { anchors.centerIn: parent; text: "Cancel"; font.pixelSize: 12 } MouseArea { anchors.fill: parent; onClicked: root.cancelWifiPrompt() } }
-                                                    Rectangle { width: 64; height: 34; radius: 6; color: theme.controlActive; ControlText { anchors.centerIn: parent; text: "Connect"; font.pixelSize: 12 } MouseArea { anchors.fill: parent; onClicked: { if (passwordInput.text === "") wifiNotice.text="Enter a password"; else wifi.connectWithPassword(state.passwordNetwork, passwordInput.text); } } }
+                                                    ActionButton { width: 60; height: 34; radius: 6; text: "Cancel"; onClicked: root.cancelWifiPrompt() }
+                                                    ActionButton { width: 64; height: 34; radius: 6; backgroundColor: theme.controlActive; hoverColor: theme.controlActiveHover; text: "Connect"; onClicked: { if (passwordInput.text === "") wifiNotice.text="Enter a password"; else wifi.connectWithPassword(state.passwordNetwork, passwordInput.text); } }
                                                 }
                                             }
                                         }
@@ -1255,27 +1267,20 @@ Scope {
 
                                             Repeater {
                                                 model: modelData.mounted ? ["browse", "unmount", "eject"] : ["mount", "eject"]
-                                                delegate: Rectangle {
+                                                delegate: ActionButton {
                                                     required property string modelData
                                                     width: 34
                                                     height: 34
                                                     radius: 7
-                                                    color: theme.control
-                                                    ControlText {
-                                                        anchors.centerIn: parent
-                                                        text: modelData === "browse" ? "󰉋" : modelData === "mount" ? "󰋊" : modelData === "unmount" ? "󰕧" : "󰆴"
-                                                        font.family: theme.iconFont
-                                                    }
-                                                    MouseArea {
-                                                        anchors.fill: parent
-                                                        enabled: !usb.busy && usb.ready
-                                                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                                        onClicked: {
-                                                            if (modelData === "browse")
-                                                                root.requestCloseThen(() => usb.run("browse", usbRow.device.path));
-                                                            else
-                                                                usb.run(modelData, usbRow.device.path);
-                                                        }
+                                                    text: modelData === "browse" ? "󰉋" : modelData === "mount" ? "󰋊" : modelData === "unmount" ? "󰕧" : "󰆴"
+                                                    fontFamily: theme.iconFont
+                                                    fontPixelSize: 16
+                                                    enabled: !usb.busy && usb.ready
+                                                    onClicked: {
+                                                        if (modelData === "browse")
+                                                            root.requestCloseThen(() => usb.run("browse", usbRow.device.path));
+                                                        else
+                                                            usb.run(modelData, usbRow.device.path);
                                                     }
                                                 }
                                             }
@@ -1283,18 +1288,15 @@ Scope {
                                     }
                                 }
 
-                                Rectangle {
+                                ActionButton {
                                     visible: menuClip.displayedMenu === ControlCenterState.Usb
                                     width: parent.width
                                     height: 36
                                     radius: 8
-                                    color: theme.footer
-                                    ControlText { anchors.centerIn: parent; text: "Open Disks..."; font.pixelSize: 14 }
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.requestCloseThen(() => usb.run("manage", ""))
-                                    }
+                                    backgroundColor: theme.footer
+                                    text: "Open Disks..."
+                                    fontPixelSize: 14
+                                    onClicked: root.requestCloseThen(() => usb.run("manage", ""))
                                 }
 
                                 ControlText {
