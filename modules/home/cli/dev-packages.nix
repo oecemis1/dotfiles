@@ -9,6 +9,8 @@
         inputs.claude-code.packages.${pkgs.stdenv.hostPlatform.system}.default
         helix
         # (pkgs.callPackage ../../../pkgs/helix.nix { })
+        # codex
+        inputs.nixpkgs-opencode.legacyPackages.${pkgs.stdenv.hostPlatform.system}.codex
         inputs.nixpkgs-opencode.legacyPackages.${pkgs.stdenv.hostPlatform.system}.opencode
         direnv
         libqalculate
@@ -26,8 +28,10 @@
         bandwhich
         (pkgs.callPackage ../../../pkgs/todotxttui.nix { })
         (pkgs.callPackage ../../../pkgs/slang-server.nix { })
+        (pkgs.callPackage ../../../pkgs/google-patent-cli.nix { })
 
         cmake
+        texliveMedium
 
         # Helix language servers / formatters
         bash-language-server
@@ -45,11 +49,12 @@
         prettier
         cmake-language-server
         marksman
+        texlab
         gnumake
         yaml-language-server
         lua-language-server
         difftastic
-        pdf-oxide
+        inputs.nixpkgs-pdf-oxide.legacyPackages.${pkgs.stdenv.hostPlatform.system}.pdf-oxide
 
         trash-cli
         unar

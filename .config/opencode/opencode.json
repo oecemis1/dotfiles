@@ -8,13 +8,24 @@
       "/proc/**": "allow",
       "/bin/**": "allow",
       "/boot/**": "allow",
-      "~/Documents/**": "allow"
+      "/run/**": "allow",
+      "/usr/**": "allow",
+      "/etc/**": "allow",
+      "/dev/**": "allow",
+      "~/*": "allow",
+      "~/.ssh/**": "deny",
+      "~/.gnupg/**": "deny"
     }
   },
   "mcp": {
     "pdf-oxide": {
       "type": "local",
       "command": ["pdf-oxide-mcp"],
+      "enabled": true
+    },
+    "google-patent": {
+      "type": "local",
+      "command": ["google-patent-cli", "mcp"],
       "enabled": true
     }
   },
