@@ -44,6 +44,7 @@
       programs.gnome-disks.enable = true;
 
       services.logind.settings.Login = {
+        HandlePowerKey = "suspend";
         HandleLidSwitch = "ignore";
         HandleLidSwitchExternalPower = "ignore";
         HandleLidSwitchDocked = "ignore";
