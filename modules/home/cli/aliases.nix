@@ -27,6 +27,8 @@
         "gcm" = "git commit -m";
         "gca" = "git commit --amend";
 
+        "claudep" = ''"$HOME/.local/bin/claudep"'';
+
         "tmux" = "tmux -f ~/.config/tmux/tmux.conf";
         "txa" = ''tmux attach-session -t $(tmux list-sessions -F "#{session_name}" | head -n 1)'';
         "txls" = "tmux list-sessions";

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.local/state/claude}"
+
+exec "$HOME/.nix-profile/bin/claude" \
+  --mcp-config="$HOME/.local/state/claude/mcp.json" "$@"

@@ -6,6 +6,7 @@
       home.sessionVariables = {
         EDITOR = "hx";
         TERMINAL = "kitty";
+        CLAUDE_CONFIG_DIR = "$HOME/.local/state/claude";
 
         XDG_DATA_HOME = "$HOME/.local/share";
         XDG_CONFIG_HOME = "$HOME/.config";
