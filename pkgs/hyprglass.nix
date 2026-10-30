@@ -19,7 +19,16 @@ hyprlandPlugins.mkHyprlandPlugin {
   patches = [
     ./hyprglass-regions.patch
     ./hyprglass-liquid-glass.patch
+    ./hyprglass-notifications.patch
   ];
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
+    $CXX -std=c++23 -UNDEBUG -Isrc tests/notification-geometry.cpp src/SemanticGeometry.cpp -o notification-geometry-test
+    ./notification-geometry-test
+    runHook postCheck
+  '';
 
   installPhase = ''
     runHook preInstall

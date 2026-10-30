@@ -14,7 +14,6 @@
         (lib.generators.mkLuaInline ''
           function()
             hl.exec_cmd("waybar")
-            hl.exec_cmd("swaync-wrapper")
             hl.exec_cmd("awww-daemon")
             hl.exec_cmd("swayosd-server")
             hl.exec_cmd("update-wallpaper.sh")

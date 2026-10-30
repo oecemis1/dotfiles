@@ -6,6 +6,50 @@
 }:
 let
   colors = config.colorScheme.colors;
+  swaync = pkgs.callPackage ../../../../pkgs/swaync.nix { };
+
+  glassStylesheet = pkgs.writeText "swaync-glass.css" ''
+    @import url("file://${config.xdg.configHome}/swaync/style.css");
+
+    .notification-glass-window,
+    .control-center {
+      background-color: transparent;
+    }
+
+    .notification-center-backdrop {
+      background-color: rgba(0, 0, 0, 0.3137254901960784);
+      border-radius: 24px;
+    }
+
+    .control-center {
+      border-color: transparent;
+      border-radius: 24px;
+      margin: 0;
+    }
+
+    .floating-notifications.background .notification-row .notification-background {
+      background-color: rgba(0, 0, 0, 0.3137254901960784);
+      border-color: transparent;
+      border-radius: 24px;
+    }
+
+    .floating-notifications .notification-background .notification {
+      border-radius: 24px;
+    }
+
+    .control-center .notification-row .notification-background {
+      background-color: alpha(${colors.accent}, 0.0784313725490196);
+      border-radius: 18px;
+    }
+
+    .control-center .notification-row .notification-background:hover {
+      background-color: rgba(17, 17, 27, 0.2509803921568627);
+    }
+
+    .control-center .notification-background .notification {
+      border-radius: 18px;
+    }
+  '';
 
   stylesheet = pkgs.writeText "swaync-style.css" ''
     /* Hand-owned copy of the generated swaync stylesheet, seeded once by
@@ -160,7 +204,7 @@ in
 {
   systemd.user.services.swaync = {
     Service = {
-      ExecStart = lib.mkForce "${pkgs.swaynotificationcenter}/bin/swaync -c ${config.xdg.configHome}/swaync/config.json -s ${config.xdg.configHome}/swaync/style.css";
+      ExecStart = lib.mkForce "${swaync}/bin/swaync -c ${config.xdg.configHome}/swaync/config.json -s ${glassStylesheet}";
       Environment = [
         "XDG_CONFIG_HOME=%h/.dummy"
       ];
@@ -175,6 +219,7 @@ in
 
   services.swaync = {
     enable = true;
+    package = swaync;
 
     settings = {
       "$schema" = "/etc/xdg/swaync/configSchema.json";
@@ -184,28 +229,25 @@ in
       # (toasts keep popping top-center via positionX above)
       control-center-positionX = "right";
       layer = "overlay";
-      control-center-layer = "top";
+      control-center-layer = "overlay";
       layer-shell = true;
       cssPriority = "application";
-      control-center-margin-top = 2;
-      control-center-margin-bottom = 20;
+      control-center-margin-top = 49;
+      control-center-margin-bottom = 4;
       control-center-margin-right = 4;
       control-center-margin-left = 10;
       notification-2fa-action = true;
       timeout = 5;
       timeout-low = 3;
       timeout-critical = 0;
-      # fit-to-screen = true;
-      fit-to-screen = false;
+      fit-to-screen = true;
       relative-timestamps = true;
-      control-center-width = 450;
-      # control-center-height = 700;
+      control-center-width = 462;
+      control-center-height = -1;
       notification-window-width = 350;
       keyboard-shortcuts = true;
       image-visibility = "never";
-      # panel reveal; matches the Quickshell control center's 250ms reveal. The
-      # compositor's layer fade is disabled for this namespace so the
-      # slide is the only motion.
+      # Widget transitions; the compositor handles the panel's fade.
       transition-time = 250;
       hide-on-clear = true;
       hide-on-action = true;
@@ -219,26 +261,11 @@ in
         };
       };
 
-      # dnd lives in the Quickshell control center
-      widgets = [
-        "inhibitors"
-        "title"
-        "notifications"
-      ];
+      widgets = [ "notifications" ];
 
       widget-config = {
-        inhibitors = {
-          text = "Inhibitors";
-          button-text = "Clear All";
-          clear-all-button = true;
-        };
-        title = {
-          text = "Notifications";
-          clear-all-button = true;
-          button-text = "Clear All";
-        };
         notifications = {
-          clear-all-button = true;
+          vexpand = false;
         };
       };
     };

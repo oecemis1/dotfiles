@@ -222,8 +222,48 @@ in
           live_blur = true,
         })
         hg.layer("waybar", { preset = "control_center_backdrop"})
-        hg.layer("swaync-control-center", { preset = "panel", mask_threshold = 0.05 })
-        hg.layer("swaync-notification-window", { preset = "panel", mask_threshold = 0.05 })
+        hg.preset("notification_toast", {
+          inherits = "control_center_backdrop",
+          snell = {
+            bezel_width = 18.0,
+            glass_thickness = 32.0,
+            refractive_index = 1.3,
+            strength = 0.02,
+          },
+        })
+        hg.preset("notification_card", {
+          inherits = "control_center_controls",
+          refraction_strength = 0.65,
+          snell = {
+            bezel_width = 12.0,
+            glass_thickness = 24.0,
+            refractive_index = 1.3,
+            strength = 0.02,
+          },
+          rim = {
+            width = 1.5,
+            saturation = 1.0,
+            fresnel_strength = 0.0,
+            specular_strength = 0.4,
+            inner_shadow_strength = 0.08,
+            angle = 2.0943951023931953,
+          },
+        })
+        hg.layer("swaync-control-center-backdrop", {
+          preset = "control_center_backdrop",
+          mask_threshold = 0.004,
+          live_blur = true,
+        })
+        hg.layer("swaync-control-center", {
+          preset = "notification_card",
+          mask_threshold = 0.02,
+          live_blur = true,
+        })
+        hg.layer("swaync-notification-window", {
+          preset = "notification_toast",
+          mask_threshold = 0.004,
+          live_blur = true,
+        })
       end
 
     '';
@@ -704,10 +744,7 @@ in
             "waybar"
             "tofi"
           ]
-        # Surfaces that own their motion (or shouldn't have any) skip the
-        # compositor's layer fade: tofi is keyboard-summoned dozens of
-        # times a day and must appear instantly; the Quickshell control center
-        # owns its QML animations.
+        # The launcher and invisible click catcher should appear instantly.
         ++
           map
             (namespace: {
@@ -716,22 +753,22 @@ in
             })
             [
               "tofi"
+              "control_center_closer"
+              "swaync-control-center-closer"
+            ]
+        # Fade the complete panels, including their compositor-rendered glass.
+        ++
+          map
+            (namespace: {
+              match = { inherit namespace; };
+              animation = "fade";
+            })
+            [
               "control_center_backdrop"
               "control_center"
-              "control_center_closer"
-            ]
-        # swaync has no panel animation of its own (verified: it snaps
-        # with no_anim) - the compositor slides it in, forced from the top
-        # edge to match the control center's drop-down (bare "slide"
-        # picked the bottom).
-        ++ [
-          {
-            match = {
-              namespace = "swaync-control-center";
-            };
-            animation = "slide top";
-          }
-        ];
+              "swaync-control-center-backdrop"
+              "swaync-control-center"
+            ];
 
       bind = [
         (bind "SUPER + Q" dsp.close)

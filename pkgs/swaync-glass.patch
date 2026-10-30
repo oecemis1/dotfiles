@@ -1,0 +1,481 @@
+--- a/src/controlCenter/controlCenter.vala
++++ b/src/controlCenter/controlCenter.vala
+@@ -17,6 +17,8 @@
+         private const string[] DEFAULT_WIDGETS = { "title", "dnd", "notifications" };
+ 
+         private string ?monitor_name = null;
++        private GlassBackdrop? glass_backdrop;
++        private GlassGeometry? glass_geometry;
+ 
+         public ControlCenter () {
+             Object (css_name: "blankwindow");
+@@ -35,6 +37,11 @@
+                 GtkLayerShell.init_for_window (this);
+                 GtkLayerShell.set_namespace (this, "swaync-control-center");
+                 set_anchor ();
++                glass_backdrop = new GlassBackdrop (this);
++                glass_geometry = new GlassGeometry (this, "swaync-control-center", glass_backdrop);
++                glass_backdrop.map.connect (() => glass_geometry.schedule ());
++                glass_backdrop.unmap.connect (() => glass_geometry.schedule ());
++                glass_backdrop.geometry_changed.connect (() => glass_geometry.schedule ());
+             }
+ 
+             this.map.connect (() => {
+@@ -122,6 +129,10 @@
+ 
+             add_widgets ();
+ 
++            notifications_widget.notify["n-notifications"].connect (() => {
++                if (notifications_widget.is_empty ()) set_visibility (false);
++            });
++
+             // Change output on config reload
+             app.config_reload.connect ((old, config) => {
+                 string monitor_name = config.control_center_preferred_output;
+@@ -132,6 +143,20 @@
+                     set_anchor ();
+                 }
+             });
++        }
++
++        protected override void snapshot (Gtk.Snapshot snapshot) {
++            base.snapshot (snapshot);
++            if (glass_backdrop != null) glass_backdrop.sync (window);
++            if (glass_geometry != null) glass_geometry.schedule ();
++        }
++
++        public override void dispose () {
++            if (glass_geometry != null) glass_geometry.dispose ();
++            if (glass_backdrop != null) glass_backdrop.destroy ();
++            glass_backdrop = null;
++            glass_geometry = null;
++            base.dispose ();
+         }
+ 
+         private void key_released_event_cb (uint keyval, uint keycode, Gdk.ModifierType state) {
+@@ -243,12 +268,12 @@
+             if (app.use_layer_shell) {
+                 // Set the exlusive zone
+                 int exclusive_zone = ConfigModel.instance.control_center_exclusive_zone ? 0 : 100;
+-                GtkLayerShell.set_exclusive_zone (this, exclusive_zone);
++                GtkLayerShell.set_exclusive_zone (this, glass_backdrop != null ? -1 : exclusive_zone);
+-                // Grabs the keyboard input until closed
++                // Keyboard shortcuts follow focus without holding an exclusive grab.
+                 bool keyboard_shortcuts = ConfigModel.instance.keyboard_shortcuts;
+                 var mode = keyboard_shortcuts ?
+-                    GtkLayerShell.KeyboardMode.EXCLUSIVE :
++                    GtkLayerShell.KeyboardMode.ON_DEMAND :
+                     GtkLayerShell.KeyboardMode.NONE;
+                 GtkLayerShell.set_keyboard_mode (this, mode);
+ 
+                 // Set layer
+@@ -369,10 +394,13 @@
+         public bool toggle_visibility () {
+             var cc_visibility = !this.visible;
+             set_visibility (cc_visibility);
+-            return cc_visibility;
++            return this.visible;
+         }
+ 
+         public void set_visibility (bool visibility) {
++            if (visibility && notifications_widget.is_empty ()) {
++                return;
++            }
+             if (this.visible == visibility) {
+                 return;
+             }
+--- /dev/null
++++ b/src/glassGeometry.vala
+@@ -0,0 +1,255 @@
++namespace SwayNotificationCenter {
++    // One publisher per layer. Connections have independent snapshots, so a
++    // toast update never replaces the notification center or Quickshell geometry.
++    internal class GlassGeometry : Object {
++        public const float SHEET_RADIUS = 24;
++        public const float CARD_RADIUS = 18;
++        private const uint MAX_CARDS = 32;
++
++        private weak Gtk.Window owner;
++        private string layer_namespace;
++        private GlassBackdrop? backdrop;
++        private SocketConnection? connection;
++        private Cancellable cancellable = new Cancellable ();
++        private uint64 epoch = (uint64) GLib.get_real_time ();
++        private uint64 serial = 0;
++        private uint64 generation = 0;
++        private uint idle_id = 0;
++        private uint retry_id = 0;
++        private uint retry_delay = 250;
++        private bool writing = false;
++        private bool dirty = false;
++        private string last_geometry = "";
++
++        public GlassGeometry (Gtk.Window owner, string layer_namespace,
++                              GlassBackdrop? backdrop = null) {
++            this.owner = owner;
++            this.layer_namespace = layer_namespace;
++            this.backdrop = backdrop;
++            owner.map.connect (() => {
++                generation++;
++                schedule ();
++            });
++            owner.unmap.connect (schedule);
++        }
++
++        public override void dispose () {
++            cancellable.cancel ();
++            if (idle_id != 0) Source.remove (idle_id);
++            if (retry_id != 0) Source.remove (retry_id);
++            idle_id = 0;
++            retry_id = 0;
++            connection = null;
++            base.dispose ();
++        }
++
++        public void schedule () {
++            if (idle_id != 0 || cancellable.is_cancelled ()) return;
++            idle_id = Idle.add (() => {
++                idle_id = 0;
++                dirty = true;
++                if (!writing && retry_id == 0) write_geometry.begin ();
++                return Source.REMOVE;
++            });
++        }
++
++        private static string number (float value) {
++            return ((double) value).to_string ();
++        }
++
++        private string surface_record (string ns, string id, bool active) {
++            return "SURFACE\t%s\t%s\t%s\t%d\n".printf (
++                ns, id, generation.to_string (), active ? 1 : 0);
++        }
++
++        private string shape_record (string ns, string surface, string id, string role,
++                                     Graphene.Rect bounds, float radius, string clip) {
++            radius = float.min (radius, float.min (bounds.size.width, bounds.size.height) / 2);
++            return "SHAPE\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n".printf (
++                ns, surface, generation.to_string (), id, role,
++                number (bounds.origin.x), number (bounds.origin.y),
++                number (bounds.size.width), number (bounds.size.height), number (radius), clip);
++        }
++
++        private void collect (Gtk.Widget widget, StringBuilder shapes, StringBuilder clips,
++                              ref uint count) {
++            if (!widget.get_mapped () || !widget.get_child_visible () || widget.get_opacity () <= 0)
++                return;
++            if (widget is Notification) {
++                Graphene.Rect bounds;
++                Graphene.Rect clip;
++                float radius;
++                Notification notification = (Notification) widget;
++                if (!notification.glass_bounds (owner, out bounds, out radius, out clip)) return;
++                if (count >= MAX_CARDS) return;
++                string id = "notification.%u".printf (notification.param.applied_id);
++                string clip_id = "clip." + id;
++                shapes.append (shape_record (layer_namespace, "content", id, "stack",
++                                             bounds, radius, clip_id));
++                clips.append ("CLIP\t%s\tcontent\t%s\t%s\t%s\t%s\t%s\t%s\n".printf (
++                    layer_namespace, generation.to_string (), clip_id,
++                    number (clip.origin.x), number (clip.origin.y),
++                    number (clip.size.width), number (clip.size.height)));
++                count++;
++                return;
++            }
++            if (widget is ExpandableGroup) {
++                // GTK draws this list back-to-front; publish front-to-back for
++                // single-fragment ownership of overlapping notification cards.
++                unowned List<unowned Gtk.Widget>? link
++                    = ((ExpandableGroup) widget).visible_widgets.last ();
++                for (; link != null; link = link.prev) {
++                    collect (link.data, shapes, clips, ref count);
++                }
++                return;
++            }
++            for (unowned Gtk.Widget? child = widget.get_first_child ();
++                 child != null; child = child.get_next_sibling ()) {
++                collect (child, shapes, clips, ref count);
++            }
++        }
++
++        private string geometry (out uint count, out uint clip_count) {
++            bool active = owner != null && owner.get_mapped ();
++            StringBuilder surfaces = new StringBuilder (surface_record (
++                layer_namespace, "content", active));
++            StringBuilder shapes = new StringBuilder ();
++            StringBuilder clips = new StringBuilder ();
++            count = 0;
++            if (active) collect (owner, shapes, clips, ref count);
++            clip_count = count;
++            if (backdrop != null) {
++                Graphene.Rect bounds = Graphene.Rect.zero ();
++                bool sheet_active = active && backdrop.sheet_bounds (out bounds);
++                surfaces.append (surface_record (
++                    "swaync-control-center-backdrop", "backdrop", sheet_active));
++                if (sheet_active) {
++                    shapes.append (shape_record ("swaync-control-center-backdrop", "backdrop",
++                        "notification-center.sheet", "sheet", bounds, SHEET_RADIUS, "-"));
++                    count++;
++                }
++            }
++            return surfaces.str + shapes.str + clips.str;
++        }
++
++        private async void write_geometry () {
++            writing = true;
++            try {
++                if (connection == null) {
++                    string? signature = Environment.get_variable ("HYPRLAND_INSTANCE_SIGNATURE");
++                    if (signature == null || signature.length == 0) {
++                        writing = false;
++                        return;
++                    }
++                    string path = Path.build_filename (Environment.get_user_runtime_dir (),
++                                                       "hyprglass", signature + ".sock");
++                    SocketClient client = new SocketClient ();
++                    connection = yield client.connect_async (new UnixSocketAddress (path), cancellable);
++                    watch_connection.begin (connection);
++                    last_geometry = "";
++                    retry_delay = 250;
++                }
++                SocketConnection? current = connection;
++                while (current != null && connection == current
++                       && dirty && !cancellable.is_cancelled ()) {
++                    dirty = false;
++                    uint count, clip_count;
++                    string records = geometry (out count, out clip_count);
++                    if (records == last_geometry) continue;
++                    serial++;
++                    string frame = "BEGIN\t1\t%s\t%s\t%d\t%u\t%u\n%sCOMMIT\t%s\n".printf (
++                        epoch.to_string (), serial.to_string (), backdrop == null ? 1 : 2,
++                        count, clip_count, records, serial.to_string ());
++                    size_t written;
++                    yield current.output_stream.write_all_async (
++                        frame.data, Priority.DEFAULT, cancellable, out written);
++                    if (connection == current) last_geometry = records;
++                }
++            } catch (Error error) {
++                connection = null;
++                last_geometry = "";
++                reconnect_later ();
++            }
++            writing = false;
++            if (dirty && retry_id == 0) schedule ();
++        }
++
++        private void reconnect_later () {
++            dirty = true;
++            if (cancellable.is_cancelled () || retry_id != 0) return;
++            retry_id = Timeout.add (retry_delay, () => {
++                retry_id = 0;
++                if (!writing) write_geometry.begin ();
++                return Source.REMOVE;
++            });
++            retry_delay = uint.min (retry_delay * 2, 4000);
++        }
++
++        private async void watch_connection (SocketConnection current) {
++            uint8[] buffer = new uint8[1];
++            try {
++                while ((yield current.input_stream.read_async (
++                    buffer, Priority.DEFAULT, cancellable)) > 0) {}
++            } catch (Error error) {}
++            if (connection == current && !cancellable.is_cancelled ()) {
++                connection = null;
++                last_geometry = "";
++                reconnect_later ();
++            }
++        }
++    }
++
++    internal class GlassBackdrop : Gtk.Window {
++        private weak Gtk.Window owner;
++        private Gtk.Fixed layout = new Gtk.Fixed ();
++        private Gtk.Box sheet = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
++        public signal void geometry_changed ();
++
++        public GlassBackdrop (Gtk.Window owner) {
++            this.owner = owner;
++            add_css_class ("notification-glass-window");
++            sheet.add_css_class ("notification-center-backdrop");
++            set_child (layout);
++            layout.put (sheet, 0, 0);
++            set_can_focus (false);
++            GtkLayerShell.init_for_window (this);
++            GtkLayerShell.set_namespace (this, "swaync-control-center-backdrop");
++            GtkLayerShell.set_layer (this, GtkLayerShell.Layer.TOP);
++            GtkLayerShell.set_keyboard_mode (this, GtkLayerShell.KeyboardMode.NONE);
++            GtkLayerShell.set_exclusive_zone (this, -1);
++            owner.unmap.connect (() => set_visible (false));
++            this.map.connect (() => get_surface ().set_input_region (new Cairo.Region ()));
++        }
++
++        public void sync (Gtk.Widget panel) {
++            if (!owner.get_mapped ()) return;
++            Graphene.Rect bounds;
++            if (!panel.compute_bounds (owner, out bounds)) return;
++            GtkLayerShell.set_monitor (this, GtkLayerShell.get_monitor (owner)
++                ?? owner.get_display ().get_monitor_at_surface (owner.get_surface ()));
++            GtkLayerShell.Edge[] edges = {
++                GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.RIGHT,
++                GtkLayerShell.Edge.BOTTOM, GtkLayerShell.Edge.LEFT,
++            };
++            foreach (GtkLayerShell.Edge edge in edges) {
++                GtkLayerShell.set_anchor (this, edge, GtkLayerShell.get_anchor (owner, edge));
++                GtkLayerShell.set_margin (this, edge, GtkLayerShell.get_margin (owner, edge));
++            }
++            layout.move (sheet, bounds.origin.x, bounds.origin.y);
++            sheet.set_size_request ((int) bounds.size.width, (int) bounds.size.height);
++            set_default_size (owner.get_width (), owner.get_height ());
++            set_visible (true);
++        }
++
++        public bool sheet_bounds (out Graphene.Rect bounds) {
++            bounds = Graphene.Rect.zero ();
++            return get_mapped () && sheet.compute_bounds (this, out bounds)
++                && bounds.size.width > 0 && bounds.size.height > 0;
++        }
++
++        protected override void size_allocate (int width, int height, int baseline) {
++            base.size_allocate (width, height, baseline);
++            geometry_changed ();
++        }
++    }
++}
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -54,6 +54,7 @@
+ 
+ app_sources = [
+   'main.vala',
++  'glassGeometry.vala',
+   'animatedList/animatedList.vala',
+   'animatedList/animatedListItem.vala',
+   'orderedHashTable/orderedHashTable.vala',
+--- a/src/notification/notification.vala
++++ b/src/notification/notification.vala
+@@ -104,6 +104,42 @@
+         public bool dismissed_by_swipe { get; private set; default = false; }
+ 
+         private Notification () {}
++
++        internal bool glass_bounds (Gtk.Widget origin, out Graphene.Rect bounds,
++                                    out float radius, out Graphene.Rect clip) {
++            bounds = Graphene.Rect.zero ();
++            clip = Graphene.Rect.zero ();
++            radius = 0;
++            if (!get_mapped () || !base_widget.compute_bounds (origin, out bounds)
++                || bounds.size.width <= 0 || bounds.size.height <= 0) return false;
++            float base_radius = notification_type == NotificationType.FLOATING
++                ? GlassGeometry.SHEET_RADIUS : GlassGeometry.CARD_RADIUS;
++            Graphene.Matrix transform;
++            if (!base_widget.compute_transform (origin, out transform)) return false;
++            radius = base_radius * transform.get_x_scale ().abs ();
++            clip = Graphene.Rect ().init (0, 0, origin.get_width (), origin.get_height ());
++            for (unowned Gtk.Widget? parent = base_widget.get_parent ();
++                 parent != null && parent != origin; parent = parent.get_parent ()) {
++                if (parent is Gtk.Viewport || parent is Gtk.ScrolledWindow) {
++                    Graphene.Rect viewport_bounds, intersection;
++                    if (parent.compute_bounds (origin, out viewport_bounds)) {
++                        if (!clip.intersection (viewport_bounds, out intersection)) return false;
++                        clip = intersection;
++                    }
++                }
++            }
++            return bounds.intersection (clip, null);
++        }
++
++        internal void append_glass_mask (Gtk.Snapshot snapshot, Gtk.Widget origin) {
++            Graphene.Rect bounds, clip;
++            float radius;
++            if (!glass_bounds (origin, out bounds, out radius, out clip)) return;
++            Gsk.RoundedRect rounded = Gsk.RoundedRect ().init_from_rect (bounds, radius);
++            snapshot.push_rounded_clip (rounded);
++            snapshot.append_color (Gdk.RGBA () { red = 1, green = 1, blue = 1, alpha = 1 }, bounds);
++            snapshot.pop ();
++        }
+ 
+         /** Show a non-timed notification */
+         public Notification.regular (NotifyParams param,
+--- a/src/notificationGroup/expandableGroup.vala
++++ b/src/notificationGroup/expandableGroup.vala
+@@ -358,11 +358,24 @@
+         }
+ 
+         protected override void snapshot (Gtk.Snapshot snapshot) {
+-            foreach (unowned Gtk.Widget child in visible_widgets) {
++            for (unowned List<unowned Gtk.Widget>? link = visible_widgets.first ();
++                 link != null; link = link.next) {
++                unowned Gtk.Widget child = link.data;
+                 if (!child.should_layout ()) {
+                     continue;
+                 }
++                // Remove covered pixels before compositing translucent cards.
++                // Expanded cards use the same path; their masks do not overlap.
++                snapshot.push_mask (Gsk.MaskMode.INVERTED_ALPHA);
++                for (unowned List<unowned Gtk.Widget>? front = link.next;
++                     front != null; front = front.next) {
++                    if (front.data is Notification && front.data.should_layout ()) {
++                        ((Notification) front.data).append_glass_mask (snapshot, this);
++                    }
++                }
++                snapshot.pop ();
+                 snapshot_child (child, snapshot);
++                snapshot.pop ();
+             }
+         }
+ 
+--- a/src/notificationWindow/notificationWindow.vala
++++ b/src/notificationWindow/notificationWindow.vala
+@@ -11,6 +11,7 @@
+             = new Gee.HashMap<uint32, unowned Notification> ();
+ 
+         private static string ?monitor_name = null;
++        private GlassGeometry? glass_geometry;
+ 
+         private const int MAX_HEIGHT = 600;
+ 
+@@ -26,6 +27,7 @@
+                 }
+                 GtkLayerShell.init_for_window (this);
+                 GtkLayerShell.set_namespace (this, "swaync-notification-window");
++                glass_geometry = new GlassGeometry (this, "swaync-notification-window");
+             }
+             this.set_anchor ();
+ 
+@@ -87,6 +89,13 @@
+             };
+             snapshot.append_color (color, Graphene.Rect.zero ());
+             base.snapshot (snapshot);
++            if (glass_geometry != null) glass_geometry.schedule ();
++        }
++
++        public override void dispose () {
++            if (glass_geometry != null) glass_geometry.dispose ();
++            glass_geometry = null;
++            base.dispose ();
+         }
+ 
+         /**
+--- a/src/blankWindow/blankWindow.vala
++++ b/src/blankWindow/blankWindow.vala
+@@ -67,7 +67,7 @@
+                 Process.exit (1);
+             }
+             GtkLayerShell.init_for_window (this);
+-            GtkLayerShell.set_namespace (this, "swaync-control-center");
++            GtkLayerShell.set_namespace (this, "swaync-control-center-closer");
+             GtkLayerShell.set_monitor (this, monitor);
+ 
+             GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.TOP, true);
+--- a/src/swayncDaemon/swayncDaemon.vala
++++ b/src/swayncDaemon/swayncDaemon.vala
+@@ -122,7 +122,7 @@
+         /** Sets the visibility of the Control Center */
+         public void set_visibility (bool visibility) throws DBusError, IOError {
+             control_center.set_visibility (visibility);
+-            if (visibility) {
++            if (control_center.get_visibility ()) {
+                 noti_daemon.remove_all_floating_notifications (false, null);
+             }
+         }

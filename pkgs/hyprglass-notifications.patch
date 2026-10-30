@@ -1,0 +1,461 @@
+--- /dev/null
++++ b/src/GeometryHub.hpp
+@@ -0,0 +1,87 @@
++#pragma once
++
++#include "SemanticGeometry.hpp"
++
++#include <iterator>
++#include <unordered_map>
++#include <utility>
++
++namespace SemanticGeometry {
++
++struct ClientId {
++    int descriptor;
++    [[nodiscard]] friend constexpr bool operator==(ClientId, ClientId) = default;
++};
++
++struct ClientIdHash {
++    [[nodiscard]] std::size_t operator()(ClientId id) const { return std::hash<int>{}(id.descriptor); }
++};
++
++class Hub {
++  public:
++    [[nodiscard]] UpdateResult clientConnected(ClientId id) {
++        auto [client, inserted] = m_clients.try_emplace(id);
++        if (!inserted)
++            return {};
++        auto result = client->second.clientConnected();
++        for (const auto& [token, name] : m_layers)
++            merge(result, client->second.layerMapped(token, name));
++        return result;
++    }
++
++    [[nodiscard]] UpdateResult ingest(ClientId id, std::string_view bytes) {
++        const auto client = m_clients.find(id);
++        return client == m_clients.end() ? UpdateResult{} : client->second.ingest(bytes);
++    }
++
++    [[nodiscard]] UpdateResult clientDisconnected(ClientId id) {
++        const auto client = m_clients.find(id);
++        if (client == m_clients.end())
++            return {};
++        auto result = client->second.clientDisconnected();
++        m_clients.erase(client);
++        return result;
++    }
++
++    [[nodiscard]] UpdateResult layerMapped(LayerToken token, std::string_view name) {
++        m_layers.insert_or_assign(token, std::string(name));
++        UpdateResult result;
++        for (auto& [id, client] : m_clients)
++            merge(result, client.layerMapped(token, name));
++        return result;
++    }
++
++    [[nodiscard]] UpdateResult layerUnmapped(LayerToken token) {
++        m_layers.erase(token);
++        UpdateResult result;
++        for (auto& [id, client] : m_clients)
++            merge(result, client.layerUnmapped(token));
++        return result;
++    }
++
++    [[nodiscard]] std::optional<Lookup> lookup(LayerToken token) const {
++        std::optional<Lookup> result;
++        for (const auto& [id, client] : m_clients) {
++            if (auto binding = client.lookup(token)) {
++                if (result)
++                    return std::nullopt;
++                result = std::move(binding);
++            }
++        }
++        return result;
++    }
++
++  private:
++    static void merge(UpdateResult& target, UpdateResult source) {
++        target.acceptedTransactions += source.acceptedTransactions;
++        target.rejectedTransactions += source.rejectedTransactions;
++        target.layerEffects.insert(target.layerEffects.end(),
++            std::make_move_iterator(source.layerEffects.begin()),
++            std::make_move_iterator(source.layerEffects.end()));
++    }
++
++    std::unordered_map<ClientId, State, ClientIdHash> m_clients;
++    std::unordered_map<LayerToken, std::string> m_layers;
++};
++
++} // namespace SemanticGeometry
+--- a/src/GeometrySocket.cpp
++++ b/src/GeometrySocket.cpp
+@@ -17,6 +17,7 @@
+ #include <string>
+ #include <system_error>
+ #include <utility>
++#include <unordered_map>
+ 
+ #include <fcntl.h>
+ #include <sys/file.h>
+@@ -31,6 +32,7 @@
+ inline constexpr mode_t FILE_MODE = 0600;
+ inline constexpr std::size_t READ_BUDGET_BYTES = 64 * 1024;
+ inline constexpr std::size_t MAX_ACCEPTS_PER_CALLBACK = 64;
++inline constexpr std::size_t MAX_CLIENTS = 8;
+ 
+ static_assert(READ_BUDGET_BYTES == SemanticGeometry::MAX_TRANSACTION_BYTES);
+ 
+@@ -112,7 +114,7 @@
+ class GeometrySocket::Impl {
+   public:
+     Impl(wl_event_loop* eventLoop, std::string runtimeDirectory, std::string instanceSignature,
+-         uid_t expectedUid, SemanticGeometry::State& state, Callbacks callbacks) :
++         uid_t expectedUid, SemanticGeometry::Hub& state, Callbacks callbacks) :
+         m_eventLoop(eventLoop), m_runtimeDirectory(std::move(runtimeDirectory)),
+         m_instanceSignature(std::move(instanceSignature)), m_expectedUid(expectedUid),
+         m_state(state), m_callbacks(std::move(callbacks)) {}
+@@ -353,7 +355,7 @@
+                     return ::getsockopt(peer.get(), SOL_SOCKET, SO_PEERCRED, &credentials, &credentialsSize);
+                 }) == -1 || credentialsSize != sizeof(credentials) || credentials.uid != m_expectedUid)
+                 continue;
+-            if (m_clientFd >= 0)
++            if (m_clients.size() >= MAX_CLIENTS)
+                 continue;
+ 
+             wl_event_source* source = wl_event_loop_add_fd(
+@@ -362,15 +364,14 @@
+                 failRuntime("cannot register geometry client with the Wayland event loop");
+                 return;
+             }
+-            m_clientFd = peer.release();
+-            m_clientSource = source;
+-            m_stateConnected = true;
+-            deliver(m_state.clientConnected());
++            const int client = peer.release();
++            m_clients.emplace(client, source);
++            deliver(m_state.clientConnected({client}));
+         }
+     }
+ 
+     void handleClient(int descriptor, std::uint32_t mask) {
+-        if (!m_running || descriptor != m_clientFd)
++        if (!m_running || !m_clients.contains(descriptor))
+             return;
+ 
+         std::array<char, 8192> buffer{};
+@@ -378,15 +379,15 @@
+         bool wouldBlock = false;
+         while (remaining > 0) {
+             const std::size_t request = std::min(remaining, buffer.size());
+-            const ssize_t received = ::read(m_clientFd, buffer.data(), request);
++            const ssize_t received = ::read(descriptor, buffer.data(), request);
+             if (received > 0) {
+                 const auto count = static_cast<std::size_t>(received);
+                 remaining -= count;
+-                deliver(m_state.ingest(std::string_view(buffer.data(), count)));
++                deliver(m_state.ingest({descriptor}, std::string_view(buffer.data(), count)));
+                 continue;
+             }
+             if (received == 0) {
+-                disconnectClient();
++                disconnectClient(descriptor);
+                 return;
+             }
+ 
+@@ -397,12 +398,12 @@
+                 wouldBlock = true;
+                 break;
+             }
+-            disconnectClient();
++            disconnectClient(descriptor);
+             return;
+         }
+ 
+         if (remaining != 0 && wouldBlock && (mask & (WL_EVENT_HANGUP | WL_EVENT_ERROR)) != 0U)
+-            disconnectClient();
++            disconnectClient(descriptor);
+     }
+ 
+     void deliver(SemanticGeometry::UpdateResult result) {
+@@ -410,19 +411,19 @@
+             m_callbacks.update(std::move(result));
+     }
+ 
+-    void disconnectClient() {
+-        if (m_clientSource != nullptr) {
+-            wl_event_source* source = std::exchange(m_clientSource, nullptr);
+-            static_cast<void>(wl_event_source_remove(source));
+-        }
+-        if (m_clientFd >= 0) {
+-            const int descriptor = std::exchange(m_clientFd, -1);
+-            static_cast<void>(::close(descriptor));
+-        }
+-        if (!m_stateConnected)
+-            return;
+-        m_stateConnected = false;
+-        deliver(m_state.clientDisconnected());
++    void disconnectClient(int descriptor) {
++        const auto client = m_clients.find(descriptor);
++        if (client == m_clients.end())
++            return;
++        static_cast<void>(wl_event_source_remove(client->second));
++        static_cast<void>(::close(descriptor));
++        m_clients.erase(client);
++        deliver(m_state.clientDisconnected({descriptor}));
++    }
++
++    void disconnectClients() {
++        while (!m_clients.empty())
++            disconnectClient(m_clients.begin()->first);
+     }
+ 
+     void stopListener() noexcept {
+@@ -460,7 +461,7 @@
+         m_runtimeFailureSent = true;
+         stopListener();
+         try {
+-            disconnectClient();
++            disconnectClients();
+         } catch (...) {
+         }
+         unlinkOwnedSocket();
+@@ -475,7 +476,7 @@
+     void teardown() noexcept {
+         stopListener();
+         try {
+-            disconnectClient();
++            disconnectClients();
+         } catch (...) {
+         }
+         unlinkOwnedSocket();
+@@ -489,20 +490,18 @@
+     std::string                     m_runtimeDirectory;
+     std::string                     m_instanceSignature;
+     uid_t                           m_expectedUid;
+-    SemanticGeometry::State&        m_state;
++    SemanticGeometry::Hub&          m_state;
+     Callbacks                       m_callbacks;
+     std::string                     m_directoryPath;
+     std::string                     m_socketPath;
+     std::string                     m_lockPath;
+     int                             m_lockFd = -1;
+     int                             m_listenerFd = -1;
+-    int                             m_clientFd = -1;
+     wl_event_source*                m_listenerSource = nullptr;
+-    wl_event_source*                m_clientSource = nullptr;
++    std::unordered_map<int, wl_event_source*> m_clients;
+     dev_t                           m_socketDevice = 0;
+     ino_t                           m_socketInode = 0;
+     bool                            m_ownsSocketPath = false;
+-    bool                            m_stateConnected = false;
+     bool                            m_running = false;
+     bool                            m_runtimeFailureSent = false;
+ };
+@@ -513,7 +512,7 @@
+ 
+ std::expected<std::unique_ptr<GeometrySocket>, std::string> GeometrySocket::create(
+     wl_event_loop* eventLoop, std::string_view runtimeDirectory, std::string_view instanceSignature,
+-    uid_t expectedUid, SemanticGeometry::State& state, Callbacks callbacks) {
++    uid_t expectedUid, SemanticGeometry::Hub& state, Callbacks callbacks) {
+     try {
+         auto impl = std::make_unique<Impl>(
+             eventLoop, std::string(runtimeDirectory), std::string(instanceSignature), expectedUid, state,
+@@ -529,7 +528,7 @@
+ }
+ 
+ std::expected<std::unique_ptr<GeometrySocket>, std::string> GeometrySocket::createFromEnvironment(
+-    wl_event_loop* eventLoop, SemanticGeometry::State& state, Callbacks callbacks) {
++    wl_event_loop* eventLoop, SemanticGeometry::Hub& state, Callbacks callbacks) {
+     const char* runtimeDirectory = std::getenv("XDG_RUNTIME_DIR");
+     if (runtimeDirectory == nullptr || runtimeDirectory[0] == '\0')
+         return std::unexpected("XDG_RUNTIME_DIR is not set");
+--- a/src/GeometrySocket.hpp
++++ b/src/GeometrySocket.hpp
+@@ -1,6 +1,6 @@
+ #pragma once
+ 
+-#include "SemanticGeometry.hpp"
++#include "GeometryHub.hpp"
+ 
+ #include <expected>
+ #include <functional>
+@@ -23,9 +23,9 @@
+ 
+     [[nodiscard]] static std::expected<std::unique_ptr<GeometrySocket>, std::string> create(
+         wl_event_loop* eventLoop, std::string_view runtimeDirectory, std::string_view instanceSignature,
+-        uid_t expectedUid, SemanticGeometry::State& state, Callbacks callbacks = {});
++        uid_t expectedUid, SemanticGeometry::Hub& state, Callbacks callbacks = {});
+     [[nodiscard]] static std::expected<std::unique_ptr<GeometrySocket>, std::string> createFromEnvironment(
+-        wl_event_loop* eventLoop, SemanticGeometry::State& state, Callbacks callbacks = {});
++        wl_event_loop* eventLoop, SemanticGeometry::Hub& state, Callbacks callbacks = {});
+ 
+     ~GeometrySocket();
+     GeometrySocket(const GeometrySocket&) = delete;
+--- a/src/GlassLayerSurface.cpp
++++ b/src/GlassLayerSurface.cpp
+@@ -553,8 +553,13 @@
+             maskInfo.regions.push_back(region);
+         }
+ 
+-        std::sort(maskInfo.regions.begin(), maskInfo.regions.end(),
+-                  [](const auto& a, const auto& b) { return a.halfW * a.halfH < b.halfW * b.halfH; });
++        // Stack shapes arrive front-to-back. Attribution selects one shape per
++        // fragment, and all shapes share this surface's single background sample.
++        if (!std::ranges::any_of(semantic->shapes(), [](const auto& shape) {
++                return shape.role() == SemanticGeometry::Role::STACK;
++            }))
++            std::sort(maskInfo.regions.begin(), maskInfo.regions.end(),
++                      [](const auto& a, const auto& b) { return a.halfW * a.halfH < b.halfW * b.halfH; });
+     }
+ 
+     // Declared per-region slabs (hg.layer(ns, { regions = {...} })), converted
+--- a/src/Globals.hpp
++++ b/src/Globals.hpp
+@@ -37,7 +37,7 @@
+     // shared_ptr so CGlassLayerPassElement can hold a copy that survives map erasure mid-frame.
+     std::unordered_map<Desktop::View::CLayerSurface*, std::shared_ptr<CGlassLayerSurface>> layerSurfaces;
+ 
+-    SemanticGeometry::State                              semanticGeometry;
++    SemanticGeometry::Hub                                semanticGeometry;
+     std::unordered_map<SemanticGeometry::LayerToken, PHLLSREF> semanticLayerSurfaces;
+     std::vector<CHyprSignalListener>                     eventListeners;
+     std::unique_ptr<GeometrySocket>                      geometrySocket;
+--- a/src/PluginConfig.hpp
++++ b/src/PluginConfig.hpp
+@@ -172,7 +172,7 @@
+ };
+ 
+ // Uniform array size in the glass shader; extra regions are dropped with a warning.
+-inline constexpr size_t MAX_GLASS_REGIONS = 16;
++inline constexpr size_t MAX_GLASS_REGIONS = 32;
+ 
+ // Alpha-derived pills: surface pixels above `threshold` form dynamic glass
+ // slabs whose edges come from a per-frame jump-flood distance field — they
+--- a/src/SemanticGeometry.cpp
++++ b/src/SemanticGeometry.cpp
+@@ -260,6 +260,8 @@
+         role = Role::SHEET;
+     else if (fields[5] == "control")
+         role = Role::CONTROL;
++    else if (fields[5] == "stack")
++        role = Role::STACK;
+     else
+         return std::nullopt;
+ 
+@@ -334,6 +336,7 @@
+         for (std::size_t rightIndex = leftIndex + 1; rightIndex < transaction.shapes.size(); ++rightIndex) {
+             const auto& right = transaction.shapes[rightIndex];
+             if (left.surfaceId == right.surfaceId &&
++                !(left.role == Role::STACK && right.role == Role::STACK) &&
+                 (rectanglesOverlap(left.sourceBounds, right.sourceBounds) || rectanglesOverlap(left.bounds, right.bounds)))
+                 return false;
+         }
+--- a/src/SemanticGeometry.hpp
++++ b/src/SemanticGeometry.hpp
+@@ -14,8 +14,8 @@
+ using LayerToken = std::uintptr_t;
+ 
+ inline constexpr std::size_t MAX_SURFACES = 4;
+-inline constexpr std::size_t MAX_SHAPES = 16;
+-inline constexpr std::size_t MAX_CLIPS = 16;
++inline constexpr std::size_t MAX_SHAPES = 64;
++inline constexpr std::size_t MAX_CLIPS = 64;
+ inline constexpr std::size_t MAX_RECORD_BYTES = 8 * 1024;
+ inline constexpr std::size_t MAX_TRANSACTION_BYTES = 64 * 1024;
+ inline constexpr std::size_t MAX_TRACKED_EPOCHS = 256;
+@@ -37,6 +37,7 @@
+ enum class Role : std::uint8_t {
+     SHEET,
+     CONTROL,
++    STACK,
+ };
+ 
+ class SnapshotBuilder;
+--- a/src/Shaders.hpp
++++ b/src/Shaders.hpp
+@@ -66,7 +66,7 @@
+ uniform vec2 maskUVScale;
+ uniform float maskAlphaThreshold;
+ 
+-#define MAX_REGIONS 16
++#define MAX_REGIONS 32
+ uniform int regionCount;
+ uniform vec4 regionRects[MAX_REGIONS];
+ uniform float regionRadii[MAX_REGIONS];
+--- /dev/null
++++ b/tests/notification-geometry.cpp
+@@ -0,0 +1,73 @@
++#include "GeometryHub.hpp"
++
++#include <cassert>
++#include <fstream>
++#include <iterator>
++#include <string>
++
++using namespace SemanticGeometry;
++
++static std::string frame(std::string_view name, std::string_view role,
++                         unsigned serial = 1, unsigned generation = 1) {
++    const auto prefix = std::string(name) + "\tsurface\t" + std::to_string(generation);
++    return "BEGIN\t1\t123\t" + std::to_string(serial) + "\t1\t2\t0\n" +
++        "SURFACE\t" + prefix + "\t1\n" +
++        "SHAPE\t" + prefix + "\tfront\t" + std::string(role) + "\t0\t0\t300\t100\t18\t-\n" +
++        "SHAPE\t" + prefix + "\tback\t" + std::string(role) + "\t8\t8\t284\t100\t17\t-\n" +
++        "COMMIT\t" + std::to_string(serial) + "\n";
++}
++
++int main(int argc, char** argv) {
++    for (int index = 1; index < argc; ++index) {
++        std::ifstream input(argv[index]);
++        assert(input.is_open());
++        const std::string wire{std::istreambuf_iterator<char>(input), {}};
++        State captured;
++        static_cast<void>(captured.clientConnected());
++        const auto replay = captured.ingest(wire);
++        assert(replay.acceptedTransactions > 0);
++        assert(replay.rejectedTransactions == 0);
++    }
++    Hub hub;
++    assert(hub.layerMapped(10, "quickshell").empty());
++    assert(hub.layerMapped(20, "notifications").empty());
++    assert(hub.clientConnected({1}).empty());
++    assert(hub.clientConnected({2}).empty());
++
++    // Existing non-overlapping protocol roles retain their strict validation.
++    assert(hub.ingest({1}, frame("quickshell", "control")).rejectedTransactions == 1);
++    assert(!hub.lookup(10));
++
++    // Stacks explicitly permit overlap and retain front-to-back declaration order.
++    assert(hub.ingest({2}, frame("notifications", "stack")).acceptedTransactions == 1);
++    auto notifications = hub.lookup(20);
++    assert(notifications && notifications->shapes().size() == 2);
++    assert(notifications->shapes()[0].id() == "front");
++    assert(notifications->shapes()[1].id() == "back");
++    assert(notifications->shapes()[0].role() == Role::STACK);
++
++    // An independent connection can use the same epoch and serial sequence.
++    assert(hub.ingest({1}, frame("quickshell", "stack")).acceptedTransactions == 1);
++    assert(hub.lookup(10));
++    assert(hub.lookup(20));
++    assert(hub.ingest({2}, frame("notifications", "stack", 2)).acceptedTransactions == 1);
++    assert(hub.lookup(10)->snapshot().serial() == 1);
++    assert(hub.lookup(20)->snapshot().serial() == 2);
++
++    // Disconnecting the notification daemon does not tear down Quickshell.
++    assert(!hub.clientDisconnected({2}).empty());
++    assert(!hub.lookup(20));
++    assert(hub.lookup(10));
++    assert(hub.clientDisconnected({2}).empty());
++
++    // A new publisher binds already-mapped layers, including after remapping.
++    assert(hub.clientConnected({3}).empty());
++    assert(hub.ingest({3}, frame("notifications", "stack")).acceptedTransactions == 1);
++    assert(hub.lookup(20));
++    assert(!hub.layerUnmapped(20).empty());
++    assert(!hub.lookup(20));
++    static_cast<void>(hub.layerMapped(21, "notifications"));
++    assert(hub.ingest({3}, frame("notifications", "stack", 2, 2)).acceptedTransactions == 1);
++    assert(hub.lookup(21));
++    assert(hub.lookup(10));
++}

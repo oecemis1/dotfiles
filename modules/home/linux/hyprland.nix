@@ -20,7 +20,6 @@
         hyprlock
         hyprshot
         waybar
-        swaynotificationcenter
         swayosd
 
         grim
