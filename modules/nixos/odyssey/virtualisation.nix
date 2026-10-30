@@ -8,6 +8,7 @@
 
       virtualisation.libvirtd = {
         enable = true;
+        qemu.swtpm.enable = true;
         # ISSUE: https://discourse.nixos.org/t/virt-manager-cannot-find-virtiofsd/26752/9
         qemu.vhostUserPackages = with pkgs; [ virtiofsd ];
 
