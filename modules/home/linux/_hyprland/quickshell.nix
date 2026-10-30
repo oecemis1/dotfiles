@@ -1,11 +1,10 @@
 {
   config,
-  inputs,
   pkgs,
   ...
 }:
 let
-  quickshell = inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  quickshell = pkgs.quickshell;
   launcher = pkgs.writeShellApplication {
     name = "quickshell-control-center";
     runtimeInputs = [
