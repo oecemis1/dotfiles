@@ -4,43 +4,12 @@
 
 # vim:fileencoding=utf-8:foldmethod=marker
 
+# UI colors are generated from colorScheme.colors by home-manager.
+
 # : Manager {{{
 
 [mgr]
-cwd = { fg = "white", bold = true }
-
-# Find
-find_keyword  = { fg = "yellow", italic = true }
-find_position = { fg = "magenta", bg = "reset", italic = true }
-
-# Marker
-marker_selected = { fg = "lightgreen",  bg = "lightgreen" }
-marker_copied   = { fg = "lightyellow", bg = "lightyellow" }
-marker_cut      = { fg = "lightred",    bg = "lightred" }
-
-# Border
 border_symbol = "│"
-border_style  = { fg = "gray" }
-
-# : }}}
-
-
-# : Tabs {{{
-
-[tabs]
-active   = { fg = "black", bg = "lightblue" }
-inactive = { fg = "white", bg = "darkgray" }
-# tab_width is not a valid theme key
-
-# : }}}
-
-
-# : Mode {{{
-
-[mode]
-normal_main = { fg = "black", bg = "lightblue",    bold = false }
-select_main = { fg = "black", bg = "lightgreen",   bold = false }
-unset_main  = { fg = "black", bg = "lightmagenta", bold = false }
 
 # : }}}
 
@@ -51,49 +20,12 @@ unset_main  = { fg = "black", bg = "lightmagenta", bold = false }
 sep_left  = { open = "", close = "" }
 sep_right = { open = "", close = "" }
 
-# Progress
-progress_label  = { bold = true }
-progress_normal = { fg = "blue", bg = "black" }
-progress_error  = { fg = "red",  bg = "black" }
-
-# Permissions
-perm_type  = { fg = "lightgreen" }
-perm_read  = { fg = "lightyellow" }
-perm_write = { fg = "lightred" }
-perm_exec  = { fg = "lightcyan" }
-perm_sep   = { fg = "darkgray" }
-
-# : }}}
-
-
-# : Pick (formerly Select) {{{
-
-[pick]
-border   = { fg = "blue" }
-active   = { fg = "magenta" }
-inactive = {}
-
-# : }}}
-
-
-# : Input {{{
-
-[input]
-border   = { fg = "blue" }
-title    = {}
-value    = {}
-selected = { reversed = true }
-
 # : }}}
 
 
 # : Completion (formerly Cmp) {{{
 
 [cmp]
-border   = { fg = "blue" }
-active   = { bg = "darkgray" }
-inactive = {}
-
 # Icons
 icon_file    = ""
 icon_folder  = ""
@@ -102,38 +34,11 @@ icon_command = ""
 # : }}}
 
 
-# : Tasks {{{
-
-[tasks]
-border  = { fg = "blue" }
-title   = {}
-hovered = { underline = true }
-
-# : }}}
-
-
 # : Which {{{
 
 [which]
 cols            = 3
-mask            = { bg = "black" }
-cand            = { fg = "lightcyan" }
-rest            = { fg = "darkgray" }
-desc            = { fg = "magenta" }
 separator       = "  "
-separator_style = { fg = "darkgray" }
-
-# : }}}
-
-
-# : Help {{{
-
-[help]
-on      = { fg = "magenta" }
-run     = { fg = "cyan" }
-desc    = { fg = "gray" }
-hovered = { bg = "darkgray", bold = true }
-footer  = { fg = "black", bg = "white" }
 
 # : }}}
 

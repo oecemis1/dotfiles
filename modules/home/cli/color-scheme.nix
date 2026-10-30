@@ -70,6 +70,26 @@
       };
 
       colors = config.colorScheme.colors;
+      # Soften selection colors against the palette base, keeping black text legible.
+      tinted =
+        color:
+        let
+          channel =
+            offset:
+            let
+              value = lib.fromHexString (builtins.substring offset 2 color);
+              base = lib.fromHexString (builtins.substring offset 2 colors.base);
+            in
+            lib.toLower (lib.fixedWidthString 2 "0" (lib.toHexString (builtins.div (value * 3 + base) 4)));
+        in
+        "#${channel 1}${channel 3}${channel 5}";
+      yaziStyle = fg: {
+        inherit fg;
+        bg = "reset";
+        reversed = false;
+      };
+      emphasized = fg: yaziStyle fg // { bold = true; };
+      highlighted = color: emphasized "#000000" // { bg = tinted color; };
     in
     {
       options.colorScheme = {
@@ -89,8 +109,9 @@
         colorScheme.colors = palettes.${config.colorScheme.flavor};
 
         # kitty.conf does `include ./current-theme.conf`.
-        xdg.configFile."kitty/current-theme.conf".source =
-          "${self}/.config/kitty/${kittyThemes.${config.colorScheme.flavor}}";
+        xdg.configFile."kitty/current-theme.conf".source = "${self}/.config/kitty/${
+          kittyThemes.${config.colorScheme.flavor}
+        }";
 
         # helix config.toml does `theme = "current"`. Empty styles keep the
         # terminal transparency (same trick as mytheme); statusline/bufferline
@@ -109,8 +130,7 @@
         '';
 
         # btop.conf does `color_theme = "current"`.
-        xdg.configFile."btop/themes/current.theme".source =
-          btopThemes.${config.colorScheme.flavor};
+        xdg.configFile."btop/themes/current.theme".source = btopThemes.${config.colorScheme.flavor};
 
         # init.lua does `colorscheme(require("current-theme"))`; the flavor
         # names double as the colorscheme names under .config/nvim/colors/.
@@ -135,17 +155,168 @@
           set -g @theme_urgent '${colors.urgent}'
         '';
 
-        # yazi only reads theme.toml: shared overrides from theme-base.toml
-        # plus the flavor selection (appended — the base file starts with a
-        # top-level "$schema" key that must precede any [table]). Flavor names
-        # match the directories under .config/yazi/flavors/.
-        xdg.configFile."yazi/theme.toml".text =
-          builtins.readFile "${self}/.config/yazi/theme-base.toml"
-          + ''
+        # Keep file-type colors, icons and layout in the base; derive UI styles
+        # from the same semantic palette as the desktop and Helix.
+        xdg.configFile."yazi/theme.toml".source = (pkgs.formats.toml { }).generate "yazi-theme.toml" (
+          lib.recursiveUpdate (builtins.fromTOML (builtins.readFile "${self}/.config/yazi/theme-base.toml")) {
+            flavor.dark = config.colorScheme.flavor;
+            app.overall = yaziStyle colors.text;
 
-            [flavor]
-            dark = "${config.colorScheme.flavor}"
-          '';
+            mgr = {
+              cwd = emphasized colors.text;
+              find_keyword = yaziStyle colors.yellow // {
+                bold = true;
+                underline = true;
+              };
+              find_position = yaziStyle colors.accent2 // {
+                italic = true;
+              };
+              symlink_target = yaziStyle colors.overlay;
+              border_style = yaziStyle colors.overlay;
+              marker_copied = {
+                fg = colors.green;
+                bg = colors.green;
+              };
+              marker_cut = {
+                fg = colors.red;
+                bg = colors.red;
+              };
+              marker_marked = {
+                fg = colors.teal;
+                bg = colors.teal;
+              };
+              marker_selected = {
+                fg = colors.yellow;
+                bg = colors.yellow;
+              };
+              count_copied = {
+                fg = colors.crust;
+                bg = colors.green;
+              };
+              count_cut = {
+                fg = colors.crust;
+                bg = colors.red;
+              };
+              count_selected = {
+                fg = colors.crust;
+                bg = colors.yellow;
+              };
+            };
+
+            indicator = {
+              parent = yaziStyle colors.overlay;
+              current = highlighted colors.accent;
+              preview = yaziStyle colors.accent2;
+              padding = {
+                open = "";
+                close = "";
+              };
+            };
+
+            tabs = {
+              active = emphasized colors.accent;
+              inactive = yaziStyle colors.overlay;
+              sep_inner = {
+                open = "";
+                close = "";
+              };
+              sep_outer = {
+                open = "";
+                close = "";
+              };
+            };
+
+            mode = {
+              normal_main = emphasized colors.accent;
+              normal_alt = yaziStyle colors.text;
+              select_main = emphasized colors.teal;
+              select_alt = yaziStyle colors.teal;
+              unset_main = emphasized colors.orange;
+              unset_alt = yaziStyle colors.orange;
+            };
+
+            status = {
+              overall = yaziStyle colors.text;
+              progress_label = emphasized colors.text;
+              progress_normal = yaziStyle colors.accent2;
+              progress_error = yaziStyle colors.red;
+              perm_type = yaziStyle colors.accent2;
+              perm_read = yaziStyle colors.yellow;
+              perm_write = yaziStyle colors.red;
+              perm_exec = yaziStyle colors.green;
+              perm_sep = yaziStyle colors.overlay;
+            };
+
+            pick = {
+              border = yaziStyle colors.accent;
+              active = highlighted colors.accent2;
+              inactive = yaziStyle colors.text;
+            };
+
+            input = {
+              border = yaziStyle colors.accent;
+              title = yaziStyle colors.text;
+              value = yaziStyle colors.text;
+              selected = {
+                fg = colors.crust;
+                bg = colors.accent2;
+                reversed = false;
+              };
+            };
+
+            cmp = {
+              border = yaziStyle colors.accent;
+              active = highlighted colors.accent2;
+              inactive = yaziStyle colors.text;
+            };
+
+            tasks = {
+              border = yaziStyle colors.accent;
+              title = yaziStyle colors.text;
+              hovered = highlighted colors.accent2 // {
+                underline = true;
+              };
+            };
+
+            which = {
+              border = yaziStyle colors.accent;
+              mask.bg = "reset";
+              cand = yaziStyle colors.accent2;
+              rest = yaziStyle colors.overlay;
+              desc = yaziStyle colors.text;
+              separator_style = yaziStyle colors.overlay;
+            };
+
+            help = {
+              border = yaziStyle colors.accent;
+              chord = yaziStyle colors.accent2;
+              action = yaziStyle colors.text;
+              hovered = highlighted colors.accent;
+            };
+
+            confirm = {
+              border = yaziStyle colors.accent;
+              title = emphasized colors.accent;
+              body = yaziStyle colors.text;
+              list = yaziStyle colors.overlay;
+              btn_yes = emphasized colors.accent2;
+              btn_no = yaziStyle colors.overlay;
+            };
+
+            spot = {
+              border = yaziStyle colors.accent;
+              title = emphasized colors.accent;
+              tbl_col = emphasized colors.accent2;
+              tbl_cell = highlighted colors.accent;
+            };
+
+            notify = {
+              title_info = yaziStyle colors.green;
+              title_warn = yaziStyle colors.yellow;
+              title_error = yaziStyle colors.red;
+            };
+          }
+        );
       };
     };
 }
