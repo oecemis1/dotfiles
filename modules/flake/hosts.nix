@@ -23,5 +23,6 @@ in
   flake.nixosConfigurations = {
     odyssey = mkHost "odyssey";
     obsidian = mkHost "obsidian";
+    oe-desktop00 = mkHost "oe-desktop00";
   };
 }

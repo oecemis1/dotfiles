@@ -1,0 +1,1093 @@
+--- a/src/GlassDecoration.cpp
++++ b/src/GlassDecoration.cpp
+@@ -8,7 +8,9 @@
+ 
+ #include <algorithm>
+ #include <GLES3/gl32.h>
+-#include <hyprland/src/desktop/view/Window.hpp>
++#include <hyprland/src/desktop/view/window/Window.hpp>
++#include <hyprland/src/desktop/view/window/WindowMetadata.hpp>
++#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+ #include <hyprland/src/desktop/rule/windowRule/WindowRuleApplicator.hpp>
+ #include <hyprland/src/render/OpenGL.hpp>
+ #include <hyprland/src/render/Renderer.hpp>
+@@ -16,7 +18,7 @@
+ 
+ CGlassDecoration::CGlassDecoration(PHLWINDOW window)
+     : IHyprWindowDecoration(window), m_window(window) {
+-    const std::string_view initialClass = window ? std::string_view{window->m_initialClass} : std::string_view{};
++    const std::string_view initialClass = window ? std::string_view{window->metadata().initialAppID()} : std::string_view{};
+     m_materialId = initialClass.empty() ? "window:unknown" : "window:" + std::string(initialClass);
+     m_materialSeed = MaterialIdentity::shaderSeed(m_materialId);
+ }
+@@ -135,7 +137,8 @@
+ 
+ void CGlassDecoration::onPositioningReply(const SDecorationPositioningReply& reply) {}
+ 
+-void CGlassDecoration::draw(PHLMONITOR monitor, float const& alpha) {
++void CGlassDecoration::draw(Render::CRenderContext& renderCtx, PHLMONITOR monitor, float const& alpha,
++                            const Render::SWindowRenderPresentation& presentation) {
+     if (!g_pGlobalState)
+         return;
+ 
+@@ -145,14 +148,12 @@
+         return;
+     }
+ 
+-    CGlassPassElement::SGlassPassData data{m_self, alpha};
+-    g_pHyprRenderer->m_renderPass.add(makeUnique<CGlassPassElement>(data));
++    CGlassPassElement::SGlassPassData data{m_self, alpha, presentation};
++    g_pHyprRenderer->currentPass(renderCtx).add(makeUnique<CGlassPassElement>(data));
+ 
+     const auto window = m_window.lock();
+     if (window) {
+-        const auto workspace = window->m_workspace;
+-
+-        const bool wsAnimating = workspace && !window->m_pinned && workspace->m_renderOffset->isBeingAnimated();
++        const bool wsAnimating = presentation.workspaceOffsetAnimating;
+         if (wsAnimating)
+             damageEntire();
+ 
+@@ -178,7 +179,8 @@
+     return m_window.lock();
+ }
+ 
+-void CGlassDecoration::renderPass(PHLMONITOR monitor, const float& alpha) {
++void CGlassDecoration::renderPass(Render::CRenderContext& renderCtx, PHLMONITOR monitor, const float& alpha,
++                                  const Render::SWindowRenderPresentation& presentation) {
+     if (!monitor) {
+         updateNoBlurProp(false);
+         return;
+@@ -198,13 +200,13 @@
+         return;
+     }
+ 
+-    const auto source = g_pHyprRenderer->m_renderData.currentFB;
++    const auto source = renderCtx.m_data.currentFB;
+     if (!source) {
+         updateNoBlurProp(false);
+         return;
+     }
+ 
+-    auto optBox = WindowGeometry::computeWindowBox(window, monitor);
++    auto optBox = WindowGeometry::computeWindowBox(window, monitor, presentation);
+     if (!optBox) {
+         updateNoBlurProp(false);
+         return;
+@@ -214,10 +216,10 @@
+     CBox transformBox = windowBox;
+ 
+     const auto transform = Math::wlTransformToHyprutils(
+-        Math::invertTransform(g_pHyprRenderer->m_renderData.pMonitor->m_transform));
++        Math::invertTransform(renderCtx.m_data.pMonitor->m_transform));
+     transformBox.transform(transform,
+-        g_pHyprRenderer->m_renderData.pMonitor->m_transformedSize.x,
+-        g_pHyprRenderer->m_renderData.pMonitor->m_transformedSize.y);
++        renderCtx.m_data.pMonitor->m_transformedSize.x,
++        renderCtx.m_data.pMonitor->m_transformedSize.y);
+ 
+     const bool isDark          = resolveThemeIsDark();
+     const std::string preset   = resolvePresetName();
+@@ -252,18 +254,16 @@
+     }
+ 
+     updateNoBlurProp(true);
+-    float cornerRadius  = window->rounding() * monitorScale;
++    float cornerRadius  = window->presentation().rounding() * monitorScale;
+ 
+     // The render alpha Hyprland hands decorations is activeInactive * fade.
+     // Glass must follow fades (open/close, fullscreen, workspace moves) but
+     // not the active/inactive dimming or opacity rules: those make the surface
+     // more translucent — revealing more glass — and shouldn't wash out the
+     // glass pane itself. Rebuild the fade-only alpha from its components.
+-    float glassAlpha = window->alphaTotalWithout(Desktop::View::WINDOW_ALPHA_ACTIVE);
+-    if (const auto workspace = window->m_workspace; workspace && !window->m_pinned)
+-        glassAlpha *= workspace->m_alpha->value();
+-
+-    GlassRenderer::applyGlassEffect(m_finalSampleFramebuffer, source,
++    const float glassAlpha = presentation.fadeAlpha;
++
++    GlassRenderer::applyGlassEffect(renderCtx, m_finalSampleFramebuffer, source,
+                                      windowBox, transformBox, glassAlpha,
+                                      cornerRadius, monitorScale, m_materialSeed,
+                                      m_samplePaddingRatio, ctx, optics);
+@@ -282,12 +282,9 @@
+     if (!window)
+         return;
+ 
+-    const auto workspace = window->m_workspace;
++    const auto presentation = window->presentation().renderPresentation();
+     auto surfaceBox = window->getWindowMainSurfaceBox();
+-
+-    if (workspace && workspace->m_renderOffset->isBeingAnimated() && !window->m_pinned)
+-        surfaceBox.translate(workspace->m_renderOffset->value());
+-    surfaceBox.translate(window->m_floatingOffset);
++    surfaceBox.translate(presentation.workspaceOffset + presentation.floatingOffset);
+ 
+     // Expand damage by our sampling padding so the render pass re-renders
+     // background content (wallpaper, other windows) in the padded margin.
+--- a/src/GlassDecoration.hpp
++++ b/src/GlassDecoration.hpp
+@@ -3,7 +3,8 @@
+ #include "GlassRenderer.hpp"
+ #include "PluginConfig.hpp"
+ 
+-#include <hyprland/src/desktop/view/Window.hpp>
++#include <hyprland/src/desktop/view/window/Window.hpp>
++#include <hyprland/src/render/WindowRenderPresentation.hpp>
+ #include <hyprland/src/render/decorations/IHyprWindowDecoration.hpp>
+ #include <hyprland/src/render/Framebuffer.hpp>
+ 
+@@ -14,7 +15,8 @@
+ 
+     [[nodiscard]] SDecorationPositioningInfo getPositioningInfo() override;
+     void                                     onPositioningReply(const SDecorationPositioningReply& reply) override;
+-    void                                     draw(PHLMONITOR monitor, float const& alpha) override;
++    void                                     draw(Render::CRenderContext& renderCtx, PHLMONITOR monitor, float const& alpha,
++                                                  const Render::SWindowRenderPresentation& presentation) override;
+     [[nodiscard]] eDecorationType            getDecorationType() override;
+     void                                     updateWindow(PHLWINDOW window) override;
+     void                                     damageEntire() override;
+@@ -23,7 +25,8 @@
+     [[nodiscard]] std::string                getDisplayName() override;
+ 
+     [[nodiscard]] PHLWINDOW getOwner();
+-    void                    renderPass(PHLMONITOR monitor, const float& alpha);
++    void                    renderPass(Render::CRenderContext& renderCtx, PHLMONITOR monitor, const float& alpha,
++                                       const Render::SWindowRenderPresentation& presentation);
+ 
+     WP<CGlassDecoration> m_self;
+ 
+--- a/src/GlassLayerCompositeElement.cpp
++++ b/src/GlassLayerCompositeElement.cpp
+@@ -9,14 +9,14 @@
+ CGlassLayerCompositeElement::CGlassLayerCompositeElement(const SGlassLayerCompositeData& data)
+     : m_data(data) {}
+ 
+-std::vector<UP<IPassElement>> CGlassLayerCompositeElement::draw() {
++std::vector<UP<IPassElement>> CGlassLayerCompositeElement::draw(Render::CRenderContext& renderCtx) {
+     if (m_data.layerState)
+-        m_data.layerState->compositeAndRestore(g_pHyprRenderer->m_renderData.pMonitor.lock(), m_data.alpha);
++        m_data.layerState->compositeAndRestore(renderCtx, renderCtx.m_data.pMonitor.lock(), m_data.alpha);
+ 
+     return {};
+ }
+ 
+-std::optional<CBox> CGlassLayerCompositeElement::boundingBox() {
++std::optional<CBox> CGlassLayerCompositeElement::boundingBox(Render::CRenderContext& renderCtx) {
+     if (!m_data.layerState)
+         return std::nullopt;
+ 
+@@ -24,7 +24,7 @@
+     if (!layerSurface)
+         return std::nullopt;
+ 
+-    const auto monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
++    const auto monitor = renderCtx.m_data.pMonitor.lock();
+     auto box = LayerGeometry::computeLayerBox(layerSurface, monitor);
+     if (!box)
+         return std::nullopt;
+@@ -37,10 +37,10 @@
+     return box;
+ }
+ 
+-bool CGlassLayerCompositeElement::needsLiveBlur() {
++bool CGlassLayerCompositeElement::needsLiveBlur(Render::CRenderContext&) {
+     return false;
+ }
+ 
+-bool CGlassLayerCompositeElement::needsPrecomputeBlur() {
++bool CGlassLayerCompositeElement::needsPrecomputeBlur(Render::CRenderContext&) {
+     return false;
+ }
+--- a/src/GlassLayerCompositeElement.hpp
++++ b/src/GlassLayerCompositeElement.hpp
+@@ -17,10 +17,10 @@
+     explicit CGlassLayerCompositeElement(const SGlassLayerCompositeData& data);
+     ~CGlassLayerCompositeElement() override = default;
+ 
+-    std::vector<UP<IPassElement>> draw() override;
+-    [[nodiscard]] bool                needsLiveBlur() override;
+-    [[nodiscard]] bool                needsPrecomputeBlur() override;
+-    [[nodiscard]] std::optional<CBox> boundingBox() override;
++    std::vector<UP<IPassElement>> draw(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                needsLiveBlur(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                needsPrecomputeBlur(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] std::optional<CBox> boundingBox(Render::CRenderContext& renderCtx) override;
+ 
+     [[nodiscard]] const char* passName() override { return "CGlassLayerCompositeElement"; }
+     [[nodiscard]] ePassElementType type() override { return EK_CUSTOM; }
+--- a/src/GlassLayerPassElement.cpp
++++ b/src/GlassLayerPassElement.cpp
+@@ -9,14 +9,14 @@
+ CGlassLayerPassElement::CGlassLayerPassElement(const SGlassLayerPassData& data)
+     : m_data(data) {}
+ 
+-std::vector<UP<IPassElement>> CGlassLayerPassElement::draw() {
++std::vector<UP<IPassElement>> CGlassLayerPassElement::draw(Render::CRenderContext& renderCtx) {
+     if (m_data.layerState && m_data.layerState->getLayerSurface())
+-        m_data.layerState->sampleAndRedirect(g_pHyprRenderer->m_renderData.pMonitor.lock(), m_data.alpha);
++        m_data.layerState->sampleAndRedirect(renderCtx, renderCtx.m_data.pMonitor.lock(), m_data.alpha);
+ 
+     return {};
+ }
+ 
+-std::optional<CBox> CGlassLayerPassElement::boundingBox() {
++std::optional<CBox> CGlassLayerPassElement::boundingBox(Render::CRenderContext& renderCtx) {
+     if (!m_data.layerState)
+         return std::nullopt;
+ 
+@@ -24,7 +24,7 @@
+     if (!layerSurface)
+         return std::nullopt;
+ 
+-    const auto monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
++    const auto monitor = renderCtx.m_data.pMonitor.lock();
+     auto box = LayerGeometry::computeLayerBox(layerSurface, monitor);
+     if (!box)
+         return std::nullopt;
+@@ -37,7 +37,7 @@
+     return box;
+ }
+ 
+-bool CGlassLayerPassElement::needsLiveBlur() {
++bool CGlassLayerPassElement::needsLiveBlur(Render::CRenderContext&) {
+     // Ensure the render pass fully re-renders the background behind this
+     // element before we sample it. Without this, partial damage causes the
+     // glass to sample a mix of fresh wallpaper and its own stale output.
+@@ -46,10 +46,10 @@
+     return m_data.layerState && m_data.layerState->getLayerSurface();
+ }
+ 
+-bool CGlassLayerPassElement::needsPrecomputeBlur() {
++bool CGlassLayerPassElement::needsPrecomputeBlur(Render::CRenderContext&) {
+     return false;
+ }
+ 
+-bool CGlassLayerPassElement::disableSimplification() {
++bool CGlassLayerPassElement::disableSimplification(Render::CRenderContext&) {
+     return m_data.layerState && m_data.layerState->getLayerSurface();
+ }
+--- a/src/GlassLayerPassElement.hpp
++++ b/src/GlassLayerPassElement.hpp
+@@ -17,11 +17,11 @@
+     explicit CGlassLayerPassElement(const SGlassLayerPassData& data);
+     ~CGlassLayerPassElement() override = default;
+ 
+-    std::vector<UP<IPassElement>> draw() override;
+-    [[nodiscard]] bool                needsLiveBlur() override;
+-    [[nodiscard]] bool                needsPrecomputeBlur() override;
+-    [[nodiscard]] std::optional<CBox> boundingBox() override;
+-    [[nodiscard]] bool                disableSimplification() override;
++    std::vector<UP<IPassElement>> draw(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                needsLiveBlur(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                needsPrecomputeBlur(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] std::optional<CBox> boundingBox(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                disableSimplification(Render::CRenderContext& renderCtx) override;
+ 
+     [[nodiscard]] const char* passName() override { return "CGlassLayerPassElement"; }
+     [[nodiscard]] ePassElementType type() override { return EK_CUSTOM; }
+--- a/src/GlassLayerSurface.cpp
++++ b/src/GlassLayerSurface.cpp
+@@ -8,7 +8,7 @@
+ #include <algorithm>
+ #include <cmath>
+ #include <limits>
+-#include <hyprland/src/desktop/Workspace.hpp>
++#include <hyprland/src/workspace/HLWorkspace.hpp>
+ #include <GLES3/gl32.h>
+ #include <hyprland/src/protocols/LayerShell.hpp>
+ #include <hyprland/src/render/OpenGL.hpp>
+@@ -34,17 +34,13 @@
+         liveBlur == other.liveBlur && animating == other.animating;
+ }
+ 
+-void CGlassLayerSurface::restoreRedirectTarget() {
++void CGlassLayerSurface::restoreRedirectTarget(Render::CRenderContext& renderCtx) {
+     if (!m_savedCurrentFB)
+         return;
+ 
+     const auto target = m_savedCurrentFB;
+-    g_pHyprRenderer->m_renderData.currentFB = target;
+-    glBindFramebuffer(GL_FRAMEBUFFER,
+-        dynamic_cast<Render::GL::CGLFramebuffer*>(target.get())->getFBID());
+-    g_pHyprOpenGL->setViewport(0, 0,
+-        static_cast<int>(target->m_size.x), static_cast<int>(target->m_size.y));
+-    glActiveTexture(GL_TEXTURE0);
++    g_pHyprRenderer->bindFB(renderCtx, target);
++    g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+     glBindVertexArray(0);
+     g_pHyprOpenGL->blend(true);
+     m_savedCurrentFB.reset();
+@@ -206,7 +202,7 @@
+     const bool isAnimating = layerSurface->positionAnimation()->isBeingAnimated() ||
+                              layerSurface->sizeAnimation()->isBeingAnimated() ||
+                              layerSurface->alpha()[Desktop::View::LS_ALPHA_FADE]->isBeingAnimated() ||
+-                             !layerSurface->m_mapped;
++                             !layerSurface->mapped();
+ 
+     const bool moved = currentPosition != m_lastPosition || currentSize != m_lastSize;
+ 
+@@ -234,8 +230,8 @@
+     }
+ }
+ 
+-void CGlassLayerSurface::sampleAndRedirect(PHLMONITOR monitor, float alpha) {
+-    restoreRedirectTarget();
++void CGlassLayerSurface::sampleAndRedirect(Render::CRenderContext& renderCtx, PHLMONITOR monitor, float alpha) {
++    restoreRedirectTarget(renderCtx);
+     m_redirectedThisFrame = false;
+ 
+     if (!monitor)
+@@ -251,7 +247,7 @@
+     if (!layerSurface)
+         return;
+ 
+-    auto source = g_pHyprRenderer->m_renderData.currentFB;
++    auto source = renderCtx.m_data.currentFB;
+     if (!source)
+         return;
+     const Vector2D sourceSize = source->m_size;
+@@ -339,7 +335,7 @@
+     const bool backgroundChanged = !m_hasCachedSample || !m_blurCacheKey || *m_blurCacheKey != cacheKey ||
+                                    liveBlur || isAnimating;
+ 
+-    if (!layerSurface->m_mapped) {
++    if (!layerSurface->mapped()) {
+         if (!m_hasCachedSample)
+             return;
+     } else if (backgroundChanged) {
+@@ -387,10 +383,8 @@
+ 
+     m_savedCurrentFB = source;
+ 
+-    g_pHyprRenderer->m_renderData.currentFB = m_surfaceTempFramebuffer;
+-    glBindFramebuffer(GL_FRAMEBUFFER, dynamic_cast<Render::GL::CGLFramebuffer*>(m_surfaceTempFramebuffer.get())->getFBID());
+-    g_pHyprOpenGL->setViewport(0, 0, sourceWidth, sourceHeight);
+-    glActiveTexture(GL_TEXTURE0);
++    g_pHyprRenderer->bindFB(renderCtx, m_surfaceTempFramebuffer);
++    g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+     glBindVertexArray(0);
+     g_pHyprOpenGL->blend(true);
+     m_redirectedThisFrame = true;
+@@ -401,15 +395,15 @@
+ 
+     if (std::isfinite(clearBox.x) && std::isfinite(clearBox.y) && std::isfinite(clearBox.w) && std::isfinite(clearBox.h) &&
+         clearBox.w > 0.0 && clearBox.h > 0.0) {
+-        g_pHyprOpenGL->scissor(clearBox, false);
++        g_pHyprOpenGL->scissor(renderCtx, clearBox, false);
+         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+         glClear(GL_COLOR_BUFFER_BIT);
+-        g_pHyprOpenGL->scissor(nullptr);
+-    }
+-}
+-
+-void CGlassLayerSurface::compositeAndRestore(PHLMONITOR monitor, float alpha) {
+-    restoreRedirectTarget();
++        g_pHyprOpenGL->scissor(renderCtx, nullptr);
++    }
++}
++
++void CGlassLayerSurface::compositeAndRestore(Render::CRenderContext& renderCtx, PHLMONITOR monitor, float alpha) {
++    restoreRedirectTarget(renderCtx);
+     const bool redirected = m_redirectedThisFrame;
+     m_redirectedThisFrame = false;
+     const auto finish = [&] { publishContentChange(monitor); };
+@@ -434,7 +428,7 @@
+         return;
+     }
+ 
+-    auto target = g_pHyprRenderer->m_renderData.currentFB;
++    auto target = renderCtx.m_data.currentFB;
+     if (!target) {
+         finish();
+         return;
+@@ -659,7 +653,7 @@
+ 
+     // The glass shader composites both the glass effect and the surface content
+     // in a single pass: glass behind, surface on top, using the temp FBO alpha.
+-    GlassRenderer::applyGlassEffect(m_finalSampleFramebuffer, target,
++    GlassRenderer::applyGlassEffect(renderCtx, m_finalSampleFramebuffer, target,
+                                      rawBox, transformBox, alpha,
+                                      wholeLayerRadius, monitor->m_scale, m_materialSeed,
+                                      m_samplePaddingRatio, ctx, optics,
+--- a/src/GlassLayerSurface.hpp
++++ b/src/GlassLayerSurface.hpp
+@@ -12,10 +12,10 @@
+     ~CGlassLayerSurface();
+ 
+     // Phase 1 (pre-surface): sample+blur background, redirect currentFB → temp FBO
+-    void sampleAndRedirect(PHLMONITOR monitor, float alpha);
++    void sampleAndRedirect(Render::CRenderContext& renderCtx, PHLMONITOR monitor, float alpha);
+ 
+     // Phase 2 (post-surface): restore currentFB, apply glass masked by temp FBO, blit surface
+-    void compositeAndRestore(PHLMONITOR monitor, float alpha);
++    void compositeAndRestore(Render::CRenderContext& renderCtx, PHLMONITOR monitor, float alpha);
+ 
+     void damageIfMoved();
+ 
+@@ -84,7 +84,7 @@
+     bool                     m_contentChanged = false;
+     uint64_t                 m_lastSelfSceneGeneration = 0;
+ 
+-    void restoreRedirectTarget();
++    void restoreRedirectTarget(Render::CRenderContext& renderCtx);
+     void publishContentChange(PHLMONITOR monitor);
+ 
+     [[nodiscard]] bool        resolveThemeIsDark() const;
+--- a/src/GlassPassElement.cpp
++++ b/src/GlassPassElement.cpp
+@@ -8,14 +8,14 @@
+ CGlassPassElement::CGlassPassElement(const SGlassPassData& data)
+     : m_data(data) {}
+ 
+-std::vector<UP<IPassElement>> CGlassPassElement::draw() {
++std::vector<UP<IPassElement>> CGlassPassElement::draw(Render::CRenderContext& renderCtx) {
+     if (m_data.decoration.valid())
+-        m_data.decoration->renderPass(g_pHyprRenderer->m_renderData.pMonitor.lock(), m_data.alpha);
++        m_data.decoration->renderPass(renderCtx, renderCtx.m_data.pMonitor.lock(), m_data.alpha, m_data.presentation);
+ 
+     return {};
+ }
+ 
+-std::optional<CBox> CGlassPassElement::boundingBox() {
++std::optional<CBox> CGlassPassElement::boundingBox(Render::CRenderContext& renderCtx) {
+     if (!m_data.decoration.valid())
+         return std::nullopt;
+ 
+@@ -23,8 +23,8 @@
+     if (!window)
+         return std::nullopt;
+ 
+-    const auto monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
+-    auto box = WindowGeometry::computeWindowBox(window, monitor);
++    const auto monitor = renderCtx.m_data.pMonitor.lock();
++    auto box = WindowGeometry::computeWindowBox(window, monitor, m_data.presentation);
+     if (!box)
+         return std::nullopt;
+ 
+@@ -46,7 +46,7 @@
+     return box;
+ }
+ 
+-bool CGlassPassElement::needsLiveBlur() {
++bool CGlassPassElement::needsLiveBlur(Render::CRenderContext&) {
+     // Windows need live blur so the render pass fully re-renders the
+     // background behind the glass before we sample it. Without this,
+     // partial damage (e.g. typing in a window below) leaves stale pixels
+@@ -56,10 +56,10 @@
+     return m_data.decoration.valid() && m_data.decoration->getOwner();
+ }
+ 
+-bool CGlassPassElement::needsPrecomputeBlur() {
++bool CGlassPassElement::needsPrecomputeBlur(Render::CRenderContext&) {
+     return false;
+ }
+ 
+-bool CGlassPassElement::disableSimplification() {
++bool CGlassPassElement::disableSimplification(Render::CRenderContext&) {
+     return m_data.decoration.valid() && m_data.decoration->getOwner();
+ }
+--- a/src/GlassPassElement.hpp
++++ b/src/GlassPassElement.hpp
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <hyprland/src/render/pass/PassElement.hpp>
++#include <hyprland/src/render/WindowRenderPresentation.hpp>
+ #include <hyprutils/math/Box.hpp>
+ #include <hyprutils/math/Region.hpp>
+ #include <hyprland/src/helpers/memory/Memory.hpp>
+@@ -12,16 +13,17 @@
+     struct SGlassPassData {
+         WP<CGlassDecoration> decoration;
+         float                alpha = 1.0f;
++        Render::SWindowRenderPresentation presentation;
+     };
+ 
+     explicit CGlassPassElement(const SGlassPassData& data);
+     ~CGlassPassElement() override = default;
+ 
+-    std::vector<UP<IPassElement>> draw() override;
+-    [[nodiscard]] bool                needsLiveBlur() override;
+-    [[nodiscard]] bool                needsPrecomputeBlur() override;
+-    [[nodiscard]] std::optional<CBox> boundingBox() override;
+-    [[nodiscard]] bool                disableSimplification() override;
++    std::vector<UP<IPassElement>> draw(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                needsLiveBlur(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                needsPrecomputeBlur(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] std::optional<CBox> boundingBox(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                disableSimplification(Render::CRenderContext& renderCtx) override;
+ 
+     [[nodiscard]] const char* passName() override { return "CGlassPassElement"; }
+     [[nodiscard]] ePassElementType type() override { return EK_CUSTOM; }
+--- a/src/GlassRenderer.cpp
++++ b/src/GlassRenderer.cpp
+@@ -42,11 +42,11 @@
+ }
+ 
+ static void restoreRenderTarget(const SP<Render::IFramebuffer>& framebuffer) {
+-    glBindFramebuffer(GL_FRAMEBUFFER, fbId(framebuffer));
++    g_pHyprOpenGL->bindFramebuffer(GL_FRAMEBUFFER, fbId(framebuffer));
+     g_pHyprOpenGL->setViewport(0, 0,
+         static_cast<int>(framebuffer->m_size.x),
+         static_cast<int>(framebuffer->m_size.y));
+-    glActiveTexture(GL_TEXTURE0);
++    g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+     glBindVertexArray(0);
+     g_pHyprOpenGL->blend(true);
+ }
+@@ -169,8 +169,8 @@
+ 
+     g_pHyprOpenGL->setCapStatus(GL_SCISSOR_TEST, false);
+     g_pHyprOpenGL->blend(false);
+-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbId(sourceFramebuffer));
+-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbId(rawFramebuffer));
++    g_pHyprOpenGL->bindFramebuffer(GL_READ_FRAMEBUFFER, fbId(sourceFramebuffer));
++    g_pHyprOpenGL->bindFramebuffer(GL_DRAW_FRAMEBUFFER, fbId(rawFramebuffer));
+     for (const auto& x : xSpans) {
+         for (const auto& y : ySpans) {
+             glBlitFramebuffer(x.sourceStart, y.sourceStart, x.sourceEnd, y.sourceEnd,
+@@ -232,12 +232,12 @@
+     glUniform1f(blurUniforms.radius, radius);
+     glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
+     g_pHyprOpenGL->setViewport(0, 0, halfWidth, halfHeight);
+-    glActiveTexture(GL_TEXTURE0);
++    g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+ 
+     const auto drawPass = [&](const SP<Render::IFramebuffer>& input,
+                               const SP<Render::IFramebuffer>& output,
+                               float directionX, float directionY) {
+-        glBindFramebuffer(GL_FRAMEBUFFER, fbId(output));
++        g_pHyprOpenGL->bindFramebuffer(GL_FRAMEBUFFER, fbId(output));
+         input->getTexture()->bind();
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+@@ -304,7 +304,7 @@
+     g_pHyprOpenGL->setCapStatus(GL_SCISSOR_TEST, false);
+     g_pHyprOpenGL->blend(false);
+     g_pHyprOpenGL->setViewport(0, 0, width, height);
+-    glActiveTexture(GL_TEXTURE0);
++    g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+ 
+     // Init pass: threshold the surface mask into seeds
+     {
+@@ -317,7 +317,7 @@
+         glUniform2f(jfaUniforms.initSizePx, static_cast<float>(width), static_cast<float>(height));
+         glUniform1i(jfaUniforms.initSeedMode, static_cast<int>(seedMode));
+         glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
+-        glBindFramebuffer(GL_FRAMEBUFFER, fbId(jfaPing));
++        g_pHyprOpenGL->bindFramebuffer(GL_FRAMEBUFFER, fbId(jfaPing));
+         glBindTexture(GL_TEXTURE_2D, maskTextureId);
+         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+     }
+@@ -337,7 +337,7 @@
+         auto* source = &jfaPing;
+         auto* destination = &jfaPong;
+         for (; stepPx >= 1; stepPx /= 2) {
+-            glBindFramebuffer(GL_FRAMEBUFFER, fbId(*destination));
++            g_pHyprOpenGL->bindFramebuffer(GL_FRAMEBUFFER, fbId(*destination));
+             bindField(*source);
+             glUniform1f(jfaUniforms.stepStepPx, static_cast<float>(stepPx));
+             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+@@ -346,7 +346,7 @@
+ 
+         glBindVertexArray(0);
+         g_pHyprOpenGL->blend(true);
+-        glBindFramebuffer(GL_FRAMEBUFFER, fbId(callerFramebuffer));
++        g_pHyprOpenGL->bindFramebuffer(GL_FRAMEBUFFER, fbId(callerFramebuffer));
+         g_pHyprOpenGL->setViewport(0, 0,
+             static_cast<int>(callerFramebuffer->m_size.x),
+             static_cast<int>(callerFramebuffer->m_size.y));
+@@ -355,7 +355,8 @@
+     }
+ }
+ 
+-void applyGlassEffect(SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFramebuffer> targetFramebuffer,
++void applyGlassEffect(Render::CRenderContext& renderCtx,
++                       SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFramebuffer> targetFramebuffer,
+                        CBox& rawBox, CBox& transformedBox,
+                        float alpha, float cornerRadius, float monitorScale, float materialSeed,
+                        const Vector2D& paddingRatio, const SResolveContext& resolveContext,
+@@ -369,32 +370,32 @@
+     const auto& uniforms = shaderManager.glassUniforms;
+ 
+     const auto transform = Math::wlTransformToHyprutils(
+-        Math::invertTransform(g_pHyprRenderer->m_renderData.pMonitor->m_transform));
+-
+-    Mat3x3 glMatrix = g_pHyprRenderer->projectBoxToTarget(rawBox, transform);
++        Math::invertTransform(renderCtx.m_data.pMonitor->m_transform));
++
++    Mat3x3 glMatrix = g_pHyprRenderer->projectBoxToTarget(renderCtx, rawBox, transform);
+     auto texture    = sampleFramebuffer->getTexture();
+ 
+     glMatrix.transpose();
+ 
+-    glBindFramebuffer(GL_FRAMEBUFFER, fbId(targetFramebuffer));
++    g_pHyprOpenGL->bindFramebuffer(GL_FRAMEBUFFER, fbId(targetFramebuffer));
+     g_pHyprOpenGL->setViewport(0, 0,
+         static_cast<int>(targetFramebuffer->m_size.x),
+         static_cast<int>(targetFramebuffer->m_size.y));
+-    glActiveTexture(GL_TEXTURE0);
++    g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+     texture->bind();
+ 
+     // Layers only: bind the temp FBO texture (rendered surface) on texture unit 1.
+     // The shader samples it to mask glass to visible content and composite surface on top.
+     // Windows pass mask=nullptr so this block is skipped.
+     if (mask && mask->textureId != 0) {
+-        glActiveTexture(GL_TEXTURE1);
++        g_pHyprOpenGL->setActiveTexture(GL_TEXTURE1);
+         glBindTexture(mask->target, mask->textureId);
+         // Per-region blur variants on units 2..2+N
+         for (int i = 0; i < mask->variantCount; i++) {
+-            glActiveTexture(GL_TEXTURE2 + i);
++            g_pHyprOpenGL->setActiveTexture(GL_TEXTURE2 + i);
+             glBindTexture(GL_TEXTURE_2D, mask->variantTextures[i]);
+         }
+-        glActiveTexture(GL_TEXTURE0);
++        g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+     }
+ 
+     auto shader = g_pHyprOpenGL->useShader(shaderManager.glassShader);
+@@ -514,11 +515,11 @@
+ 
+     // Alpha-derived pills: bind the jump-flood field on unit 5
+     if (mask && mask->pillsEnabled && mask->jfaTextureId != 0) {
+-        glActiveTexture(GL_TEXTURE5);
++        g_pHyprOpenGL->setActiveTexture(GL_TEXTURE5);
+         glBindTexture(GL_TEXTURE_2D, mask->jfaTextureId);
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-        glActiveTexture(GL_TEXTURE0);
++        g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+         glUniform1i(uniforms.pillsEnabled, 1);
+         glUniform1f(uniforms.pillThreshold, mask->pillThreshold);
+         glUniform1f(uniforms.pillOpacity, mask->pillOpacity);
+@@ -533,11 +534,11 @@
+     }
+ 
+     if (mask && mask->backgroundFieldEnabled && mask->backgroundJfaTextureId != 0) {
+-        glActiveTexture(GL_TEXTURE6);
++        g_pHyprOpenGL->setActiveTexture(GL_TEXTURE6);
+         glBindTexture(GL_TEXTURE_2D, mask->backgroundJfaTextureId);
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-        glActiveTexture(GL_TEXTURE0);
++        g_pHyprOpenGL->setActiveTexture(GL_TEXTURE0);
+         glUniform1i(uniforms.backgroundFieldEnabled, 1);
+         glUniform1i(uniforms.backgroundJfaTex, 6);
+         glUniform2f(uniforms.backgroundJfaSizePx,
+@@ -563,9 +564,9 @@
+     shader->setUniformFloat(SHADER_RADIUS, cornerRadius);
+ 
+     glBindVertexArray(shader->getUniformLocation(SHADER_SHADER_VAO));
+-    g_pHyprOpenGL->scissor(rawBox);
++    g_pHyprOpenGL->scissor(renderCtx, rawBox);
+     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+-    g_pHyprOpenGL->scissor(nullptr);
++    g_pHyprOpenGL->scissor(renderCtx, nullptr);
+     restoreRenderTarget(targetFramebuffer);
+ }
+ 
+--- a/src/GlassRenderer.hpp
++++ b/src/GlassRenderer.hpp
+@@ -118,7 +118,8 @@
+ // When mask is non-null (layers only), the shader composites the surface content
+ // over the glass effect in a single pass. When mask is null (windows), the shader
+ // outputs the glass effect alone.
+-void applyGlassEffect(SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFramebuffer> targetFramebuffer,
++void applyGlassEffect(Render::CRenderContext& renderCtx,
++                       SP<Render::IFramebuffer> sampleFramebuffer, SP<Render::IFramebuffer> targetFramebuffer,
+                        CBox& rawBox, CBox& transformedBox,
+                        float alpha, float cornerRadius, float monitorScale, float materialSeed,
+                        const Vector2D& paddingRatio, const SResolveContext& resolveContext,
+--- a/src/Globals.hpp
++++ b/src/Globals.hpp
+@@ -89,7 +89,6 @@
+ 
+     // renderLayer hook
+     CFunctionHook* renderLayerHook = nullptr;
+-    CFunctionHook* legacyParseKeywordHook = nullptr;
+ };
+ 
+ using Render::GL::g_pHyprOpenGL;
+@@ -100,4 +99,4 @@
+ inline constexpr std::string_view PLUGIN_NAME        = "hyprglass";
+ inline constexpr std::string_view PLUGIN_DESCRIPTION = "Apple-style Liquid Glass effect";
+ inline constexpr std::string_view PLUGIN_AUTHOR      = "Hyprnux";
+-inline constexpr std::string_view PLUGIN_VERSION     = "1.0.0";
++inline constexpr std::string_view PLUGIN_VERSION     = "0.7.0-liquid-glass-hyprland-0.57";
+--- a/src/PluginConfig.cpp
++++ b/src/PluginConfig.cpp
+@@ -114,8 +114,7 @@
+     addConfigValue<Config::Values::Float>(handle, ConfigKeys::LIGHT_ADAPTIVE_DIM, Config::FLOAT{SENTINEL_FLOAT});
+     addConfigValue<Config::Values::Float>(handle, ConfigKeys::LIGHT_ADAPTIVE_BOOST, Config::FLOAT{SENTINEL_FLOAT});
+ 
+-    // Legacy config keyword plus Lua-config callbacks for custom presets and layers.
+-    HyprlandAPI::addConfigKeyword(handle, ConfigKeys::PRESET_KEYWORD, handlePresetKeyword, Hyprlang::SHandlerOptions{});
++    // Lua-config callbacks for custom presets and layers.
+     HyprlandAPI::addLuaFunction(handle, "hyprglass", "preset", handleLuaPreset);
+     HyprlandAPI::addLuaFunction(handle, "hyprglass", "layer", handleLuaLayer);
+     HyprlandAPI::addLuaFunction(handle, "hyprglass", "config", handleLuaConfig);
+--- a/src/WindowGeometry.hpp
++++ b/src/WindowGeometry.hpp
+@@ -1,24 +1,20 @@
+ #pragma once
+ 
+-#include <hyprland/src/desktop/view/Window.hpp>
++#include <hyprland/src/desktop/view/window/Window.hpp>
++#include <hyprland/src/render/WindowRenderPresentation.hpp>
+ #include <hyprland/src/render/OpenGL.hpp>
+ #include <hyprutils/math/Box.hpp>
+ #include <optional>
+ 
+ namespace WindowGeometry {
+ 
+-[[nodiscard]] inline std::optional<CBox> computeWindowBox(PHLWINDOW window, PHLMONITOR monitor) {
++[[nodiscard]] inline std::optional<CBox> computeWindowBox(PHLWINDOW window, PHLMONITOR monitor,
++                                                         const Render::SWindowRenderPresentation& presentation) {
+     if (!window || !monitor)
+         return std::nullopt;
+ 
+-    const auto workspace = window->m_workspace;
+-    const auto workspaceOffset = workspace && !window->m_pinned
+-        ? workspace->m_renderOffset->value()
+-        : Vector2D();
+-
+     auto box = window->getWindowMainSurfaceBox();
+-    box.translate(workspaceOffset);
+-    box.translate(-monitor->m_position + window->m_floatingOffset);
++    box.translate(presentation.workspaceOffset + presentation.floatingOffset - monitor->m_position);
+     box.scale(monitor->m_scale);
+     box.round();
+     return box;
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -8,12 +8,12 @@
+ 
+ #include <hyprland/src/Compositor.hpp>
+ #include <hyprland/src/desktop/view/LayerSurface.hpp>
++#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+ #include <hyprland/src/helpers/time/Time.hpp>
+ #include <hyprland/src/plugins/PluginAPI.hpp>
+ #include <hyprland/src/render/Renderer.hpp>
+ #include <hyprland/src/helpers/Color.hpp>
+ #include <hyprland/src/config/ConfigManager.hpp>
+-#include <hyprland/src/config/legacy/ConfigManager.hpp>
+ #include <hyprland/src/config/supplementary/propRefresher/PropRefresher.hpp>
+ #include <hyprland/src/debug/log/Logger.hpp>
+ #include <hyprland/src/event/EventBus.hpp>
+@@ -90,7 +90,7 @@
+ }
+ 
+ static void mapSemanticLayer(PHLLS layerSurface) {
+-    if (!g_pGlobalState || !layerSurface || !layerSurface->m_mapped)
++    if (!g_pGlobalState || !layerSurface || !layerSurface->mapped())
+         return;
+     const auto token = semanticLayerToken(layerSurface);
+     g_pGlobalState->semanticLayerSurfaces.insert_or_assign(token, PHLLSREF{layerSurface});
+@@ -155,11 +155,11 @@
+ }
+ 
+ static void onNewWindow(PHLWINDOW window) {
+-    if (std::ranges::any_of(window->m_windowDecorations,
++    if (std::ranges::any_of(window->presentation().decorations(),
+                             [](const auto& decoration) { return decoration->getDisplayName() == "HyprGlass"; }))
+         return;
+ 
+-    auto decoration = makeUnique<CGlassDecoration>(window);
++    auto decoration = makeShared<CGlassDecoration>(window);
+     g_pGlobalState->decorations.emplace_back(decoration);
+     decoration->m_self = decoration;
+     HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(decoration));
+@@ -179,53 +179,15 @@
+         g_pGlobalState->bumpSceneGeneration(monitor);
+ }
+ 
+-static bool isRuntimeOpticalConfigKey(std::string_view command) {
+-    return command == ConfigKeys::BLUR_STRENGTH || command == ConfigKeys::BLUR_ITERATIONS ||
+-        command == ConfigKeys::REFRACTION_STRENGTH || command == ConfigKeys::CHROMATIC_ABERRATION ||
+-        command == ConfigKeys::FRESNEL_STRENGTH || command == ConfigKeys::SPECULAR_STRENGTH ||
+-        command == ConfigKeys::EDGE_THICKNESS || command == ConfigKeys::DARK_BLUR_STRENGTH ||
+-        command == ConfigKeys::DARK_BLUR_ITERATIONS || command == ConfigKeys::DARK_REFRACTION_STRENGTH ||
+-        command == ConfigKeys::DARK_CHROMATIC_ABERRATION || command == ConfigKeys::DARK_FRESNEL_STRENGTH ||
+-        command == ConfigKeys::DARK_SPECULAR_STRENGTH || command == ConfigKeys::DARK_EDGE_THICKNESS ||
+-        command == ConfigKeys::LIGHT_BLUR_STRENGTH || command == ConfigKeys::LIGHT_BLUR_ITERATIONS ||
+-        command == ConfigKeys::LIGHT_REFRACTION_STRENGTH || command == ConfigKeys::LIGHT_CHROMATIC_ABERRATION ||
+-        command == ConfigKeys::LIGHT_FRESNEL_STRENGTH || command == ConfigKeys::LIGHT_SPECULAR_STRENGTH ||
+-        command == ConfigKeys::LIGHT_EDGE_THICKNESS;
+-}
+-
+-using parseKeywordFn = std::string (*)(Config::Legacy::CConfigManager*, const std::string&, const std::string&);
+-
+-static std::string hkParseKeyword(
+-    Config::Legacy::CConfigManager* manager, const std::string& command, const std::string& value) {
+-    const auto result = ((parseKeywordFn)g_pGlobalState->legacyParseKeywordHook->m_original)(manager, command, value);
+-    if (result.empty() && isRuntimeOpticalConfigKey(command))
+-        Config::Supplementary::refresher()->scheduleRefresh(Config::Supplementary::REFRESH_BLUR_FB);
+-    return result;
+-}
+-
+-static void installLegacyParseKeywordHook() {
+-    if (Config::mgr()->type() != Config::CONFIG_LEGACY)
+-        return;
+-    static constexpr std::string_view SIGNATURE =
+-        "_ZN6Config6Legacy14CConfigManager12parseKeywordERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES9_";
+-    const auto matches = HyprlandAPI::findFunctionsByName(PHANDLE, "parseKeyword");
+-    const SFunctionMatch* candidate = nullptr;
+-    for (const auto& match : matches) {
+-        if (match.signature != SIGNATURE)
+-            continue;
+-        if (candidate)
+-            throw std::runtime_error("legacy optical configuration refresh hook signature is ambiguous");
+-        candidate = &match;
+-    }
+-    if (!candidate)
+-        throw std::runtime_error("cannot find legacy optical configuration refresh hook target");
+-    auto* hook = HyprlandAPI::createFunctionHook(PHANDLE, candidate->address, (void*)hkParseKeyword);
+-    if (!hook || !hook->hook()) {
+-        if (hook)
+-            HyprlandAPI::removeFunctionHook(PHANDLE, hook);
+-        throw std::runtime_error("cannot install legacy optical configuration refresh hook");
+-    }
+-    g_pGlobalState->legacyParseKeywordHook = hook;
++static void ensureShadowsForGlass() {
++    const auto shadowEnabled = Config::mgr()->getConfigValue("decoration:shadow:enabled");
++    if (!shadowEnabled.dataptr || !shadowEnabled.type || *shadowEnabled.type != typeid(Config::BOOL))
++        return;
++    auto* const enabled = *reinterpret_cast<Config::BOOL* const*>(shadowEnabled.dataptr);
++    if (enabled && !*enabled) {
++        *enabled = true;
++        Config::Supplementary::refresher()->scheduleRefresh(Config::Supplementary::REFRESH_WINDOW_STATES);
++    }
+ }
+ 
+ // ── Layer surface support ────────────────────────────────────────────────────
+@@ -313,18 +275,24 @@
+     return include.contains(ns);
+ }
+ 
+-using renderLayerFn = void (*)(Render::IHyprRenderer*, PHLLS, PHLMONITOR, const Time::steady_tp&, bool, bool);
+-
+-static void hkRenderLayer(Render::IHyprRenderer* thisptr, PHLLS layerSurface, PHLMONITOR monitor,
+-                           const Time::steady_tp& now, bool popups, bool lockscreen) {
++using renderLayerFn = void (*)(Render::IHyprRenderer*, Render::CRenderContext&, PHLLS, PHLMONITOR,
++                               const Time::steady_tp&, bool, bool, bool);
++
++static constexpr std::string_view RENDER_LAYER_SIGNATURE =
++    "_ZN6Render13IHyprRenderer11renderLayerERNS_14CRenderContextEN9Hyprutils6Memory14CSharedPointerIN7Desktop4View13CLayerSurfaceEEENS5_IN7Monitor8CMonitorEEERKNSt6chrono10time_"
++    "pointINSD_3_V212steady_clockENSD_8durationIlSt5ratioILl1ELl1000000000EEEEEEbbb";
++
++static void hkRenderLayer(Render::IHyprRenderer* thisptr, Render::CRenderContext& renderCtx,
++                           PHLLS layerSurface, PHLMONITOR monitor,
++                           const Time::steady_tp& now, bool popups, bool lockscreen, bool workspaceScene) {
+     const auto& config = g_pGlobalState->config;
+ 
+     // Hyprland renders closing layers from snapshots. Do not inject the glass
+     // pipeline while that snapshot is being captured: the snapshot framebuffer
+     // starts transparent/black, so sampling it as a background can bake a black
+     // rectangle into the fade-out snapshot.
+-    if (g_pHyprRenderer->m_bRenderingSnapshot) {
+-        ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, layerSurface, monitor, now, popups, lockscreen);
++    if (renderCtx.m_renderingSnapshot || renderCtx.m_renderingCapture) {
++        ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, renderCtx, layerSurface, monitor, now, popups, lockscreen, workspaceScene);
+         return;
+     }
+ 
+@@ -347,34 +315,34 @@
+             it = layerStates.emplace(rawPtr, std::make_shared<CGlassLayerSurface>(layerSurface)).first;
+         }
+ 
+-        if (!layerSurface->m_mapped) {
+-            ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, layerSurface, monitor, now, popups, lockscreen);
++        if (!layerSurface->mapped()) {
++            ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, renderCtx, layerSurface, monitor, now, popups, lockscreen, workspaceScene);
+             return;
+         }
+ 
+         float alpha = layerSurface->alpha().getTotal();
+         if (alpha < 0.001f) {
+-            ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, layerSurface, monitor, now, popups, lockscreen);
++            ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, renderCtx, layerSurface, monitor, now, popups, lockscreen, workspaceScene);
+             return;
+         }
+ 
+         // Pre-surface: sample+blur background, redirect currentFB → temp FBO
+         CGlassLayerPassElement::SGlassLayerPassData preData{it->second, alpha};
+-        g_pHyprRenderer->m_renderPass.add(makeUnique<CGlassLayerPassElement>(preData));
++        g_pHyprRenderer->currentPass(renderCtx).add(makeUnique<CGlassLayerPassElement>(preData));
+ 
+         // Original renderLayer: surface renders into the redirected temp FBO
+-        ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, layerSurface, monitor, now, popups, lockscreen);
++        ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, renderCtx, layerSurface, monitor, now, popups, lockscreen, workspaceScene);
+ 
+         // Post-surface: restore currentFB, apply glass masked by temp FBO alpha, blit surface
+         CGlassLayerCompositeElement::SGlassLayerCompositeData postData{it->second, alpha};
+-        g_pHyprRenderer->m_renderPass.add(makeUnique<CGlassLayerCompositeElement>(postData));
++        g_pHyprRenderer->currentPass(renderCtx).add(makeUnique<CGlassLayerCompositeElement>(postData));
+ 
+         it->second->damageIfMoved();
+         return;
+     }
+ 
+     // Call the original renderLayer
+-    ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, layerSurface, monitor, now, popups, lockscreen);
++    ((renderLayerFn)g_pGlobalState->renderLayerHook->m_original)(thisptr, renderCtx, layerSurface, monitor, now, popups, lockscreen, workspaceScene);
+ }
+ 
+ 
+@@ -383,43 +351,23 @@
+ }
+ 
+ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
++    PHANDLE = handle;
++
++    const std::string HASH        = __hyprland_api_get_hash();
++    const std::string CLIENT_HASH = __hyprland_api_get_client_hash();
++
++    if (HASH != CLIENT_HASH) {
++        HyprlandAPI::addNotification(PHANDLE,
++            std::format("[{}] Version mismatch! (plugin: {}, running: {})", PLUGIN_NAME, CLIENT_HASH, HASH),
++            CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
++        throw std::runtime_error("Version mismatch");
++    }
++
+     if (g_pPluginSystem) {
+         for (const auto* plugin : g_pPluginSystem->getAllPlugins()) {
+             if (plugin && plugin->m_handle != handle && plugin->m_name == PLUGIN_NAME)
+                 throw std::runtime_error(std::format("{} is already loaded from {}", PLUGIN_NAME, plugin->m_path));
+         }
+-    }
+-
+-    PHANDLE = handle;
+-
+-    const std::string HASH        = __hyprland_api_get_hash();
+-    const std::string CLIENT_HASH = __hyprland_api_get_client_hash();
+-
+-    // Only compare the ABI suffix (e.g. "_aq_0.12_hu_0.13_hg_0.5_hc_0.1_hlg_0.6"),
+-    // not the leading commit hash. The commit hash changes with every git commit
+-    // but the ABI components determine actual binary compatibility.
+-    auto abiSuffix = [](const std::string& hash) -> std::string_view {
+-        auto pos = hash.find("_aq_");
+-        return pos != std::string::npos ? std::string_view{hash}.substr(pos) : std::string_view{hash};
+-    };
+-
+-    if (abiSuffix(HASH) != abiSuffix(CLIENT_HASH)) {
+-        // Last-resort escape hatch for exotic setups: HYPRGLASS_SKIP_VERSION_CHECK
+-        // (set in Hyprland's own environment) downgrades the hard failure to a
+-        // warning. Unsupported — a real ABI mismatch can crash Hyprland.
+-        const char* skipEnv  = std::getenv("HYPRGLASS_SKIP_VERSION_CHECK");
+-        const bool  skip     = skipEnv && *skipEnv && std::string_view{skipEnv} != "0";
+-        if (!skip) {
+-            HyprlandAPI::addNotification(PHANDLE,
+-                std::format("[{}] Version mismatch! (plugin: {}, running: {})", PLUGIN_NAME, HASH, CLIENT_HASH),
+-                CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
+-            throw std::runtime_error("Version mismatch");
+-        }
+-        HyprlandAPI::addNotificationV2(PHANDLE, {
+-            {"text", std::format("[{}] Version mismatch ignored (HYPRGLASS_SKIP_VERSION_CHECK) — ABI differences may crash Hyprland", PLUGIN_NAME)},
+-            {"time", (uint64_t)8000},
+-            {"color", CHyprColor{1.0, 0.8, 0.2, 1.0}},
+-        });
+     }
+ 
+     g_pGlobalState = std::make_unique<SGlobalState>();
+@@ -437,7 +385,7 @@
+     for (const auto& monitor : State::monitorState()->monitors()) {
+         for (const auto& level : monitor->m_layerSurfaceLayers) {
+             for (const auto& weakLayer : level) {
+-                if (const auto layerSurface = weakLayer.lock(); layerSurface && layerSurface->m_mapped)
++                if (const auto layerSurface = weakLayer.lock(); layerSurface && layerSurface->mapped())
+                     mapSemanticLayer(layerSurface);
+             }
+         }
+@@ -471,12 +419,13 @@
+         parseLayerNamespaceFilters();
+         commitPendingLayers(); // merge Lua layer() calls on top of string config
+         validateConfig();
++        ensureShadowsForGlass();
+         for (const auto& monitor : State::monitorState()->monitors())
+             g_pGlobalState->bumpSceneGeneration(monitor);
+     }));
+ 
+-    eventListeners.emplace_back(Event::bus()->m_events.render.stage.listen([](eRenderStage stage) {
+-        if (stage == RENDER_PRE)
++    eventListeners.emplace_back(Event::bus()->m_events.render.stage.listen([](Event::SRenderStageEvent event) {
++        if (event.stage == RENDER_PRE)
+             refreshRuntimeOpticalSnapshot();
+     }));
+ 
+@@ -487,18 +436,11 @@
+     registerConfig(PHANDLE);
+     initConfigPointers(PHANDLE, g_pGlobalState->config);
+     initializePresetRegistry();
+-    installLegacyParseKeywordHook();
+-
+-    // Shadows must be enabled for the glass effect to sample the correct background.
+-    // Force-enable if the user has disabled them.
+-    const auto shadowEnabled = Config::mgr()->getConfigValue("decoration:shadow:enabled");
+-    auto* const PSHADOWENABLED = reinterpret_cast<Hyprlang::INT* const*>(shadowEnabled.dataptr);
+-    if (PSHADOWENABLED && !**PSHADOWENABLED) {
+-        HyprlandAPI::invokeHyprctlCommand("keyword", "decoration:shadow:enabled true");
+-    }
++
++    ensureShadowsForGlass();
+ 
+     for (auto& window : Desktop::viewState()->windows()) {
+-        if (window->isHidden() || !window->m_isMapped)
++        if (window->isHidden() || !window->mapped())
+             continue;
+         onNewWindow(window);
+     }
+@@ -506,11 +448,12 @@
+     // Hook renderLayer for layer surface glass support
+     auto renderLayerMatches = HyprlandAPI::findFunctionsByName(PHANDLE, "renderLayer");
+     for (const auto& match : renderLayerMatches) {
+-        // Match the overload: Render::IHyprRenderer::renderLayer(PHLLS, PHLMONITOR, steady_tp, bool, bool)
+-        if (match.demangled.contains("renderLayer") && match.demangled.contains("LayerSurface")) {
++        if (match.signature == RENDER_LAYER_SIGNATURE) {
+             g_pGlobalState->renderLayerHook = HyprlandAPI::createFunctionHook(PHANDLE, match.address, (void*)hkRenderLayer);
+-            if (g_pGlobalState->renderLayerHook)
+-                g_pGlobalState->renderLayerHook->hook();
++            if (g_pGlobalState->renderLayerHook && !g_pGlobalState->renderLayerHook->hook()) {
++                HyprlandAPI::removeFunctionHook(PHANDLE, g_pGlobalState->renderLayerHook);
++                g_pGlobalState->renderLayerHook = nullptr;
++            }
+             break;
+         }
+     }
+@@ -523,7 +466,6 @@
+         });
+     }
+ 
+-    HyprlandAPI::reloadConfig();
+     initConfigPointers(PHANDLE, g_pGlobalState->config);
+     commitPendingPresets();
+     parseLayerNamespaceFilters();
+@@ -542,9 +484,10 @@
+     g_pGlobalState->geometrySocket.reset();
+     g_pGlobalState->semanticLayerSurfaces.clear();
+ 
+-    g_pHyprRenderer->m_renderPass.removeAllOfType("CGlassPassElement");
+-    g_pHyprRenderer->m_renderPass.removeAllOfType("CGlassLayerPassElement");
+-    g_pHyprRenderer->m_renderPass.removeAllOfType("CGlassLayerCompositeElement");
++    auto& pass = g_pHyprRenderer->context().m_pass;
++    pass.removeAllOfType("CGlassPassElement");
++    pass.removeAllOfType("CGlassLayerPassElement");
++    pass.removeAllOfType("CGlassLayerCompositeElement");
+ 
+     for (auto& decoration : g_pGlobalState->decorations) {
+         if (auto* deco = decoration.get())
+@@ -552,11 +495,6 @@
+     }
+     g_pGlobalState->decorations.clear();
+ 
+-    if (g_pGlobalState->legacyParseKeywordHook) {
+-        HyprlandAPI::removeFunctionHook(PHANDLE, g_pGlobalState->legacyParseKeywordHook);
+-        g_pGlobalState->legacyParseKeywordHook = nullptr;
+-    }
+-
+     if (g_pGlobalState->renderLayerHook) {
+         HyprlandAPI::removeFunctionHook(PHANDLE, g_pGlobalState->renderLayerHook);
+         g_pGlobalState->renderLayerHook = nullptr;
