@@ -1,6 +1,7 @@
 # Hand-written for the planned layout: one ext4 root and a vfat ESP, both
 # addressed by label so the paths survive disk naming differences.
 {
+  config,
   lib,
   modulesPath,
   ...
@@ -12,15 +13,15 @@
   ];
 
   boot.initrd.availableKernelModules = [
-    "ahci"
-    "xhci_pci"
     "nvme"
+    "xhci_pci"
+    "ahci"
     "usb_storage"
-    "sd_mod"
     "usbhid"
+    "sd_mod"
   ];
   boot.initrd.kernelModules = [ ];
-  boot.kernelModules = [ ];
+  boot.kernelModules = [ "kvm-amd" ];
   boot.extraModulePackages = [ ];
 
   fileSystems."/" = {
@@ -42,4 +43,5 @@
   networking.useDHCP = lib.mkDefault true;
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }
