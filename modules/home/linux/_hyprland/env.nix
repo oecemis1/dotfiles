@@ -1,5 +1,6 @@
 {
   config,
+  osConfig,
   pkgs,
   lib,
   ...
@@ -51,7 +52,8 @@ in
     # Platform Backend Settings
     (env "GDK_BACKEND" "wayland,x11")
     (env "PREFER_DARK_THEME" "1")
-
+  ]
+  ++ (
     # Pin the compositor (and thus its clients' dmabuf device) to the iGPU.
     # Without this, aquamarine opens the NVIDIA card/render nodes too, which
     # holds the dGPU awake forever (runtime PM never re-enters D3cold, ~5W).
@@ -61,6 +63,9 @@ in
     # PRIME offload (nvidia-offload <cmd>) still works. Caveat: external
     # outputs wired to the dGPU (its DP/HDMI connectors) won't light up
     # while this is set - remove it if an external display stays black.
-    (env "AQ_DRM_DEVICES" "/dev/dri/igpu-card")
-  ];
+    # odyssey only: hosts without that symlink (single-GPU machines) abort
+    # at startup with "Found no gpus".
+    lib.optional (osConfig.networking.hostName or null == "odyssey")
+      (env "AQ_DRM_DEVICES" "/dev/dri/igpu-card")
+  );
 }
