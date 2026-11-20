@@ -8,6 +8,12 @@ let
   colors = config.colorScheme.colors;
   swaync = pkgs.callPackage ../../../../pkgs/swaync.nix { };
 
+  # Font sizes relative to the system font (dconf font-name x
+  # text-scaling-factor), so notifications grow and shrink with it like
+  # waybar and GTK apps; px would ignore the scaling. Arguments are px at
+  # the 17.6px (11pt x 1.2) system font the design was tuned against.
+  fontSize = px: "${toString (px / 17.6)}rem";
+
   glassStylesheet = pkgs.writeText "swaync-glass.css" ''
     @import url("file://${config.xdg.configHome}/swaync/style.css");
 
@@ -69,7 +75,7 @@ let
 
     * {
       all: unset;
-      font-size: 14px;
+      font-size: ${fontSize 14};
       font-family: "SF Pro Display";
       transition: background-color 120ms ease-out;
     }
@@ -134,7 +140,7 @@ let
     }
 
     .notification-background .notification .notification-action * {
-      font-size: 13px;
+      font-size: ${fontSize 13};
     }
 
     .notification-background .notification .notification-action:hover {
@@ -157,7 +163,7 @@ let
 
     .notification-background .notification .notification-content .summary {
       color: ${colors.accent2};
-      font-size: 16px;
+      font-size: ${fontSize 16};
       font-weight: 600;
     }
 
@@ -167,7 +173,7 @@ let
 
     .notification-background .notification .notification-content .body {
       color: ${colors.text};
-      font-size: 16px;
+      font-size: ${fontSize 16};
     }
 
     /* Icon sits left of the text; the app badge overlaps its corner */

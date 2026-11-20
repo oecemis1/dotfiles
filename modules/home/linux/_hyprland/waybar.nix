@@ -174,7 +174,9 @@ in
       * {
         padding: 0;
         font-family: "SF Pro Text", "MonaspiceNe Nerd Font Mono";
-        font-size: 18px;
+        /* No font-size: inherit the system font's (dconf font-name size x
+           text-scaling-factor), so the bar matches GTK apps on every host.
+           A px size would ignore the scaling factor. */
         /* Tabular numerals: ticking clock/percentages keep a fixed width */
         font-feature-settings: "tnum";
       }
