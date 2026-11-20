@@ -42,7 +42,7 @@
         xserver.enable = true;
         xserver.excludePackages = [ pkgs.xterm ];
         gnome.gnome-keyring.enable = true;
-        openssh.enable = true;
+        openssh.enable = lib.mkDefault true;
         dbus.packages = [ pkgs.gnome-keyring ];
         udisks2.enable = true;
       };

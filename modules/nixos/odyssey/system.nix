@@ -10,6 +10,7 @@
       };
 
       services.mullvad-vpn.enable = true;
+      services.openssh.enable = false;
       programs.wireshark = {
         enable = true;
         package = pkgs.wireshark;
