@@ -60,7 +60,7 @@
         enableDefaultConfig = false;
         # settings uses upstream OpenSSH directive names verbatim
         settings."*" = {
-          IdentityFile = "~/.ssh/id_orhun";
+          IdentityFile = "~/.ssh/id_ed25519";
           AddKeysToAgent = "yes";
         };
         extraConfig = ''
