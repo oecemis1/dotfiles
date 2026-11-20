@@ -20,6 +20,7 @@
       mouse_refocus = true;
       float_switch_override_focus = 1;
       accel_profile = "flat";
+      scroll_method = "2fg";
 
       touchpad = {
         natural_scroll = true;
