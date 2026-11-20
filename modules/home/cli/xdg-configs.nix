@@ -1,8 +1,9 @@
-{ self, ... }:
+{ inputs, self, ... }:
 {
   flake.modules.homeManager.cli =
-    { pkgs, ... }:
+    { lib, pkgs, ... }:
     let
+      pdfOxide = inputs.nixpkgs-pdf-oxide.legacyPackages.${pkgs.stdenv.hostPlatform.system}.pdf-oxide;
       # live checkout — gdb state must stay writable
       dotfilesDir = "/home/orhun/Documents/dotfiles";
       immutable = name: {
@@ -30,6 +31,14 @@
 
       xdg.stateFile = {
         gdb = mutableState "gdb";
+        "claude/mcp.json".text = builtins.toJSON {
+          mcpServers.pdf-oxide = {
+            type = "stdio";
+            command = lib.getExe' pdfOxide "pdf-oxide-mcp";
+            args = [ ];
+            env = { };
+          };
+        };
       };
     };
 }
