@@ -6,7 +6,9 @@
       services.openssh = {
         enable = true;
         openFirewall = true;
+        authorizedKeysInHomedir = false;
         settings = {
+          AuthenticationMethods = "publickey";
           PasswordAuthentication = false;
           KbdInteractiveAuthentication = false;
           PermitRootLogin = "no";
