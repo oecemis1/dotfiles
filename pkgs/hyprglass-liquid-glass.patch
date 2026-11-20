@@ -2804,7 +2804,7 @@ index 0000000..d4ea916
 +}
 +
 +[[nodiscard]] std::optional<SOpticalConfigError> validateRimInput(const SRimMaterialInput& input) {
-+    if (auto error = validateRange(input.widthPx, 0.0, 4.0, "rim.width", "[0, 4]"))
++    if (auto error = validateRange(input.widthPx, 0.0, 16.0, "rim.width", "[0, 16]"))
 +        return error;
 +    if (auto error = validateRange(input.saturation, 0.0, 10.0, "rim.saturation", "[0, 10]"))
 +        return error;
@@ -9133,3 +9133,46 @@ index e621f46..db36d5f 100644
      if (g_pGlobalState->renderLayerHook) {
          HyprlandAPI::removeFunctionHook(PHANDLE, g_pGlobalState->renderLayerHook);
          g_pGlobalState->renderLayerHook = nullptr;
+--- /dev/null
++++ b/tests/optical-rim.cpp
+@@ -0,0 +1,40 @@
++#include "OpticalConfig.hpp"
++
++#include <cassert>
++#include <initializer_list>
++#include <limits>
++
++int main() {
++    for (const double width : {0.0, 2.0, 4.0, 10.0, 16.0}) {
++        SRimMaterialInput input;
++        input.widthPx = width;
++        const auto rim = SRimMaterial::from(input);
++        assert(rim && rim->widthPx() == width);
++    }
++    for (const double width : {-1.0, 16.01, std::numeric_limits<double>::infinity(),
++                               std::numeric_limits<double>::quiet_NaN()}) {
++        SRimMaterialInput input;
++        input.widthPx = width;
++        const auto rim = SRimMaterial::from(input);
++        assert(!rim && rim.error().fieldPath == "rim.width");
++    }
++
++    SOpticalConfigInput input;
++    input.centeredMappingStrength = 0.35;
++    input.noiseStrength = 0.0;
++    input.glow = {0.0, 0.0, 0.5, -0.5};
++    input.blurRadius = 2.5;
++    input.snell = {24.0, 96.0, 1.3, 0.01};
++    input.rim = {10.0, 1.0, 0.0, 0.72, 0.28, 2.0943951023931953};
++    const auto sheet = SOpticalConfig::from(input);
++    assert(sheet);
++    assert(sheet->snell().thicknessPx() == 96.0);
++    assert(sheet->rim().widthPx() == 10.0);
++
++    input.snell = {24.0, 36.0, 1.3, 0.02};
++    input.rim = {2.0, 1.0, 0.0, 0.28, 0.06, 2.0943951023931953};
++    const auto original = SOpticalConfig::from(input);
++    assert(original);
++    assert(original->snell().thicknessPx() == 36.0);
++    assert(original->rim().widthPx() == 2.0);
++}

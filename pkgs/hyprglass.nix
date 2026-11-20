@@ -1,11 +1,14 @@
 {
   lib,
+  hyprland,
   hyprlandPlugins,
   fetchFromGitHub,
 }:
+assert lib.assertMsg (lib.versions.majorMinor hyprland.version == "0.57")
+  "The custom Hyprglass port requires Hyprland 0.57; update its compatibility patch before changing Hyprland.";
 hyprlandPlugins.mkHyprlandPlugin {
   pluginName = "hyprglass";
-  version = "0.7.0-liquid-glass";
+  version = "0.7.0-liquid-glass-hyprland-0.57";
 
   src = fetchFromGitHub {
     owner = "hyprnux";
@@ -20,6 +23,7 @@ hyprlandPlugins.mkHyprlandPlugin {
     ./hyprglass-regions.patch
     ./hyprglass-liquid-glass.patch
     ./hyprglass-notifications.patch
+    ./hyprglass-hyprland-0.57.patch
   ];
 
   doCheck = true;
@@ -27,6 +31,8 @@ hyprlandPlugins.mkHyprlandPlugin {
     runHook preCheck
     $CXX -std=c++23 -UNDEBUG -Isrc tests/notification-geometry.cpp src/SemanticGeometry.cpp -o notification-geometry-test
     ./notification-geometry-test
+    $CXX -std=c++23 -O2 -UNDEBUG -Isrc tests/optical-rim.cpp src/OpticalConfig.cpp -o optical-rim-test
+    ./optical-rim-test
     runHook postCheck
   '';
 

@@ -255,7 +255,7 @@
      // Ensure the render pass fully re-renders the background behind this
      // element before we sample it. Without this, partial damage causes the
      // glass to sample a mix of fresh wallpaper and its own stale output.
-@@ -46,10 +46,10 @@
+@@ -46,10 +46,16 @@
      return m_data.layerState && m_data.layerState->getLayerSurface();
  }
  
@@ -268,9 +268,15 @@
 +bool CGlassLayerPassElement::disableSimplification(Render::CRenderContext&) {
      return m_data.layerState && m_data.layerState->getLayerSurface();
  }
++
++bool CGlassLayerPassElement::requiresFullDamage(Render::CRenderContext&) {
++    // Sampling and mask clearing cover the whole layer, while live blur only
++    // expands the changed region. All sampled pixels must be repainted first.
++    return m_data.layerState && m_data.layerState->getLayerSurface();
++}
 --- a/src/GlassLayerPassElement.hpp
 +++ b/src/GlassLayerPassElement.hpp
-@@ -17,11 +17,11 @@
+@@ -17,11 +17,12 @@
      explicit CGlassLayerPassElement(const SGlassLayerPassData& data);
      ~CGlassLayerPassElement() override = default;
  
@@ -284,6 +290,7 @@
 +    [[nodiscard]] bool                needsPrecomputeBlur(Render::CRenderContext& renderCtx) override;
 +    [[nodiscard]] std::optional<CBox> boundingBox(Render::CRenderContext& renderCtx) override;
 +    [[nodiscard]] bool                disableSimplification(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                requiresFullDamage(Render::CRenderContext& renderCtx) override;
  
      [[nodiscard]] const char* passName() override { return "CGlassLayerPassElement"; }
      [[nodiscard]] ePassElementType type() override { return EK_CUSTOM; }
@@ -475,7 +482,7 @@
      // Windows need live blur so the render pass fully re-renders the
      // background behind the glass before we sample it. Without this,
      // partial damage (e.g. typing in a window below) leaves stale pixels
-@@ -56,10 +56,10 @@
+@@ -56,10 +56,15 @@
      return m_data.decoration.valid() && m_data.decoration->getOwner();
  }
  
@@ -488,6 +495,11 @@
 +bool CGlassPassElement::disableSimplification(Render::CRenderContext&) {
      return m_data.decoration.valid() && m_data.decoration->getOwner();
  }
++
++bool CGlassPassElement::requiresFullDamage(Render::CRenderContext&) {
++    // The shader samples and draws the whole pane, not just the damage region.
++    return m_data.decoration.valid() && m_data.decoration->getOwner();
++}
 --- a/src/GlassPassElement.hpp
 +++ b/src/GlassPassElement.hpp
 @@ -1,6 +1,7 @@
@@ -498,7 +510,7 @@
  #include <hyprutils/math/Box.hpp>
  #include <hyprutils/math/Region.hpp>
  #include <hyprland/src/helpers/memory/Memory.hpp>
-@@ -12,16 +13,17 @@
+@@ -12,16 +13,18 @@
      struct SGlassPassData {
          WP<CGlassDecoration> decoration;
          float                alpha = 1.0f;
@@ -518,6 +530,7 @@
 +    [[nodiscard]] bool                needsPrecomputeBlur(Render::CRenderContext& renderCtx) override;
 +    [[nodiscard]] std::optional<CBox> boundingBox(Render::CRenderContext& renderCtx) override;
 +    [[nodiscard]] bool                disableSimplification(Render::CRenderContext& renderCtx) override;
++    [[nodiscard]] bool                requiresFullDamage(Render::CRenderContext& renderCtx) override;
  
      [[nodiscard]] const char* passName() override { return "CGlassPassElement"; }
      [[nodiscard]] ePassElementType type() override { return EK_CUSTOM; }
