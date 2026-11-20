@@ -128,7 +128,7 @@
           "accent-color" = "purple";
           "monospace-font-name" = "MonaspiceNe NFM Medium 11";
           "font-name" = "SF Pro Display Regular 11";
-          "text-scaling-factor" = 1.2;
+          "text-scaling-factor" = lib.mkDefault 1.2;
           enable-hot-corners = false;
         };
 
