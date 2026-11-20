@@ -1,7 +1,12 @@
 { ... }:
 {
   flake.modules.nixos.desktop =
-    { lib, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     {
       programs.hyprland = {
         enable = true;
@@ -65,6 +70,12 @@
 
         rtkit.enable = lib.mkDefault true;
       };
+
+      environment.extraInit = lib.mkIf config.services.gnome.gcr-ssh-agent.enable ''
+        if [ -z "$SSH_AUTH_SOCK" ] && [ -n "$XDG_RUNTIME_DIR" ]; then
+          export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/gcr/ssh"
+        fi
+      '';
 
       environment.systemPackages = with pkgs; [
         gnome-terminal
