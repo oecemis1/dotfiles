@@ -48,7 +48,10 @@
         adwaita-qt6
       ];
 
-      services.udiskie.enable = true;
+      services.udiskie = {
+        enable = true;
+        tray = "never";
+      };
       # https://github.com/nix-community/home-manager/issues/2064
       systemd.user.targets.tray.Unit.Requires = [ "graphical-session.target" ];
     };
