@@ -123,6 +123,42 @@ in
       end
       pcall(require, "monitors")
 
+      -- screen split: workspaces 1-2 live on the laptop panel, 3 on the
+      -- external output. a projector's name is never known in advance,
+      -- so ws 3 is claimed dynamically when the output appears and
+      -- handed back when it leaves.
+      do
+        local internal = "eDP-1"
+        hl.workspace_rule({ workspace = "1", monitor = internal, default = true })
+        hl.workspace_rule({ workspace = "2", monitor = internal })
+        hl.workspace_rule({ workspace = "3", monitor = internal })
+
+        local function claim_external(name)
+          hl.workspace_rule({ workspace = "3", monitor = name, default = true })
+          -- the rule pins future focus, the move relocates what exists now
+          pcall(hl.dispatch, hl.dsp.workspace.move({ workspace = 3, monitor = name }))
+        end
+
+        if hl.on then
+          hl.on("monitor.added", function(m)
+            if m.name ~= internal then
+              claim_external(m.name)
+            end
+          end)
+          hl.on("monitor.removed", function(m)
+            if m.name ~= internal then
+              hl.workspace_rule({ workspace = "3", monitor = internal })
+            end
+          end)
+          -- config reloads don't re-fire monitor.added
+          for _, m in ipairs(hl.get_monitors()) do
+            if m.name ~= internal then
+              claim_external(m.name)
+            end
+          end
+        end
+      end
+
       if hl.plugin.hyprglass then
         local hg = hl.plugin.hyprglass
         hg.config({
