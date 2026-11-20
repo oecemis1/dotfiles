@@ -1,0 +1,112 @@
+--- a/src/animatedList/animatedListItem.vala
++++ b/src/animatedList/animatedListItem.vala
+@@ -1,6 +1,7 @@
+ public class AnimatedListItem : Gtk.Widget {
+     // The vertical reveal animation
+     public enum RevealAnimationType {
++        // Keeps its full vertical size
+         NONE,
+         // Transitions its vertical size, clipping the item content
+         SLIDE,
+@@ -35,6 +36,12 @@
+     public bool animation_child_fade { get; construct set; }
+     public bool destroying { get; private set; default = false; }
+ 
++    private RevealAnimationType reveal_type {
++        get {
++            return destroying ? animation_remove_reveal_type : animation_add_reveal_type;
++        }
++    }
++
+     private Adw.TimedAnimation animation;
+     private double animation_value = 1.0;
+     private ulong animation_done_cb_id = 0;
+@@ -90,7 +97,7 @@
+ 
+         int child_width = width;
+         int child_height = height;
+-        if (animation_value < 1.0) {
++        if (animation_value < 1.0 && reveal_type != RevealAnimationType.NONE) {
+             int min, nat;
+             child.measure (Gtk.Orientation.VERTICAL, width,
+                            out min, out nat, null, null);
+@@ -105,9 +112,7 @@
+         }
+ 
+         Gsk.Transform transform = new Gsk.Transform ();
+-        RevealAnimationType animation_reveal_type =
+-            destroying ? animation_remove_reveal_type : animation_add_reveal_type;
+-        switch (animation_reveal_type) {
++        switch (reveal_type) {
+             case RevealAnimationType.SLIDE_WITH:
+                 transform = transform.translate_3d (
+                     Graphene.Point3D ().init (0, height - child_height, 0)
+@@ -161,8 +166,10 @@
+             case Gtk.Orientation.HORIZONTAL:
+                 break;
+             case Gtk.Orientation.VERTICAL:;
+-                minimum = (int) Math.ceil (minimum * animation_value);
+-                natural = (int) Math.ceil (natural * animation_value);
++                if (reveal_type != RevealAnimationType.NONE) {
++                    minimum = (int) Math.ceil (minimum * animation_value);
++                    natural = (int) Math.ceil (natural * animation_value);
++                }
+                 break;
+         }
+     }
+--- a/src/notificationWindow/notificationWindow.vala
++++ b/src/notificationWindow/notificationWindow.vala
+@@ -162,23 +162,11 @@
+                 set_monitor (Functions.try_get_monitor (monitor_name));
+             }
+ 
+-            list.animation_add_reveal_type = AnimatedListItem.RevealAnimationType.SLIDE;
+-            list.animation_remove_reveal_type = AnimatedListItem.RevealAnimationType.SLIDE;
++            // Toasts only fade; they never slide or change height.
++            list.animation_add_reveal_type = AnimatedListItem.RevealAnimationType.NONE;
++            list.animation_remove_reveal_type = AnimatedListItem.RevealAnimationType.NONE;
++            list.animation_add_child_type = AnimatedListItem.ChildAnimationType.NONE;
+             list.animation_remove_child_type = AnimatedListItem.ChildAnimationType.NONE;
+-            switch (ConfigModel.instance.positionX) {
+-                case PositionX.LEFT:
+-                    list.animation_add_child_type =
+-                        AnimatedListItem.ChildAnimationType.SLIDE_FROM_LEFT;
+-                    break;
+-                case PositionX.CENTER:
+-                    list.animation_add_child_type = AnimatedListItem.ChildAnimationType.NONE;
+-                    break;
+-                default:
+-                case PositionX.RIGHT:
+-                    list.animation_add_child_type =
+-                        AnimatedListItem.ChildAnimationType.SLIDE_FROM_RIGHT;
+-                    break;
+-            }
+             switch (ConfigModel.instance.positionY) {
+                 default:
+                 case SwayNotificationCenter.PositionY.TOP:
+@@ -280,11 +268,25 @@
+             set_visible (false);
+         }
+ 
++        private bool is_last_notification (Notification notification) {
++            foreach (unowned AnimatedListItem item in list.children) {
++                if (!item.destroying && item.child != notification) {
++                    return false;
++                }
++            }
++            return true;
++        }
++
+         private void remove_notification_internal (Notification notification, bool transition) {
+             return_if_fail (notification != null);
+ 
+             NotifyParams param = notification.param;
+             notification_ids.unset (param.applied_id);
++            // Hide before the last toast goes, so the compositor fades the
++            // complete toast together with its glass.
++            if (is_last_notification (notification)) {
++                set_visible (false);
++            }
+             // Disable transitions when not mapped
+             transition &= get_mapped ();
+ 

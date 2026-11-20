@@ -191,6 +191,23 @@ in
             angle = 2.0943951023931953,
           },
         })
+        hg.preset("control_center_thick_backdrop", {
+          inherits = "control_center_backdrop",
+          snell = {
+            bezel_width = 8.0,
+            glass_thickness = 32.0,
+            refractive_index = 1.3,
+            strength = 0.01,
+          },
+          rim = {
+            width = 3.3333333333333335,
+            saturation = 1.0,
+            fresnel_strength = 0.0,
+            specular_strength = 0.72,
+            inner_shadow_strength = 0.28,
+            angle = 2.0943951023931953,
+          },
+        })
         hg.preset("control_center_controls", {
           inherits = "control_center_material",
           blur_strength = 3.0,
@@ -212,7 +229,7 @@ in
           },
         })
         hg.layer("control_center_backdrop", {
-          preset = "control_center_backdrop",
+          preset = "control_center_thick_backdrop",
           mask_threshold = 0.004,
           live_blur = true,
         })
@@ -223,7 +240,8 @@ in
         })
         hg.layer("waybar", { preset = "control_center_backdrop"})
         hg.preset("notification_toast", {
-          inherits = "control_center_backdrop",
+          inherits = "control_center_thick_backdrop",
+          blur_strength = 1.0,
           snell = {
             bezel_width = 18.0,
             glass_thickness = 32.0,
@@ -768,6 +786,7 @@ in
               "control_center"
               "swaync-control-center-backdrop"
               "swaync-control-center"
+              "swaync-notification-window"
             ];
 
       bind = [

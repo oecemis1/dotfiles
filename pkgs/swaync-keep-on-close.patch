@@ -1,0 +1,182 @@
+--- a/src/configModel/configModel.vala
++++ b/src/configModel/configModel.vala
+@@ -749,6 +749,13 @@
+             default = new OrderedHashTable<ActionMatching> ();
+         }
+ 
++        /** Notifications that stay in the control center when their sender closes them */
++        public OrderedHashTable<NotificationMatching> notification_keep_on_close {
++            get;
++            set;
++            default = new OrderedHashTable<NotificationMatching> ();
++        }
++
+         /** Notification Status */
+         public OrderedHashTable<NotificationVisibility> notification_visibility {
+             get;
+@@ -922,6 +929,15 @@
+                             out status);
+                     value = result;
+                     return status;
++                case "notification-keep-on-close" :
++                    bool status;
++                    OrderedHashTable<NotificationMatching> result =
++                        extract_hashtable<NotificationMatching> (
++                            property_name,
++                            property_node,
++                            out status);
++                    value = result;
++                    return status;
+                 case "notification-visibility" :
+                     bool status;
+                     OrderedHashTable<NotificationVisibility> result =
+@@ -1011,6 +1027,11 @@
+                     var table = (OrderedHashTable<ActionMatching>) value;
+                     node.set_object (serialize_hashtable<ActionMatching> (table));
+                     break;
++                case "notification-keep-on-close":
++                    node = new Json.Node (Json.NodeType.OBJECT);
++                    var table = (OrderedHashTable<NotificationMatching>) value;
++                    node.set_object (serialize_hashtable<NotificationMatching> (table));
++                    break;
+                 case "notification-visibility":
+                     node = new Json.Node (Json.NodeType.OBJECT);
+                     var table = (OrderedHashTable<NotificationVisibility>) value;
+--- a/src/configSchema.json
++++ b/src/configSchema.json
+@@ -316,6 +316,47 @@
+         }
+       }
+     },
++    "notification-keep-on-close": {
++      "type": "object",
++      "description": "Keeps matching notifications in the control center when their sender closes them. If the notification doesn't include one of the properties, that property will be ignored. All properties use regex.",
++      "minProperties": 1,
++      "additionalProperties": false,
++      "patternProperties": {
++        "^.{1,}$": {
++          "type": "object",
++          "description": "Your matching object.",
++          "minProperties": 1,
++          "additionalProperties": false,
++          "properties": {
++            "app-name": {
++              "type": "string",
++              "description": "The app-name. Uses Regex."
++            },
++            "desktop-entry": {
++              "type": "string",
++              "description": "The desktop-entry. Uses Regex."
++            },
++            "summary": {
++              "type": "string",
++              "description": "The summary of the notification. Uses Regex."
++            },
++            "body": {
++              "type": "string",
++              "description": "The body of the notification. Uses Regex."
++            },
++            "urgency": {
++              "type": "string",
++              "description": "The urgency of the notification.",
++              "enum": ["Low", "Normal", "Critical"]
++            },
++            "category": {
++              "type": "string",
++              "description": "Which category the notification belongs to. Uses Regex."
++            }
++          }
++        }
++      }
++    },
+     "notification-visibility": {
+       "type": "object",
+       "description": "Set the visibility of each incoming notification. If the notification doesn't include one of the properties, that property will be ignored. All properties (except for state) use regex. If all properties match the given notification, the notification will be follow the provided state. Only the first matching object will be used.",
+--- a/src/notiDaemon/notiDaemon.vala
++++ b/src/notiDaemon/notiDaemon.vala
+@@ -8,6 +8,7 @@
+         private HashTable<string, uint32> synchronous_ids =
+             new HashTable<string, uint32> (str_hash, str_equal);
+         private Gee.HashSet<uint32> notification_ids = new Gee.HashSet<uint32> ();
++        private Gee.HashSet<uint32> keep_on_close_ids = new Gee.HashSet<uint32> ();
+ 
+         /** Do Not Disturb state */
+         internal bool dnd { get; set; default = false; }
+@@ -42,6 +43,7 @@
+                    id, reason.to_string ());
+             NotificationClosed (id, reason);
+             notification_ids.remove (id);
++            keep_on_close_ids.remove (id);
+ 
+             notifications_widget.remove_notification (id);
+             floating_notifications.remove_notification (id);
+@@ -62,6 +64,7 @@
+             foreach (unowned uint32 id in ids) {
+                 NotificationClosed (id, reason);
+                 notification_ids.remove (id);
++                keep_on_close_ids.remove (id);
+                 floating_notifications.remove_notification (id);
+             }
+             notifications_widget.remove_group (group_name_id);
+@@ -75,6 +78,7 @@
+                 NotificationClosed (id, reason);
+             }
+             notification_ids.clear ();
++            keep_on_close_ids.clear ();
+ 
+             remove_all_floating_notifications (false, null);
+             notifications_widget.remove_all_notifications (true);
+@@ -281,9 +285,13 @@
+             if (added || removed) {
+                 if (notification_id_to_replace > 0) {
+                     notification_ids.remove (notification_id_to_replace);
++                    keep_on_close_ids.remove (notification_id_to_replace);
+                 }
+                 if (added) {
+                     notification_ids.add (id);
++                    if (param.keep_on_close && !param.ignore_cc ()) {
++                        keep_on_close_ids.add (id);
++                    }
+                 }
+ 
+                 swaync_daemon.emit_subscribe ();
+@@ -384,6 +392,12 @@
+          */
+         [DBus (name = "CloseNotification")]
+         public void close_notification (uint32 id) throws DBusError, IOError {
++            if (keep_on_close_ids.contains (id)) {
++                debug ("Keeping notification with ID:%u in the control center", id);
++                NotificationClosed (id, ClosedReasons.CLOSED_BY_CLOSENOTIFICATION);
++                floating_notifications.remove_notification (id);
++                return;
++            }
+             request_dismiss_notification_id (id, ClosedReasons.CLOSED_BY_CLOSENOTIFICATION, false);
+         }
+ 
+--- a/src/notiModel/notiModel.vala
++++ b/src/notiModel/notiModel.vala
+@@ -167,6 +167,8 @@
+         public string display_name { get; private set; }
+ 
+         public NotificationStatusEnum status_state { get; private set; }
++        /** Stays in the control center when the sender closes it */
++        public bool keep_on_close { get; private set; default = false; }
+ 
+         public NotifyParams (uint32 applied_id,
+                              string app_name,
+@@ -241,6 +243,15 @@
+                 }
+                 break;
+             }
++
++            unowned OrderedHashTable<NotificationMatching> keepers =
++                ConfigModel.instance.notification_keep_on_close;
++            foreach (string key in keepers.get_keys ()) {
++                if (keepers[key].matches_notification (this)) {
++                    keep_on_close = true;
++                    break;
++                }
++            }
+         }
+ 
+         private void parse_hints () {

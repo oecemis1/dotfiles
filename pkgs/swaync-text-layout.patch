@@ -1,0 +1,36 @@
+--- a/src/notification/notification.vala
++++ b/src/notification/notification.vala
+@@ -160,7 +160,7 @@
+                     timeout_delay: timeout,
+                     timeout_low_delay: timeout_low,
+                     timeout_critical_delay: timeout_critical,
+-                    number_of_body_lines: 5
++                    number_of_body_lines: 3
+             );
+             this.param = param;
+             build_noti ();
+@@ -295,14 +295,21 @@
+                 this.dismissed_by_swipe = false;
+             }
+ 
++            // Toasts stay compact and cut the middle of long text; the control
++            // center shows every notification in full.
++            bool floating = notification_type == NotificationType.FLOATING;
++            Pango.EllipsizeMode ellipsize = floating
++                ? Pango.EllipsizeMode.MIDDLE : Pango.EllipsizeMode.NONE;
++
+             this.body.set_wrap (true);
+             this.body.set_wrap_mode (Pango.WrapMode.WORD_CHAR);
+             this.body.set_natural_wrap_mode (Gtk.NaturalWrapMode.WORD);
+-            this.body.set_ellipsize (Pango.EllipsizeMode.END);
++            this.body.set_ellipsize (ellipsize);
+ 
+-            this.summary.set_wrap (false);
++            this.summary.set_wrap (!floating);
++            this.summary.set_wrap_mode (Pango.WrapMode.WORD_CHAR);
+             this.summary.set_text (param.summary ?? param.app_name);
+-            this.summary.set_ellipsize (Pango.EllipsizeMode.END);
++            this.summary.set_ellipsize (ellipsize);
+ 
+             close_button.set_transition_duration (this.transition_time);
+ 

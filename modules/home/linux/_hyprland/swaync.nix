@@ -29,8 +29,19 @@ let
 
     .floating-notifications.background .notification-row .notification-background {
       background-color: rgba(0, 0, 0, 0.3137254901960784);
+      background-image: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.05),
+        rgba(255, 255, 255, 0) 42%,
+        rgba(0, 0, 0, 0.12)
+      );
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 1px 3px rgba(0, 0, 0, 0.3),
+        0 4px 10px rgba(0, 0, 0, 0.3);
       border-color: transparent;
       border-radius: 24px;
+      margin: 6px 16px 14px 20px;
     }
 
     .floating-notifications .notification-background .notification {
@@ -109,12 +120,21 @@ let
       color: ${colors.crust};
     }
 
-    /* Action buttons: quiet chips, feedback on hover/press (like the bar) */
+    /* Action buttons: slim quiet chips, feedback on hover/press (like the bar) */
+    .notification-background .notification .notification-alt-actions {
+      margin: 0 4px 4px 4px;
+    }
+
     .notification-background .notification .notification-action {
       background-color: alpha(${colors.text}, 0.06);
-      border-radius: 4px;
+      border-radius: 10px;
       color: ${colors.text};
-      padding: 6px 10px;
+      margin: 0 3px;
+      padding: 3px 10px;
+    }
+
+    .notification-background .notification .notification-action * {
+      font-size: 13px;
     }
 
     .notification-background .notification .notification-action:hover {
@@ -137,6 +157,7 @@ let
 
     .notification-background .notification .notification-content .summary {
       color: ${colors.accent2};
+      font-size: 16px;
       font-weight: 600;
     }
 
@@ -146,10 +167,20 @@ let
 
     .notification-background .notification .notification-content .body {
       color: ${colors.text};
+      font-size: 16px;
     }
 
-    .notification-background .notification > *:last-child > * {
-      min-height: 3.4em;
+    /* Icon sits left of the text; the app badge overlaps its corner */
+    .notification-background .notification .notification-content .image {
+      -gtk-icon-size: 40px;
+      border-radius: 10px;
+      margin-right: 12px;
+    }
+
+    .notification-background .notification .notification-content .app-icon {
+      -gtk-icon-size: 16px;
+      -gtk-icon-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+      margin-right: 8px;
     }
 
     /* Cards inside the control center: a raised surface. Must be OPAQUE:
@@ -223,10 +254,10 @@ in
 
     settings = {
       "$schema" = "/etc/xdg/swaync/configSchema.json";
-      positionX = "center";
+      positionX = "right";
       positionY = "top";
-      # anchor the control center under the bell in the right module group
-      # (toasts keep popping top-center via positionX above)
+      # anchor the control center under the bell in the right module group;
+      # toasts pop in the same column, where their card lands
       control-center-positionX = "right";
       layer = "overlay";
       control-center-layer = "overlay";
@@ -244,9 +275,19 @@ in
       relative-timestamps = true;
       control-center-width = 462;
       control-center-height = -1;
-      notification-window-width = 350;
+      notification-window-width = 420;
       keyboard-shortcuts = true;
-      image-visibility = "never";
+      image-visibility = "when-available";
+      notification-action-filter = {
+        browser-settings = {
+          text-matcher = "Settings";
+        };
+      };
+      notification-keep-on-close = {
+        chrome = {
+          app-name = "^Google Chrome$";
+        };
+      };
       # Widget transitions; the compositor handles the panel's fade.
       transition-time = 250;
       hide-on-clear = true;
