@@ -23,6 +23,6 @@ in
   flake.nixosConfigurations = {
     odyssey = mkHost "odyssey";
     obsidian = mkHost "obsidian";
-    oe-desktop00 = mkHost "oe-desktop00";
+    safari-desktop36 = mkHost "safari-desktop36";
   };
 }

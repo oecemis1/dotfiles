@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.modules.nixos.oe-desktop00 =
+  flake.modules.nixos.safari-desktop36 =
     { lib, pkgs, ... }:
     {
       imports = [ ./_hardware-configuration.nix ];
