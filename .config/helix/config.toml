@@ -69,6 +69,7 @@ s = [
 "d" = [":pipe-to tmux_harpoon_update.sh","goto_definition"]
 "y" = [":pipe-to tmux_harpoon_update.sh","goto_type_definition"]
 "r" = [":pipe-to tmux_harpoon_update.sh","goto_reference"]
+"i" = [":pipe-to tmux_harpoon_update.sh","goto_definition"]
 
 [keys.normal.m]
 s.a = "surround_add"
