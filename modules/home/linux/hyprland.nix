@@ -13,6 +13,7 @@
         ./_hyprland/swaync.nix
         ./_hyprland/hyprlock.nix
         ./_hyprland/hypridle.nix
+        ./_hyprland/hyprpaper.nix
         ./_hyprland/quickshell.nix
       ];
 
@@ -41,7 +42,6 @@
         dotool
         jq
 
-        awww
         tofi
 
         adwaita-qt
