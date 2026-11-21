@@ -39,9 +39,9 @@ keymap = [
 	{ on = [ "<Space>", "F" ], run = "create",     desc = "Create a file or directory (ends with / for directories)" },
 	{ on = [ "<Space>", "D" ], run = "create",     desc = "Create a file or directory (ends with / for directories)" },
 	{ on = [ "<Space>", "y", "p" ], run = "copy path",  desc = "Copy the absolute path" },
-	{ on = [ "<Space>", "y", "r" ], run = [''' shell --block --confirm 'gtransfer "$@"' ''',"escape"],   desc = "Transfer Menu (Remote/Upload)" },
+	{ on = [ "<Space>", "y", "r" ], run = [ '''shell --block -- gtransfer %s; echo "Press enter to exit"; read''', "escape" ], desc = "Transfer Menu (Remote/Upload)" },
 	# { on = [ "<Space>", "x" ], run = "extract",    desc = "Extract archive" },
-	{ on = [ "<Space>", "c" ], run = [''' shell --block --confirm 'yazi_zip "$@"' ''',"escape"], desc = "Zip selected" },
+	{ on = [ "<Space>", "c" ], run = [ "shell --block -- yazi_zip %s", "escape" ], desc = "Zip selected" },
 	# ripdrag fails when nvidia gpu is enabled. Use dragon as alternative
 	# { on = [ "<Space>", "d" ], run = ['''shell 'ripdrag "$@" -x 2>/dev/null &' --confirm''',"escape"],desc = "Show files in drag and drop menu" },
 	{ on = [ "<Space>", "d" ], run = [ "shell -- dragon-drop --all --and-exit --on-top %s", "escape" ], desc = "Show files in drag and drop menu" },
@@ -56,7 +56,7 @@ keymap = [
 	{ on = [ "g", "p" ],       run = "tab_switch -1 --relative", desc = "Go to the previous tab" },
 	{ on = [ "g", "t" ],       run = "cd /tmp",          desc = "Go to the temporary directory" },
 	{ on = [ "g", "<Space>" ], run = "cd --interactive", desc = "Go to a directory interactively" },
-	{ on = [ "g", "l" ], run = '''shell --orphan -- ya emit reveal "$(readlink -f "$0")" ''', desc = "Follow hovered symlink" },
+	{ on = [ "g", "l" ], run = '''shell --orphan -- ya emit reveal "$(readlink -f %h)" ''', desc = "Follow hovered symlink" },
 	# Find
 	# implemented via plugin
 	# { on = [ "f" ], run = "find",            desc = "Find next file" },
