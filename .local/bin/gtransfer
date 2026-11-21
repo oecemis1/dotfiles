@@ -17,6 +17,8 @@ else
   LABEL="${#FILES[@]} files"
 fi
 
+PULL_SOCKET="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gtransfer-pull.sock"
+
 transfer_file() {
   if [[ ${TERM:-} == *"kitty"* ]]; then
     if command -v kitten > /dev/null 2>&1; then
@@ -52,6 +54,16 @@ transfer_file() {
   return 1
 }
 
+send_home() {
+  if [ -S "$PULL_SOCKET" ]; then
+    if printf '%s\0' "$@" | nc -N -U "$PULL_SOCKET"; then
+      return 0
+    fi
+    echo "Nothing answers on $PULL_SOCKET (stale ssh forward), falling back to the terminal."
+  fi
+  transfer_file "$@"
+}
+
 IS_REMOTE=0
 if [ -n "${SSH_CLIENT:-}" ] || [ -n "${SSH_TTY:-}" ] || [ -n "${SSH_CONNECTION:-}" ]; then
   IS_REMOTE=1
@@ -71,7 +83,7 @@ TARGET=$(echo -e "$MENU_ITEMS" | fzf --layout=reverse --prompt="Transfer $LABEL 
 if [ -z "$TARGET" ]; then exit 0; fi
 
 if [ "$TARGET" == "back-home" ]; then
-  transfer_file "${FILES[@]}"
+  send_home "${FILES[@]}"
   exit 0
 fi
 
