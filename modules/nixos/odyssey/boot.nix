@@ -2,6 +2,9 @@
 {
   flake.modules.nixos.odyssey =
     { pkgs, ... }:
+    let
+      trackpad = "i2c-ASUF1209:00";
+    in
     {
       systemd.services.pre-hibernate-disable-input-wake = {
         description = "Disarm trackpad wake source before hibernate to prevent abort-on-contact";
@@ -9,17 +12,21 @@
         wantedBy = [ "systemd-hibernate.service" ];
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = "${pkgs.bash}/bin/bash -c 'echo disabled > /sys/bus/i2c/devices/i2c-ASUF1209:00/power/wakeup'";
+          ExecStart = "${pkgs.bash}/bin/bash -c 'echo disabled > /sys/bus/i2c/devices/${trackpad}/power/wakeup'";
         };
       };
 
       systemd.services.post-hibernate-restore-input = {
-        description = "Re-arm trackpad wake source after hibernate";
+        description = "Re-probe trackpad and re-arm its wake source after hibernate";
         after = [ "systemd-hibernate.service" ];
         wantedBy = [ "systemd-hibernate.service" ];
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = "${pkgs.bash}/bin/bash -c 'echo enabled > /sys/bus/i2c/devices/i2c-ASUF1209:00/power/wakeup'";
+          ExecStart = [
+            "${pkgs.bash}/bin/bash -c 'echo ${trackpad} > /sys/bus/i2c/drivers/i2c_hid_acpi/unbind || true'"
+            "${pkgs.bash}/bin/bash -c 'echo ${trackpad} > /sys/bus/i2c/drivers/i2c_hid_acpi/bind'"
+            "${pkgs.bash}/bin/bash -c 'echo enabled > /sys/bus/i2c/devices/${trackpad}/power/wakeup'"
+          ];
         };
       };
 
